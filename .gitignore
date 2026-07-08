@@ -2,6 +2,9 @@ claude.md
 plan.md
 stack.md
 
+# Node.js artifacts (leftover from an early experiment, unused by this project)
+node_modules/
+
 # .NET build outputs
 **/bin/
 **/obj/

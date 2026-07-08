@@ -148,7 +148,12 @@ Editar `src/Kairos.API/appsettings.json` y `appsettings.Development.json` con lo
 }
 ```
 
-> Para desarrollo local, `UseDevelopmentStorage=true` usa Azurite como emulador de Azure Blob. Si no necesitás probar subida de archivos, podés dejar los valores tal cual y simplemente no usar el endpoint de storage.
+> En modo `Development`, `DependencyInjection.cs` registra `LocalStorageService`
+> (guarda archivos en `wwwroot/uploads`) en vez de Azure Blob, sin importar lo
+> que digan estos valores — así que para desarrollo local **no necesitás
+> Azurite ni una cuenta de Azure real**, podés dejar los valores tal cual. Estos
+> valores solo importan cuando `ASPNETCORE_ENVIRONMENT` no es `Development`
+> (por ejemplo en producción, donde sí se usa Azure Blob real).
 
 ---
 
@@ -177,12 +182,13 @@ dotnet ef database update --startup-project src/Kairos.API
 dotnet run --project src/Kairos.API
 ```
 
-La terminal mostrará la URL donde está escuchando (por ejemplo `http://localhost:5000`).
+La terminal mostrará la URL donde está escuchando. En modo `Development` es
+`http://localhost:5001` (fijado en `appsettings.Development.json`, sección `Urls`).
 
 Abrí **Swagger UI** en el navegador:
 
 ```
-http://localhost:5000/swagger
+http://localhost:5001/swagger
 ```
 
 Desde ahí podés probar todos los endpoints directamente. Para los endpoints protegidos, primero hacé login con `/api/auth/login`, copiá el token JWT de la respuesta y pegalo en el botón **Authorize** (ícono del candado) en Swagger.
@@ -197,3 +203,4 @@ Desde ahí podés probar todos los endpoints directamente. Para los endpoints pr
 | `Unable to retrieve project metadata` | Comando ejecutado desde la carpeta incorrecta | Asegurarse de estar en la carpeta `backend/` |
 | `dotnet-ef not found` | La herramienta no está en PATH | Agregar `export PATH=$PATH:$HOME/.dotnet/tools` al `.bashrc` |
 | `Some services are not able to be constructed` | Servicio no registrado en DI | Verificar `DependencyInjection.cs` en `Kairos.Infrastructure` |
+| Error CORS al llamar `/api/auth/register` u otro endpoint desde Flutter web | El frontend no está apuntando al backend local, o corre en un puerto no incluido en la whitelist de `Program.cs` (`UseCors`) | Correr el frontend con `flutter run -d web-server --web-port=3000 --dart-define=API_URL=http://localhost:5001/api` — sin el `--dart-define`, `ApiClient` apunta por defecto al backend de producción en Railway |

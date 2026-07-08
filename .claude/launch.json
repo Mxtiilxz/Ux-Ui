@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "kairos-frontend",
+      "cwd": "frontend",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": [
+        "run",
+        "-d",
+        "web-server",
+        "--web-port=3000",
+        "--dart-define=API_URL=http://localhost:5001/api"
+      ],
+      "port": 3000
+    }
+  ]
+}

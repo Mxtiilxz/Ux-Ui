@@ -35,22 +35,22 @@ Red social para estudiantes técnico-profesionales de liceos técnicos. Conecta 
 │       ├── Kairos.Application/     # Casos de uso (CQRS, FluentValidation)
 │       ├── Kairos.Infrastructure/  # EF Core, Storage, JWT, PDF, Seeder
 │       └── Kairos.API/             # Controllers, SignalR Hub, Middleware
-├── frontend/
-│   └── lib/
-│       ├── core/
-│       │   ├── api/                # ApiClient (Dio + JWT interceptor)
-│       │   ├── models/             # UserProfile, etc.
-│       │   ├── services/           # SocialHubService (SignalR)
-│       │   ├── theme/              # AppColors, KairosPalette
-│       │   └── widgets/            # KCard y widgets compartidos
-│       └── features/
-│           ├── auth/               # Login y registro
-│           ├── home/               # Feed principal
-│           ├── profile/            # Perfil de usuario con edición y CV PDF
-│           ├── jobs/               # Ofertas laborales (empresa y estudiante)
-│           ├── network/            # Red de contactos
-│           └── chat/               # Mensajería
-└── codigo_fuente/                  # Copia limpia del código fuente (sin dependencias)
+└── frontend/
+    └── lib/
+        ├── core/
+        │   ├── api/                # ApiClient (Dio + JWT interceptor)
+        │   ├── models/             # UserProfile, etc.
+        │   ├── services/           # SocialHubService (SignalR)
+        │   ├── theme/              # AppColors, KairosPalette
+        │   └── widgets/            # KCard, PostCard y widgets compartidos
+        └── features/
+            ├── auth/               # Login y registro
+            ├── home/               # Feed principal
+            ├── profile/            # Perfil de usuario con edición y CV PDF
+            ├── jobs/               # Ofertas laborales (empresa y estudiante)
+            ├── network/            # Red de contactos
+            ├── chat/               # Mensajería
+            └── staff/              # Panel de administración (aprobación, usuarios)
 ```
 
 ---
@@ -87,20 +87,27 @@ cd backend
 # Restaurar dependencias
 dotnet restore
 
-# Aplicar migraciones (crea las tablas)
+# Aplicar migraciones (crea las tablas). También se aplican automáticamente
+# al arrancar la API (ver Program.cs), este paso es solo para adelantarlas.
 dotnet ef database update --startup-project src/Kairos.API --project src/Kairos.Infrastructure
 
 # Ejecutar en modo desarrollo (datos de prueba se insertan automáticamente)
 dotnet run --project src/Kairos.API
 ```
 
-El backend quedará disponible en `http://localhost:5000`.
-Swagger UI: `http://localhost:5000/swagger`
+El backend quedará disponible en `http://localhost:5001` (puerto fijado en
+`appsettings.Development.json`, no 5000).
+Swagger UI: `http://localhost:5001/swagger`
 
 > En modo desarrollo, el seeder crea automáticamente usuarios de prueba:
 > - Estudiante: `estudiante@kairos.cl` / `kairos2026`
 > - Staff: `staff1@kairos.cl` / `kairos2026`
 > - Empresa: `empresa@kairos.cl` / `kairos2026`
+
+> En modo `Development` la subida de archivos usa el filesystem local
+> automáticamente (`LocalStorageService`) — **no necesitas Azure Blob ni
+> Azurite para desarrollar localmente**, esos valores solo importan en
+> producción.
 
 ### 3. Frontend
 
@@ -110,8 +117,9 @@ cd frontend
 # Obtener dependencias
 flutter pub get
 
-# Ejecutar en web (apunta al backend local)
-flutter run -d web-server --web-port=3000
+# Ejecutar en web apuntando al backend LOCAL (el --dart-define es obligatorio;
+# sin él, la app apunta por defecto al backend de producción en Railway)
+flutter run -d web-server --web-port=3000 --dart-define=API_URL=http://localhost:5001/api
 ```
 
 Abrir `http://localhost:3000` en el navegador.
