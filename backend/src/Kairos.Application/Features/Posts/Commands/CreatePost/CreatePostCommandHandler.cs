@@ -26,6 +26,8 @@ public class CreatePostCommandHandler(IApplicationDbContext db)
         }
 
         // Job posts: only company
+        // Note: not currently exposed from the frontend — job offers are created
+        // via the separate JobPosting system (JobsController, /api/jobs) instead.
         if (postType == PostType.Job && request.AuthorRole != "company")
         {
             throw new ForbiddenException(

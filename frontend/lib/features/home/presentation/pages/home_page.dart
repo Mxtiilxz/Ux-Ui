@@ -125,6 +125,65 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _promptEventDate() async {
+    final text = _postController.text.trim();
+    if (text.isEmpty && _uploadedImageUrl == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Escribe una descripción o agrega una imagen para el evento.'),
+        ),
+      );
+      return;
+    }
+
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
+      helpText: 'Fecha del evento',
+    );
+    if (picked == null) return;
+
+    final eventDate =
+        '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+    await _publishEventPost(eventDate);
+  }
+
+  Future<void> _publishEventPost(String eventDate) async {
+    final text = _postController.text.trim();
+    if (text.isEmpty && _uploadedImageUrl == null) return;
+
+    setState(() => _publishing = true);
+    try {
+      await _api.createPost(
+        content: text,
+        postType: 'event',
+        imageUrl: _uploadedImageUrl,
+        eventDate: eventDate,
+      );
+      _postController.clear();
+      _postFocusNode.unfocus();
+      setState(() {
+        _selectedImage = null;
+        _uploadedImageUrl = null;
+      });
+      await _loadFeed();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo publicar el evento. Intenta de nuevo.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _publishing = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
@@ -633,7 +692,12 @@ class _HomePageState extends State<HomePage> {
   }) {
     final actions = <Widget>[
       _mediaAction(),
-      if (canCreateEvent) _ghostAction(Icons.calendar_month_rounded, 'Evento'),
+      if (canCreateEvent)
+        _ghostAction(
+          Icons.calendar_month_rounded,
+          'Evento',
+          onPressed: _promptEventDate,
+        ),
       if (canCreateJobOffer)
         _accentAction(Icons.work_rounded, 'Oferta laboral'),
       _publishAction(),
@@ -680,9 +744,9 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _ghostAction(IconData icon, String label) {
+  Widget _ghostAction(IconData icon, String label, {required VoidCallback onPressed}) {
     return OutlinedButton.icon(
-      onPressed: () {},
+      onPressed: onPressed,
       icon: Icon(icon, size: 16),
       label: Text(label),
       style: OutlinedButton.styleFrom(
