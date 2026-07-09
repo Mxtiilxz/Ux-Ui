@@ -28,6 +28,17 @@ class _KairosAppState extends State<KairosApp> {
   final UserRoleController _roleController = UserRoleController();
   int _selectedIndex = 0;
   bool _restoringSession = true;
+  String? _initialChatContactId;
+
+  void _openChatWith(String userId) {
+    setState(() {
+      _selectedIndex = 3;
+      _initialChatContactId = userId;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _initialChatContactId = null);
+    });
+  }
 
   @override
   void initState() {
@@ -59,6 +70,7 @@ class _KairosAppState extends State<KairosApp> {
           bio: '',
           location: '',
           connections: 0,
+          quickMatchVisible: profile['quickMatchVisible'] == 'true',
         );
         _roleController.setRole(role);
         setState(() => _currentUser = user);
@@ -118,11 +130,18 @@ class _KairosAppState extends State<KairosApp> {
       case 0:
         return HomePage(currentUser: _currentUser!, role: _roleController.role);
       case 1:
-        return JobsPage(role: _roleController.role);
+        return JobsPage(
+          role: _roleController.role,
+          currentUser: _currentUser!,
+          onOpenChat: _openChatWith,
+        );
       case 2:
         return const NetworkPage();
       case 3:
-        return ChatsPage(currentUser: _currentUser!);
+        return ChatsPage(
+          currentUser: _currentUser!,
+          initialContactId: _initialChatContactId,
+        );
       case 4:
         return ProfilePage(
           currentUser: _currentUser!,

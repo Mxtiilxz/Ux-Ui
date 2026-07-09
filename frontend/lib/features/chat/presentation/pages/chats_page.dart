@@ -10,9 +10,13 @@ import '../../../../core/widgets/k_card.dart';
 import '../../data/models/chat_model.dart';
 
 class ChatsPage extends StatefulWidget {
-  const ChatsPage({super.key, required this.currentUser});
+  const ChatsPage({super.key, required this.currentUser, this.initialContactId});
 
   final UserProfile currentUser;
+
+  /// If set, opens directly on this conversation once loaded (used when
+  /// arriving from an action elsewhere in the app, e.g. Quick Match "Contactar").
+  final String? initialContactId;
 
   @override
   State<ChatsPage> createState() => _ChatsPageState();
@@ -95,8 +99,17 @@ class _ChatsPageState extends State<ChatsPage> {
 
       if (mounted) {
         setState(() => _conversations = conversations);
-        if (conversations.isNotEmpty && _selected == null) {
-          await _selectConversation(conversations.first, openOnMobile: false);
+        if (_selected == null) {
+          final target = widget.initialContactId != null
+              ? conversations.where((c) => c.id == widget.initialContactId).firstOrNull
+              : null;
+          final toSelect = target ??
+              (widget.initialContactId == null && conversations.isNotEmpty
+                  ? conversations.first
+                  : null);
+          if (toSelect != null) {
+            await _selectConversation(toSelect, openOnMobile: target != null);
+          }
         }
       }
     } catch (_) {

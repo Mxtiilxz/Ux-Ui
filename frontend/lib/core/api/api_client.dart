@@ -213,6 +213,40 @@ class ApiClient {
     return response.data as int;
   }
 
+  // ── Skills / Quick Match ─────────────────────────────────────────────────────
+
+  Future<List<Map<String, dynamic>>> getSkills() async {
+    final response = await _dio.get('/skills');
+    return (response.data as List<dynamic>).cast<Map<String, dynamic>>();
+  }
+
+  Future<List<Map<String, dynamic>>> searchCandidates(List<int> skillIds) async {
+    final response = await _dio.get('/skills/candidates', queryParameters: {
+      'skillIds': skillIds.join(','),
+    });
+    return (response.data as List<dynamic>).cast<Map<String, dynamic>>();
+  }
+
+  Future<bool> setQuickMatchVisibility(bool visible) async {
+    final response = await _dio.put('/skills/me/visibility', data: {
+      'visible': visible,
+    });
+    return response.data['visible'] as bool;
+  }
+
+  Future<List<int>> getMySkills() async {
+    final response = await _dio.get('/skills/me');
+    return (response.data as List<dynamic>).cast<int>();
+  }
+
+  Future<void> addMySkill(int skillId) async {
+    await _dio.post('/skills/me/$skillId');
+  }
+
+  Future<void> removeMySkill(int skillId) async {
+    await _dio.delete('/skills/me/$skillId');
+  }
+
   // ── Network ──────────────────────────────────────────────────────────────────
 
   Future<List<dynamic>> getNetworkSuggestions(

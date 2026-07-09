@@ -44,6 +44,7 @@ class _LoginPageState extends State<LoginPage> {
       final fullName = response['fullName'] as String? ?? 'Usuario';
       final avatarUrl = response['profilePictureUrl'] as String? ?? '';
       final institution = response['institution'] as String?;
+      final quickMatchVisible = response['quickMatchVisible'] as bool? ?? false;
 
       await client.saveToken(token);
 
@@ -56,6 +57,7 @@ class _LoginPageState extends State<LoginPage> {
         'title': titleStr,
         'profilePictureUrl': avatarUrl,
         'institution': institution,
+        'quickMatchVisible': quickMatchVisible.toString(),
       });
 
       final user = UserProfile(
@@ -69,6 +71,7 @@ class _LoginPageState extends State<LoginPage> {
         location: '',
         connections: 0,
         institution: institution,
+        quickMatchVisible: quickMatchVisible,
       );
 
       if (!mounted) return;

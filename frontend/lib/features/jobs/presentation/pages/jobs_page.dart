@@ -11,9 +11,19 @@ import '../../data/models/job_model.dart';
 import 'company_jobs_page.dart';
 
 class JobsPage extends StatefulWidget {
-  const JobsPage({super.key, required this.role});
+  const JobsPage({
+    super.key,
+    required this.role,
+    required this.currentUser,
+    this.onOpenChat,
+  });
 
   final UserRole role;
+  final UserProfile currentUser;
+
+  /// Called with the target user's id after successfully contacting a Quick
+  /// Match candidate, so the host app can switch to the Chats tab.
+  final void Function(String userId)? onOpenChat;
 
   @override
   State<JobsPage> createState() => _JobsPageState();
@@ -32,6 +42,16 @@ class _JobsPageState extends State<JobsPage> {
   bool _generatingCv = false;
   final Set<String> _appliedJobs = <String>{};
 
+  // ── Quick Match (empresa) ────────────────────────────────────────────────────
+  List<Map<String, dynamic>> _skillCatalog = [];
+  bool _loadingSkillCatalog = true;
+  final Set<int> _selectedSkillIds = {};
+  List<Map<String, dynamic>> _candidates = [];
+  bool _searchingCandidates = false;
+  bool _hasSearchedCandidates = false;
+  final Set<int> _contactingIds = {};
+  final Set<int> _contactedIds = {};
+
   static const List<String> _specializations = [
     'Mecatronica',
     'Automatizacion',
@@ -42,7 +62,11 @@ class _JobsPageState extends State<JobsPage> {
   @override
   void initState() {
     super.initState();
-    _loadJobs();
+    if (widget.role == UserRole.company) {
+      _loadSkillCatalog();
+    } else {
+      _loadJobs();
+    }
   }
 
   Future<void> _loadJobs() async {
@@ -114,6 +138,90 @@ class _JobsPageState extends State<JobsPage> {
     }
   }
 
+  // ── Quick Match (empresa) ────────────────────────────────────────────────────
+
+  Future<void> _loadSkillCatalog() async {
+    setState(() => _loadingSkillCatalog = true);
+    try {
+      final catalog = await _api.getSkills();
+      if (mounted) setState(() => _skillCatalog = catalog);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al cargar el catálogo de competencias.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loadingSkillCatalog = false);
+    }
+  }
+
+  void _toggleSearchSkill(int skillId) {
+    setState(() {
+      if (_selectedSkillIds.contains(skillId)) {
+        _selectedSkillIds.remove(skillId);
+      } else {
+        _selectedSkillIds.add(skillId);
+      }
+    });
+  }
+
+  Future<void> _searchCandidates() async {
+    if (_selectedSkillIds.isEmpty) return;
+    setState(() {
+      _searchingCandidates = true;
+      _hasSearchedCandidates = true;
+    });
+    try {
+      final results = await _api.searchCandidates(_selectedSkillIds.toList());
+      if (mounted) setState(() => _candidates = results);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo buscar candidatos. Intenta de nuevo.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _searchingCandidates = false);
+    }
+  }
+
+  Future<void> _contactCandidate(Map<String, dynamic> candidate) async {
+    final id = candidate['id'] as int;
+    final matched = (candidate['matchedSkills'] as List<dynamic>? ?? [])
+        .cast<Map<String, dynamic>>();
+    final skillNames = matched.map((s) => s['name'] as String).join(', ');
+    final message = skillNames.isEmpty
+        ? '${widget.currentUser.name} está interesado en tu perfil. ¿Te interesaría conversar?'
+        : '${widget.currentUser.name} está interesado en tus competencias en $skillNames. '
+            '¿Te interesaría conversar?';
+
+    setState(() => _contactingIds.add(id));
+    try {
+      await _api.sendMessage(id, message);
+      if (mounted) {
+        setState(() {
+          _contactedIds.add(id);
+          _contactingIds.remove(id);
+        });
+        widget.onOpenChat?.call(id.toString());
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _contactingIds.remove(id));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo contactar. Intenta de nuevo.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -122,6 +230,10 @@ class _JobsPageState extends State<JobsPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.role == UserRole.company) {
+      return _buildCompanyView(context);
+    }
+
     final width = MediaQuery.sizeOf(context).width;
     final mobile = width < 760;
     final pagePadding = mobile
@@ -129,7 +241,6 @@ class _JobsPageState extends State<JobsPage> {
         : const EdgeInsets.all(20);
     final allJobs = _apiJobs.isNotEmpty ? _apiJobs : jobs;
     final filteredJobs = allJobs.where(_matchesFilter).toList(growable: false);
-    final isCompany = widget.role == UserRole.company;
 
     return SingleChildScrollView(
       padding: pagePadding,
@@ -151,36 +262,12 @@ class _JobsPageState extends State<JobsPage> {
                 const Text(
                   'Practicas y trabajos del Liceo Tecnico Cardenal Jose Maria Caro',
                 ),
-                if (isCompany) ...[
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const CompanyJobsPage()),
-                      ),
-                      style: ElevatedButton.styleFrom(backgroundColor: KairosPalette.primary),
-                      icon: const Icon(Icons.manage_search_rounded),
-                      label: const Text('Mis ofertas y postulantes'),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _showCreateOfferDialog(context),
-                      style: ElevatedButton.styleFrom(backgroundColor: KairosPalette.accent),
-                      icon: const Icon(Icons.add_rounded),
-                      label: const Text('Publicar oferta'),
-                    ),
-                  ),
-                ],
               ],
             )
           else
-            Row(
+            const Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -191,23 +278,6 @@ class _JobsPageState extends State<JobsPage> {
                     ],
                   ),
                 ),
-                if (isCompany) ...[
-                  ElevatedButton.icon(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const CompanyJobsPage()),
-                    ),
-                    style: ElevatedButton.styleFrom(backgroundColor: KairosPalette.primary),
-                    icon: const Icon(Icons.manage_search_rounded),
-                    label: const Text('Mis ofertas'),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: () => _showCreateOfferDialog(context),
-                    style: ElevatedButton.styleFrom(backgroundColor: KairosPalette.accent),
-                    icon: const Icon(Icons.add_rounded),
-                    label: const Text('Publicar oferta'),
-                  ),
-                ],
               ],
             ),
           const SizedBox(height: 16),
@@ -937,6 +1007,333 @@ class _JobsPageState extends State<JobsPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // ── Vista empresa: crear oferta + Quick Match ───────────────────────────────
+
+  Widget _buildCompanyView(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    final pagePadding = width < 760
+        ? const EdgeInsets.fromLTRB(14, 14, 14, 16)
+        : const EdgeInsets.all(20);
+
+    return SingleChildScrollView(
+      padding: pagePadding,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 900),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Trabajos', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 4),
+            const Text(
+              'Publica ofertas y encuentra estudiantes destacados con Quick Match.',
+              style: TextStyle(color: KairosPalette.secondary),
+            ),
+            const SizedBox(height: 16),
+            KCard(
+              child: Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: KairosPalette.primary,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.add_business_rounded, color: Colors.white),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Crear oferta laboral',
+                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                        SizedBox(height: 2),
+                        Text('Publica un cargo abierto en el feed de estudiantes.',
+                            style: TextStyle(color: KairosPalette.secondary, fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () => _showCreateOfferDialog(context),
+                    style: ElevatedButton.styleFrom(backgroundColor: KairosPalette.accent),
+                    icon: const Icon(Icons.add_rounded, size: 18),
+                    label: const Text('Nueva oferta'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const CompanyJobsPage()),
+              ),
+              icon: const Icon(Icons.manage_search_rounded, size: 18),
+              label: const Text('Ver mis ofertas y postulantes'),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                const Expanded(child: Divider()),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    'Quick Match',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: KairosPalette.secondary,
+                    ),
+                  ),
+                ),
+                const Expanded(child: Divider()),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildQuickMatchSearchPanel(),
+            const SizedBox(height: 16),
+            _buildQuickMatchResults(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickMatchSearchPanel() {
+    return KCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Buscando candidatos con estas competencias',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: KairosPalette.secondary),
+          ),
+          const SizedBox(height: 10),
+          if (_loadingSkillCatalog)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _skillCatalog.map((skill) {
+                final id = skill['id'] as int;
+                final selected = _selectedSkillIds.contains(id);
+                return FilterChip(
+                  label: Text(skill['name'] as String),
+                  selected: selected,
+                  showCheckmark: false,
+                  selectedColor: KairosPalette.primary.withValues(alpha: 0.15),
+                  labelStyle: TextStyle(
+                    color: selected ? KairosPalette.primary : null,
+                    fontWeight: selected ? FontWeight.w700 : null,
+                  ),
+                  side: BorderSide(
+                    color: selected ? KairosPalette.primary : KairosPalette.border,
+                  ),
+                  onSelected: (_) => _toggleSearchSkill(id),
+                );
+              }).toList(growable: false),
+            ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _selectedSkillIds.isEmpty || _searchingCandidates ? null : _searchCandidates,
+              style: ElevatedButton.styleFrom(backgroundColor: KairosPalette.primary),
+              icon: _searchingCandidates
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.search_rounded),
+              label: Text(_searchingCandidates ? 'Buscando...' : 'Buscar candidatos'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickMatchResults() {
+    if (!_hasSearchedCandidates) {
+      return const KCard(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 4),
+          child: Text(
+            'Selecciona una o más competencias y presiona "Buscar candidatos" para ver '
+            'estudiantes que calzan con lo que buscas.',
+            style: TextStyle(color: KairosPalette.secondary),
+          ),
+        ),
+      );
+    }
+
+    if (_searchingCandidates) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_candidates.isEmpty) {
+      return const KCard(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 4),
+          child: Text(
+            'No encontramos estudiantes visibles en Quick Match con esas competencias.',
+            style: TextStyle(color: KairosPalette.secondary),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              '${_candidates.length} candidato${_candidates.length == 1 ? '' : 's'} '
+              'encontrado${_candidates.length == 1 ? '' : 's'}, ordenados por coincidencia',
+              style: const TextStyle(color: KairosPalette.secondary, fontSize: 13),
+            ),
+          ),
+        ),
+        ..._candidates.map(
+          (c) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _candidateCard(c),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _candidateCard(Map<String, dynamic> candidate) {
+    final id = candidate['id'] as int;
+    final fullName = candidate['fullName'] as String? ?? 'Estudiante';
+    final institution = candidate['institution'] as String?;
+    final avatarUrl = (candidate['profilePictureUrl'] as String? ?? '').trim();
+    final matchPercentage = candidate['matchPercentage'] as int? ?? 0;
+    final matched = (candidate['matchedSkills'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+    final missing = (candidate['missingSkills'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+    final contacting = _contactingIds.contains(id);
+    final contacted = _contactedIds.contains(id);
+
+    return KCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+                      backgroundColor: KairosPalette.muted,
+                      child: avatarUrl.isEmpty
+                          ? Text(
+                              fullName.isNotEmpty ? fullName[0].toUpperCase() : '?',
+                              style: const TextStyle(fontWeight: FontWeight.w900),
+                            )
+                          : null,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(fullName, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                          if (institution != null && institution.isNotEmpty)
+                            Text(institution, style: const TextStyle(color: KairosPalette.secondary, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                '$matchPercentage%',
+                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: KairosPalette.primary),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: LinearProgressIndicator(
+              value: matchPercentage / 100,
+              minHeight: 6,
+              backgroundColor: KairosPalette.muted,
+              color: KairosPalette.primary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              ...matched.map((s) => Chip(
+                    label: Text(s['name'] as String, style: const TextStyle(fontSize: 12)),
+                    side: BorderSide.none,
+                    backgroundColor: KairosPalette.primary.withValues(alpha: 0.12),
+                    visualDensity: VisualDensity.compact,
+                  )),
+              ...missing.map((s) => Chip(
+                    label: Text(
+                      s['name'] as String,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        decoration: TextDecoration.lineThrough,
+                        color: KairosPalette.secondary,
+                      ),
+                    ),
+                    side: BorderSide.none,
+                    backgroundColor: KairosPalette.muted,
+                    visualDensity: VisualDensity.compact,
+                  )),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: contacted
+                ? OutlinedButton.icon(
+                    onPressed: () => widget.onOpenChat?.call(id.toString()),
+                    icon: const Icon(Icons.chat_bubble_rounded, size: 16, color: KairosPalette.primary),
+                    label: const Text('Contactado · ver chat'),
+                  )
+                : ElevatedButton.icon(
+                    onPressed: contacting ? null : () => _contactCandidate(candidate),
+                    style: ElevatedButton.styleFrom(backgroundColor: KairosPalette.accent),
+                    icon: contacting
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.send_rounded, size: 16),
+                    label: Text(contacting ? 'Enviando...' : 'Contactar'),
+                  ),
+          ),
+        ],
       ),
     );
   }

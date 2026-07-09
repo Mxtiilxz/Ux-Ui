@@ -30,6 +30,99 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _isDownloadingCv = false;
   String? _uploadedAvatarUrl;
 
+  late bool _quickMatchVisible;
+  bool _togglingQuickMatch = false;
+
+  List<Map<String, dynamic>> _skillCatalog = [];
+  final Set<int> _mySkillIds = {};
+  final Set<int> _togglingSkillIds = {};
+  bool _loadingSkills = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _quickMatchVisible = widget.currentUser.quickMatchVisible;
+    if (widget.activeRole == UserRole.student) _loadSkills();
+  }
+
+  Future<void> _loadSkills() async {
+    try {
+      final results = await Future.wait([_api.getSkills(), _api.getMySkills()]);
+      if (mounted) {
+        setState(() {
+          _skillCatalog = results[0] as List<Map<String, dynamic>>;
+          _mySkillIds
+            ..clear()
+            ..addAll((results[1] as List<int>));
+        });
+      }
+    } catch (_) {
+      // Si falla, el picker simplemente queda vacío; el usuario puede reintentar más tarde.
+    } finally {
+      if (mounted) setState(() => _loadingSkills = false);
+    }
+  }
+
+  Future<void> _toggleSkill(int skillId) async {
+    final wasSelected = _mySkillIds.contains(skillId);
+    setState(() {
+      _togglingSkillIds.add(skillId);
+      if (wasSelected) {
+        _mySkillIds.remove(skillId);
+      } else {
+        _mySkillIds.add(skillId);
+      }
+    });
+    try {
+      if (wasSelected) {
+        await _api.removeMySkill(skillId);
+      } else {
+        await _api.addMySkill(skillId);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          if (wasSelected) {
+            _mySkillIds.add(skillId);
+          } else {
+            _mySkillIds.remove(skillId);
+          }
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo actualizar tu competencia. Intenta de nuevo.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _togglingSkillIds.remove(skillId));
+    }
+  }
+
+  Future<void> _toggleQuickMatchVisibility(bool value) async {
+    setState(() {
+      _togglingQuickMatch = true;
+      _quickMatchVisible = value;
+    });
+    try {
+      final confirmed = await _api.setQuickMatchVisibility(value);
+      if (mounted) setState(() => _quickMatchVisible = confirmed);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _quickMatchVisible = !value);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo actualizar tu visibilidad en Quick Match.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _togglingQuickMatch = false);
+    }
+  }
+
   Future<void> _pickAndUploadAvatar() async {
     final XFile? image = await _picker.pickImage(
       source: ImageSource.gallery,
@@ -130,6 +223,10 @@ class _ProfilePageState extends State<ProfilePage> {
               _buildAbout(user),
               const SizedBox(height: 12),
               _buildSkills(user),
+              if (widget.activeRole == UserRole.student) ...[
+                const SizedBox(height: 12),
+                _buildQuickMatchVisibility(),
+              ],
               if (widget.activeRole == UserRole.student ||
                   widget.activeRole == UserRole.alumni) ...[
                 const SizedBox(height: 12),
@@ -434,7 +531,38 @@ class _ProfilePageState extends State<ProfilePage> {
 
   // ── Skills ───────────────────────────────────────────────────────────────────
 
+  static const _categoryLabels = {
+    'Technical':  'Habilidades técnicas',
+    'Language':   'Idiomas',
+    'Experience': 'Experiencia previa',
+  };
+
   Widget _buildSkills(UserProfile user) {
+    if (widget.activeRole != UserRole.student) {
+      return SizedBox(
+        width: double.infinity,
+        child: KCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Habilidades tecnicas',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: user.skills
+                    .map((skill) => Chip(label: Text(skill), side: BorderSide.none))
+                    .toList(growable: false),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return SizedBox(
       width: double.infinity,
       child: KCard(
@@ -442,25 +570,131 @@ class _ProfilePageState extends State<ProfilePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Habilidades tecnicas',
+              'Competencias',
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
             ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: user.skills
-                  .map(
-                    (skill) => Chip(label: Text(skill), side: BorderSide.none),
+            const SizedBox(height: 4),
+            const Text(
+              'Toca una competencia para agregarla o quitarla de tu perfil.',
+              style: TextStyle(color: KairosPalette.secondary),
+            ),
+            const SizedBox(height: 12),
+            if (_loadingSkills)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            else
+              ..._categoryLabels.entries.map((entry) {
+                final items = _skillCatalog
+                    .where((s) => s['category'] == entry.key)
+                    .toList(growable: false);
+                if (items.isEmpty) return const SizedBox.shrink();
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        entry.value,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: KairosPalette.secondary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: items.map((skill) {
+                          final id = skill['id'] as int;
+                          final selected = _mySkillIds.contains(id);
+                          final toggling = _togglingSkillIds.contains(id);
+                          return FilterChip(
+                            label: Text(skill['name'] as String),
+                            selected: selected,
+                            showCheckmark: false,
+                            avatar: toggling
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : null,
+                            selectedColor: KairosPalette.primary.withValues(alpha: 0.15),
+                            labelStyle: TextStyle(
+                              color: selected ? KairosPalette.primary : null,
+                              fontWeight: selected ? FontWeight.w700 : null,
+                            ),
+                            side: BorderSide(
+                              color: selected ? KairosPalette.primary : KairosPalette.border,
+                            ),
+                            onSelected: toggling ? null : (_) => _toggleSkill(id),
+                          );
+                        }).toList(growable: false),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Quick Match visibility ────────────────────────────────────────────────────
+
+  Widget _buildQuickMatchVisibility() {
+    return SizedBox(
+      width: double.infinity,
+      child: KCard(
+        borderColor: _quickMatchVisible
+            ? KairosPalette.primary.withValues(alpha: 0.4)
+            : KairosPalette.border,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CircleAvatar(
+              radius: 22,
+              backgroundColor: KairosPalette.muted,
+              child: Icon(Icons.bolt_rounded, color: KairosPalette.primary),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Visible en Quick Match',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _quickMatchVisible
+                        ? 'Las empresas pueden encontrarte al buscar por competencias y contactarte directamente.'
+                        : 'Actívalo para que las empresas puedan encontrarte al buscar candidatos por competencias.',
+                    style: const TextStyle(color: KairosPalette.secondary),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            _togglingQuickMatch
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                  .toList(growable: false),
-            ),
-            const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Agregar habilidad'),
-            ),
+                : Switch(
+                    value: _quickMatchVisible,
+                    activeThumbColor: KairosPalette.primary,
+                    onChanged: _toggleQuickMatchVisibility,
+                  ),
           ],
         ),
       ),

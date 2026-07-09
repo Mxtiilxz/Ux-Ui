@@ -39,6 +39,7 @@ class UserProfile {
     this.specialization,
     this.graduationYear,
     this.socioemotionalTest,
+    this.quickMatchVisible = false,
   });
 
   final String id;
@@ -54,6 +55,7 @@ class UserProfile {
   final String? specialization;
   final int? graduationYear;
   final SocioemotionalTest? socioemotionalTest;
+  final bool quickMatchVisible;
 
   String get initials {
     final parts = name.split(' ');
