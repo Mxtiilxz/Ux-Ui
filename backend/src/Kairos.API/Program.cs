@@ -140,6 +140,20 @@ builder.Services.AddRateLimiter(options =>
         return RateLimitPartition.Get(userId, _ => new CurriculumRateLimiter());
     });
 
+    // Quick Match candidate search: 30 per 5 min, keyed by authenticated user ID
+    options.AddPolicy<string>("quickmatch-search", context =>
+    {
+        var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anon";
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: userId,
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
+                Window = TimeSpan.FromMinutes(5),
+                QueueLimit = 0
+            });
+    });
+
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 });
 

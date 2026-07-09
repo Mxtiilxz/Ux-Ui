@@ -1,0 +1,92 @@
+using System.Security.Claims;
+using Kairos.Application.Common.Interfaces;
+using Kairos.Application.Features.Matching.Commands.AddUserSkill;
+using Kairos.Application.Features.Matching.Commands.RemoveUserSkill;
+using Kairos.Application.Features.Matching.Commands.SetQuickMatchVisibility;
+using Kairos.Application.Features.Matching.Queries.GetMySkills;
+using Kairos.Application.Features.Matching.Queries.SearchCandidates;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
+
+namespace Kairos.API.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]
+public class SkillsController(IMediator mediator, IApplicationDbContext db) : ControllerBase
+{
+    private int GetUserId() => int.Parse(
+        User.FindFirstValue(ClaimTypes.NameIdentifier)
+        ?? User.FindFirstValue("sub")
+        ?? throw new UnauthorizedAccessException());
+
+    private string GetRole() => User.FindFirstValue(ClaimTypes.Role) ?? "student";
+
+    /// <summary>Catálogo completo de competencias, para selectores de perfil y de búsqueda.</summary>
+    [HttpGet]
+    public async Task<IActionResult> GetSkills(CancellationToken ct)
+    {
+        var skills = await db.Skills
+            .OrderBy(s => s.Category)
+            .ThenBy(s => s.Name)
+            .Select(s => new { s.Id, s.Name, Category = s.Category.ToString() })
+            .ToListAsync(ct);
+
+        return Ok(skills);
+    }
+
+    /// <summary>Quick Match: candidatos rankeados por coincidencia de competencias (solo empresas).</summary>
+    [HttpGet("candidates")]
+    [EnableRateLimiting("quickmatch-search")]
+    public async Task<IActionResult> SearchCandidates([FromQuery] string skillIds, CancellationToken ct)
+    {
+        if (GetRole() != "company") return Forbid();
+
+        var ids = (skillIds ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(s => int.TryParse(s, out var id) ? id : (int?)null)
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .ToList();
+
+        var result = await mediator.Send(new SearchCandidatesQuery(ids), ct);
+        return Ok(result);
+    }
+
+    /// <summary>Activa/desactiva la visibilidad propia en las búsquedas de Quick Match (solo estudiantes).</summary>
+    [HttpPut("me/visibility")]
+    public async Task<IActionResult> SetVisibility([FromBody] SetVisibilityRequest request, CancellationToken ct)
+    {
+        var visible = await mediator.Send(new SetQuickMatchVisibilityCommand(GetUserId(), request.Visible), ct);
+        return Ok(new { visible });
+    }
+
+    /// <summary>IDs de las competencias que el usuario autenticado ya tiene registradas.</summary>
+    [HttpGet("me")]
+    public async Task<IActionResult> GetMySkills(CancellationToken ct)
+    {
+        var ids = await mediator.Send(new GetMySkillsQuery(GetUserId()), ct);
+        return Ok(ids);
+    }
+
+    /// <summary>Agrega una competencia al perfil propio (solo estudiantes).</summary>
+    [HttpPost("me/{skillId:int}")]
+    public async Task<IActionResult> AddMySkill(int skillId, CancellationToken ct)
+    {
+        await mediator.Send(new AddUserSkillCommand(GetUserId(), skillId), ct);
+        return NoContent();
+    }
+
+    /// <summary>Quita una competencia del perfil propio.</summary>
+    [HttpDelete("me/{skillId:int}")]
+    public async Task<IActionResult> RemoveMySkill(int skillId, CancellationToken ct)
+    {
+        await mediator.Send(new RemoveUserSkillCommand(GetUserId(), skillId), ct);
+        return NoContent();
+    }
+}
+
+public record SetVisibilityRequest(bool Visible);

@@ -23,6 +23,6 @@ public class LoginCommandHandler(IApplicationDbContext db, IJwtService jwtServic
             throw new UnauthorizedAccessException("Tu cuenta fue rechazada. Contacta al staff del liceo.");
 
         var token = jwtService.GenerateToken(user);
-        return new LoginResult(user.Id, token, user.FullName, user.ProfilePictureUrl, user.Role, user.Institution);
+        return new LoginResult(user.Id, token, user.FullName, user.ProfilePictureUrl, user.Role, user.Institution, user.QuickMatchVisible);
     }
 }

@@ -173,6 +173,51 @@ public static class DevDataSeeder
             }
         }
 
+        // ── Catálogo de competencias (Quick Match) ──────────────────────────────
+        var hasSkills = await db.Skills.AnyAsync();
+        if (!hasSkills)
+        {
+            db.Skills.AddRange(
+                new Skill { Name = "PLC Siemens",             Category = SkillCategory.Technical },
+                new Skill { Name = "Arduino",                 Category = SkillCategory.Technical },
+                new Skill { Name = "SolidWorks",               Category = SkillCategory.Technical },
+                new Skill { Name = "AutoCAD",                  Category = SkillCategory.Technical },
+                new Skill { Name = "Python",                   Category = SkillCategory.Technical },
+                new Skill { Name = "C/C++",                    Category = SkillCategory.Technical },
+                new Skill { Name = "Redes",                    Category = SkillCategory.Technical },
+                new Skill { Name = "Modbus",                   Category = SkillCategory.Technical },
+                new Skill { Name = "Robótica industrial",      Category = SkillCategory.Technical },
+                new Skill { Name = "Diseño 3D",                Category = SkillCategory.Technical },
+                new Skill { Name = "Inglés B1",                Category = SkillCategory.Language },
+                new Skill { Name = "Inglés B2",                Category = SkillCategory.Language },
+                new Skill { Name = "Inglés C1",                Category = SkillCategory.Language },
+                new Skill { Name = "Práctica en automatización", Category = SkillCategory.Experience },
+                new Skill { Name = "Práctica en TI",            Category = SkillCategory.Experience },
+                new Skill { Name = "Proyecto personal publicado", Category = SkillCategory.Experience }
+            );
+            await db.SaveChangesAsync();
+        }
+
+        // ── Competencias del estudiante de demo + visibilidad en Quick Match ────
+        if (studentId.HasValue)
+        {
+            var hasUserSkills = await db.UserSkills.AnyAsync(us => us.UserId == studentId.Value);
+            if (!hasUserSkills)
+            {
+                var demoSkillNames = new[] { "PLC Siemens", "Arduino", "SolidWorks", "Inglés B2", "Práctica en automatización" };
+                var demoSkills = await db.Skills.Where(s => demoSkillNames.Contains(s.Name)).ToListAsync();
+                foreach (var skill in demoSkills)
+                {
+                    db.UserSkills.Add(new UserSkill { UserId = studentId.Value, SkillId = skill.Id });
+                }
+
+                var student = await db.Users.FindAsync(studentId.Value);
+                if (student != null) student.QuickMatchVisible = true;
+
+                await db.SaveChangesAsync();
+            }
+        }
+
         // ── Ofertas laborales de demo ──────────────────────────────────────────
         if (companyId.HasValue)
         {

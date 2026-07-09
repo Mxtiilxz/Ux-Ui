@@ -17,6 +17,10 @@ public class User
     public string  Status           { get; set; } = "approved"; // "pending" | "approved" | "rejected"
     public DateTime CreatedAt       { get; set; } = DateTime.UtcNow;
 
+    // Quick Match: el estudiante debe activar esto explícitamente para
+    // aparecer en las búsquedas de competencias de las empresas.
+    public bool QuickMatchVisible   { get; set; } = false;
+
     // Navegación (EF Core las usa para construir los JOINs)
     public ICollection<Post>            Posts           { get; set; } = [];
     public ICollection<UserActivity>    Activities      { get; set; } = [];
@@ -24,6 +28,7 @@ public class User
     public ICollection<Like>            Likes           { get; set; } = [];
     public ICollection<JobPosting>      JobPostings     { get; set; } = [];
     public ICollection<JobApplication>  Applications    { get; set; } = [];
+    public ICollection<UserSkill>       Skills          { get; set; } = [];
 
     // Seguidores / seguidos  (self-referencing many-to-many)
     public ICollection<Follow>          Followers       { get; set; } = [];

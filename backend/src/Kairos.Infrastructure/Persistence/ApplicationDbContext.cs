@@ -23,6 +23,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<JobApplication> JobApplications { get; set; }
     public DbSet<UserActivity>   UserActivities  { get; set; }
     public DbSet<Message>        Messages        { get; set; }
+    public DbSet<Skill>          Skills          { get; set; }
+    public DbSet<UserSkill>      UserSkills      { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -50,6 +52,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             e.Property(u => u.Institution).HasMaxLength(200);
             e.Property(u => u.Role).HasMaxLength(20);
             e.Property(u => u.Status).HasMaxLength(20).HasDefaultValue("approved").IsRequired();
+            e.Property(u => u.QuickMatchVisible).HasDefaultValue(false).IsRequired();
         });
 
         // ════════════════════════════════════════════════════
@@ -160,6 +163,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             e.Property(j => j.Title).HasMaxLength(200).IsRequired();
             e.Property(j => j.Description).HasMaxLength(3000).IsRequired();
             e.Property(j => j.Location).HasMaxLength(200);
+            e.Property(j => j.ImageUrl).HasMaxLength(500);
             e.Property(j => j.Status).HasConversion<string>();
 
             e.HasOne(j => j.Company)
@@ -240,6 +244,45 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
             // Índice para cargar la conversación entre dos usuarios
             e.HasIndex(m => new { m.SenderId, m.ReceiverId, m.CreatedAt });
+        });
+
+        // ════════════════════════════════════════════════════
+        //  SKILL  (catálogo curado de competencias — Quick Match)
+        // ════════════════════════════════════════════════════
+        modelBuilder.Entity<Skill>(e =>
+        {
+            e.ToTable("skills");
+
+            e.HasKey(s => s.Id);
+            e.Property(s => s.Name).HasMaxLength(100).IsRequired();
+            e.Property(s => s.Category).HasConversion<string>();
+
+            // No se puede duplicar el mismo nombre de competencia en el catálogo
+            e.HasIndex(s => s.Name).IsUnique();
+        });
+
+        // ════════════════════════════════════════════════════
+        //  USER SKILL  (clave compuesta UserId + SkillId)
+        // ════════════════════════════════════════════════════
+        modelBuilder.Entity<UserSkill>(e =>
+        {
+            e.ToTable("user_skills");
+
+            // Un estudiante no puede agregar la misma competencia dos veces
+            e.HasKey(us => new { us.UserId, us.SkillId });
+
+            e.HasOne(us => us.User)
+             .WithMany(u => u.Skills)
+             .HasForeignKey(us => us.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(us => us.Skill)
+             .WithMany(s => s.UserSkills)
+             .HasForeignKey(us => us.SkillId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            // Índice para la búsqueda de Quick Match: "qué usuarios tienen la competencia X"
+            e.HasIndex(us => us.SkillId);
         });
     }
 }
