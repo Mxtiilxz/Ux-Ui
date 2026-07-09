@@ -99,10 +99,13 @@ El backend quedará disponible en `http://localhost:5001` (puerto fijado en
 `appsettings.Development.json`, no 5000).
 Swagger UI: `http://localhost:5001/swagger`
 
-> En modo desarrollo, el seeder crea automáticamente usuarios de prueba:
-> - Estudiante: `estudiante@kairos.cl` / `kairos2026`
-> - Staff: `staff1@kairos.cl` / `kairos2026`
-> - Empresa: `empresa@kairos.cl` / `kairos2026`
+> En modo desarrollo, el seeder crea automáticamente usuarios de prueba
+> (todos con contraseña `Kairos2026!`):
+> - Estudiante: `kairos_user1@kairos.cl` (Ana González Rojas — ya tiene
+>   competencias cargadas y visibilidad en Quick Match activada)
+> - Staff: `staff1@kairos.cl` / `staff2@kairos.cl`
+> - Empresa: `empresa@kairos.cl` (Automatización Industrial S.A.) /
+>   `empresa2@kairos.cl` (TechSolutions Chile SpA)
 
 > En modo `Development` la subida de archivos usa el filesystem local
 > automáticamente (`LocalStorageService`) — **no necesitas Azure Blob ni
@@ -168,6 +171,10 @@ netlify deploy --prod --dir=build/web
 - Subida de imágenes para posts y publicaciones de empleo
 - Gestión de ofertas laborales: crear, editar, eliminar y ver postulantes
 - Postulación a ofertas de empleo
+- **Quick Match**: los estudiantes registran sus competencias (técnicas,
+  idiomas, experiencia) y activan su visibilidad; las empresas buscan
+  candidatos por competencia desde la pestaña Trabajos, ven el % de
+  coincidencia y contactan directo por chat con un mensaje automático
 - Red de contactos (seguir / dejar de seguir usuarios)
 - Mensajería en tiempo real
 - Perfil de usuario editable con foto de perfil
@@ -175,7 +182,7 @@ netlify deploy --prod --dir=build/web
 - Panel de administración de usuarios para staff
 - Importación de alumnos vía CSV
 - Persistencia de sesión en web (localStorage vía flutter_secure_storage)
-- Rate limiting en endpoints sensibles (login, generación de CV)
+- Rate limiting en endpoints sensibles (login, generación de CV, búsqueda de Quick Match)
 - Datos de prueba automáticos en entorno de desarrollo
 
 ---
@@ -189,9 +196,3 @@ Flutter Web  ──HTTPS──►  ASP.NET Core 8 (Railway)  ──►  MySQL 8 
     │
     └──WebSocket──►  SignalR Hub  ──►  clientes conectados
 ```
-
----
-
-## Equipo — Grupo Colegio 6
-
-Proyecto desarrollado para la asignatura de Ingeniería de Software, Universidad del Desarrollo, T1 2026.
