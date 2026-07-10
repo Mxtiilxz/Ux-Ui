@@ -21,6 +21,11 @@ public class User
     // aparecer en las búsquedas de competencias de las empresas.
     public bool QuickMatchVisible   { get; set; } = false;
 
+    // Quick Match: plantilla de mensaje que la EMPRESA usa al contactar a un
+    // candidato desde la búsqueda. Admite los placeholders {nombre}, {empresa}
+    // y {competencias}. Null = se usa el mensaje por defecto del sistema.
+    public string? QuickMatchMessageTemplate { get; set; }
+
     // Navegación (EF Core las usa para construir los JOINs)
     public ICollection<Post>            Posts           { get; set; } = [];
     public ICollection<UserActivity>    Activities      { get; set; } = [];

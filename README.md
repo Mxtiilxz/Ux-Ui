@@ -101,11 +101,17 @@ Swagger UI: `http://localhost:5001/swagger`
 
 > En modo desarrollo, el seeder crea automáticamente usuarios de prueba
 > (todos con contraseña `Kairos2026!`):
-> - Estudiante: `kairos_user1@kairos.cl` (Ana González Rojas — ya tiene
->   competencias cargadas y visibilidad en Quick Match activada)
+> - Estudiantes visibles en Quick Match (con competencias cargadas, listos
+>   para aparecer en las búsquedas de las empresas):
+>   `kairos_user1@kairos.cl` (Ana González Rojas), `benjamin@kairos.cl`,
+>   `catalina@kairos.cl`, `diego@kairos.cl`, `fernanda@kairos.cl`,
+>   `ignacio@kairos.cl`, `valentina@kairos.cl` — 7 candidatos con
+>   distintas competencias para poblar la demo de Quick Match.
 > - Staff: `staff1@kairos.cl` / `staff2@kairos.cl`
-> - Empresa: `empresa@kairos.cl` (Automatización Industrial S.A.) /
->   `empresa2@kairos.cl` (TechSolutions Chile SpA)
+> - Empresa: `empresa@kairos.cl` (Automatización Industrial S.A. — usa el
+>   mensaje de contacto **por defecto**) / `empresa2@kairos.cl`
+>   (TechSolutions Chile SpA — arranca con un mensaje de contacto
+>   **personalizado**, para ver ambos estados de la funcionalidad)
 
 > En modo `Development` la subida de archivos usa el filesystem local
 > automáticamente (`LocalStorageService`) — **no necesitas Azure Blob ni
@@ -174,7 +180,11 @@ netlify deploy --prod --dir=build/web
 - **Quick Match**: los estudiantes registran sus competencias (técnicas,
   idiomas, experiencia) y activan su visibilidad; las empresas buscan
   candidatos por competencia desde la pestaña Trabajos, ven el % de
-  coincidencia y contactan directo por chat con un mensaje automático
+  coincidencia y contactan directo por chat con un mensaje automático.
+  Cada empresa puede **personalizar su mensaje de contacto** desde la misma
+  pestaña Trabajos (tarjeta "Mensaje de contacto"), con los placeholders
+  `{nombre}`, `{empresa}` y `{competencias}` que se rellenan al contactar a
+  cada candidato. Endpoints: `GET/PUT /api/skills/company/message`.
 - Red de contactos (seguir / dejar de seguir usuarios)
 - Mensajería en tiempo real
 - Perfil de usuario editable con foto de perfil

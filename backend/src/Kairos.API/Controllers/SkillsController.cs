@@ -2,8 +2,10 @@ using System.Security.Claims;
 using Kairos.Application.Common.Interfaces;
 using Kairos.Application.Features.Matching.Commands.AddUserSkill;
 using Kairos.Application.Features.Matching.Commands.RemoveUserSkill;
+using Kairos.Application.Features.Matching.Commands.SetQuickMatchTemplate;
 using Kairos.Application.Features.Matching.Commands.SetQuickMatchVisibility;
 using Kairos.Application.Features.Matching.Queries.GetMySkills;
+using Kairos.Application.Features.Matching.Queries.GetQuickMatchTemplate;
 using Kairos.Application.Features.Matching.Queries.SearchCandidates;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -87,6 +89,27 @@ public class SkillsController(IMediator mediator, IApplicationDbContext db) : Co
         await mediator.Send(new RemoveUserSkillCommand(GetUserId(), skillId), ct);
         return NoContent();
     }
+
+    /// <summary>Plantilla de mensaje que la empresa usa para contactar candidatos en Quick Match (solo empresas).</summary>
+    [HttpGet("company/message")]
+    public async Task<IActionResult> GetCompanyMessage(CancellationToken ct)
+    {
+        if (GetRole() != "company") return Forbid();
+
+        var result = await mediator.Send(new GetQuickMatchTemplateQuery(GetUserId()), ct);
+        return Ok(result);
+    }
+
+    /// <summary>Actualiza la plantilla de contacto de la empresa. Enviar vacío restablece el mensaje por defecto (solo empresas).</summary>
+    [HttpPut("company/message")]
+    public async Task<IActionResult> SetCompanyMessage([FromBody] SetCompanyMessageRequest request, CancellationToken ct)
+    {
+        if (GetRole() != "company") return Forbid();
+
+        var result = await mediator.Send(new SetQuickMatchTemplateCommand(GetUserId(), request.Template), ct);
+        return Ok(result);
+    }
 }
 
 public record SetVisibilityRequest(bool Visible);
+public record SetCompanyMessageRequest(string? Template);

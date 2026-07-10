@@ -312,6 +312,10 @@ namespace Kairos.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
 
+                    b.Property<string>("QuickMatchMessageTemplate")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
                     b.Property<bool>("QuickMatchVisible")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")

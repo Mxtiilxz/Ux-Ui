@@ -218,6 +218,91 @@ public static class DevDataSeeder
             }
         }
 
+        // ── Estudiantes adicionales visibles en Quick Match (demo) ──────────────
+        // Poblamos varios candidatos con competencias variadas para que las
+        // búsquedas de las empresas devuelvan resultados realistas y con distintos
+        // porcentajes de coincidencia. Todos usan la contraseña Kairos2026!.
+        var demoQuickMatchStudents = new[]
+        {
+            new
+            {
+                Username = "est_benjamin",
+                Email    = "benjamin@kairos.cl",
+                FullName = "Benjamín Soto Herrera",
+                Bio      = "Estudiante de Mecatrónica, 4° año. Me apasiona la automatización con PLC y la robótica.",
+                Skills   = new[] { "PLC Siemens", "Arduino", "Robótica industrial", "Modbus", "Inglés B1", "Práctica en automatización" },
+            },
+            new
+            {
+                Username = "est_catalina",
+                Email    = "catalina@kairos.cl",
+                FullName = "Catalina Rojas Muñoz",
+                Bio      = "Especialidad en Automatización. Me encanta el diseño mecánico y el modelado 3D.",
+                Skills   = new[] { "PLC Siemens", "AutoCAD", "SolidWorks", "Diseño 3D", "Inglés B2" },
+            },
+            new
+            {
+                Username = "est_diego",
+                Email    = "diego@kairos.cl",
+                FullName = "Diego Fuentes Araya",
+                Bio      = "Estudiante de Informática. Programo en Python y C/C++, y administro redes.",
+                Skills   = new[] { "Python", "C/C++", "Redes", "Inglés B2", "Práctica en TI" },
+            },
+            new
+            {
+                Username = "est_fernanda",
+                Email    = "fernanda@kairos.cl",
+                FullName = "Fernanda Morales Díaz",
+                Bio      = "Mecatrónica. Diseño robots y publico mis proyectos personales.",
+                Skills   = new[] { "Arduino", "SolidWorks", "Diseño 3D", "Robótica industrial", "Proyecto personal publicado" },
+            },
+            new
+            {
+                Username = "est_ignacio",
+                Email    = "ignacio@kairos.cl",
+                FullName = "Ignacio Castro Vega",
+                Bio      = "Electrónica industrial. Trabajo con microcontroladores y comunicación Modbus.",
+                Skills   = new[] { "C/C++", "Arduino", "Modbus", "Redes", "Inglés B1" },
+            },
+            new
+            {
+                Username = "est_valentina",
+                Email    = "valentina@kairos.cl",
+                FullName = "Valentina Pérez Silva",
+                Bio      = "Automatización industrial. Programación de PLC y robótica de línea.",
+                Skills   = new[] { "PLC Siemens", "Modbus", "Robótica industrial", "Práctica en automatización", "Inglés C1" },
+            },
+        };
+
+        var skillIdByName = await db.Skills.ToDictionaryAsync(s => s.Name, s => s.Id);
+
+        foreach (var seed in demoQuickMatchStudents)
+        {
+            if (await db.Users.AnyAsync(u => u.Username == seed.Username)) continue;
+
+            var user = new User
+            {
+                Username          = seed.Username,
+                Email             = seed.Email,
+                PasswordHash      = BCrypt.Net.BCrypt.HashPassword("Kairos2026!"),
+                FullName          = seed.FullName,
+                Role              = "student",
+                Institution       = "Liceo Técnico Cardenal José María Caro",
+                Bio               = seed.Bio,
+                Status            = "approved",
+                QuickMatchVisible = true,
+            };
+            db.Users.Add(user);
+            await db.SaveChangesAsync();
+
+            foreach (var skillName in seed.Skills)
+            {
+                if (skillIdByName.TryGetValue(skillName, out var skillId))
+                    db.UserSkills.Add(new UserSkill { UserId = user.Id, SkillId = skillId });
+            }
+            await db.SaveChangesAsync();
+        }
+
         // ── Ofertas laborales de demo ──────────────────────────────────────────
         if (companyId.HasValue)
         {
@@ -284,6 +369,21 @@ public static class DevDataSeeder
                         ExpiresAt   = DateTime.UtcNow.AddDays(29),
                     }
                 );
+                await db.SaveChangesAsync();
+            }
+        }
+
+        // ── Mensaje de contacto personalizado de demo (empresa 2) ──────────────
+        // La empresa 1 queda con el mensaje por defecto y la empresa 2 con uno
+        // personalizado, para poder demostrar ambos estados de la funcionalidad.
+        if (companyId2.HasValue)
+        {
+            var company2 = await db.Users.FindAsync(companyId2.Value);
+            if (company2 != null && string.IsNullOrWhiteSpace(company2.QuickMatchMessageTemplate))
+            {
+                company2.QuickMatchMessageTemplate =
+                    "¡Hola {nombre}! En TechSolutions Chile buscamos jóvenes talentos y tu dominio de " +
+                    "{competencias} nos llamó la atención. ¿Coordinamos una entrevista?";
                 await db.SaveChangesAsync();
             }
         }

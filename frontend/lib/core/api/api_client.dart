@@ -247,6 +247,23 @@ class ApiClient {
     await _dio.delete('/skills/me/$skillId');
   }
 
+  /// Company-only: get the current Quick Match contact message template.
+  /// Returns `{ template: String, isDefault: bool }`.
+  Future<Map<String, dynamic>> getCompanyMessageTemplate() async {
+    final response = await _dio.get('/skills/company/message');
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// Company-only: update the Quick Match contact message template.
+  /// Passing an empty string resets it to the system default.
+  /// Returns `{ template: String, isDefault: bool }`.
+  Future<Map<String, dynamic>> setCompanyMessageTemplate(String template) async {
+    final response = await _dio.put('/skills/company/message', data: {
+      'template': template,
+    });
+    return response.data as Map<String, dynamic>;
+  }
+
   // ── Network ──────────────────────────────────────────────────────────────────
 
   Future<List<dynamic>> getNetworkSuggestions(

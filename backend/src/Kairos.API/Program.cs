@@ -169,6 +169,7 @@ using (var scope = app.Services.CreateScope())
     // Uses information_schema check so it works on MySQL 5.7+ (no IF NOT EXISTS needed).
     await EnsureColumnAsync(db, "job_postings", "ImageUrl", "varchar(500) NULL");
     await EnsureColumnAsync(db, "users",        "Status",   "varchar(20) NOT NULL DEFAULT 'approved'");
+    await EnsureColumnAsync(db, "users",        "QuickMatchMessageTemplate", "varchar(1000) NULL");
 }
 
 static async Task EnsureColumnAsync(ApplicationDbContext db, string table, string column, string definition)

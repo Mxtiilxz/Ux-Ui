@@ -52,6 +52,17 @@ class _JobsPageState extends State<JobsPage> {
   final Set<int> _contactingIds = {};
   final Set<int> _contactedIds = {};
 
+  // ── Mensaje de contacto editable por la empresa ──────────────────────────────
+  // Placeholders soportados: {nombre} (candidato), {empresa} (esta empresa),
+  // {competencias} (competencias coincidentes). Debe reflejar el default del
+  // backend (QuickMatchDefaults.MessageTemplate).
+  static const String _defaultMessageTemplate =
+      'Hola {nombre}, te contactamos desde {empresa}. Vimos que dominas {competencias} '
+      'y nos encantaría conversar contigo sobre una oportunidad de práctica. ¿Te interesaría?';
+  String _messageTemplate = _defaultMessageTemplate;
+  bool _messageIsDefault = true;
+  bool _loadingMessageTemplate = true;
+
   static const List<String> _specializations = [
     'Mecatronica',
     'Automatizacion',
@@ -64,6 +75,7 @@ class _JobsPageState extends State<JobsPage> {
     super.initState();
     if (widget.role == UserRole.company) {
       _loadSkillCatalog();
+      _loadMessageTemplate();
     } else {
       _loadJobs();
     }
@@ -156,6 +168,36 @@ class _JobsPageState extends State<JobsPage> {
     }
   }
 
+  Future<void> _loadMessageTemplate() async {
+    try {
+      final data = await _api.getCompanyMessageTemplate();
+      final template = (data['template'] as String?)?.trim();
+      if (mounted) {
+        setState(() {
+          _messageTemplate =
+              (template != null && template.isNotEmpty) ? template : _defaultMessageTemplate;
+          _messageIsDefault = data['isDefault'] as bool? ?? true;
+        });
+      }
+    } catch (_) {
+      // Si falla, se mantiene la plantilla por defecto local.
+    } finally {
+      if (mounted) setState(() => _loadingMessageTemplate = false);
+    }
+  }
+
+  /// Rellena la plantilla con los datos del candidato y la empresa.
+  String _buildContactMessage({required String candidateName, required String skills}) {
+    final competencias = skills.trim().isEmpty ? 'tu perfil' : skills.trim();
+    final template =
+        _messageTemplate.trim().isEmpty ? _defaultMessageTemplate : _messageTemplate;
+    return template
+        .replaceAll('{nombre}', candidateName)
+        .replaceAll('{empresa}', widget.currentUser.name)
+        .replaceAll('{competencias}', competencias)
+        .trim();
+  }
+
   void _toggleSearchSkill(int skillId) {
     setState(() {
       if (_selectedSkillIds.contains(skillId)) {
@@ -191,13 +233,11 @@ class _JobsPageState extends State<JobsPage> {
 
   Future<void> _contactCandidate(Map<String, dynamic> candidate) async {
     final id = candidate['id'] as int;
+    final candidateName = candidate['fullName'] as String? ?? 'Estudiante';
     final matched = (candidate['matchedSkills'] as List<dynamic>? ?? [])
         .cast<Map<String, dynamic>>();
     final skillNames = matched.map((s) => s['name'] as String).join(', ');
-    final message = skillNames.isEmpty
-        ? '${widget.currentUser.name} está interesado en tu perfil. ¿Te interesaría conversar?'
-        : '${widget.currentUser.name} está interesado en tus competencias en $skillNames. '
-            '¿Te interesaría conversar?';
+    final message = _buildContactMessage(candidateName: candidateName, skills: skillNames);
 
     setState(() => _contactingIds.add(id));
     try {
@@ -1095,9 +1135,231 @@ class _JobsPageState extends State<JobsPage> {
               ],
             ),
             const SizedBox(height: 16),
+            _buildContactMessageCard(),
+            const SizedBox(height: 16),
             _buildQuickMatchSearchPanel(),
             const SizedBox(height: 16),
             _buildQuickMatchResults(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Mensaje de contacto predeterminado (editable por la empresa) ─────────────
+
+  Widget _buildContactMessageCard() {
+    return KCard(
+      borderColor: KairosPalette.primary.withValues(alpha: 0.35),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: KairosPalette.primary,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.mark_chat_unread_rounded, color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Mensaje de contacto',
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                    SizedBox(height: 2),
+                    Text(
+                      'Se envía automáticamente al contactar a un candidato desde Quick Match.',
+                      style: TextStyle(color: KairosPalette.secondary, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: _loadingMessageTemplate ? null : _showEditMessageDialog,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: KairosPalette.primary,
+                  side: const BorderSide(color: KairosPalette.primary),
+                ),
+                icon: const Icon(Icons.edit_rounded, size: 16),
+                label: const Text('Editar'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: KairosPalette.muted,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: _loadingMessageTemplate
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: SizedBox(
+                        width: 18, height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  )
+                : Text(
+                    _messageTemplate,
+                    style: const TextStyle(fontStyle: FontStyle.italic, height: 1.4),
+                  ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(
+                _messageIsDefault ? Icons.info_outline_rounded : Icons.check_circle_rounded,
+                size: 15,
+                color: _messageIsDefault ? KairosPalette.secondary : KairosPalette.primary,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  _messageIsDefault
+                      ? 'Estás usando el mensaje por defecto. Puedes personalizarlo.'
+                      : 'Mensaje personalizado activo.',
+                  style: const TextStyle(color: KairosPalette.secondary, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditMessageDialog() {
+    final controller = TextEditingController(text: _messageTemplate);
+    bool saving = false;
+
+    void insertToken(String token) {
+      final text = controller.text;
+      final sel = controller.selection;
+      final start = sel.start < 0 ? text.length : sel.start;
+      final end = sel.end < 0 ? text.length : sel.end;
+      final newText = text.replaceRange(start, end, token);
+      controller.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(offset: start + token.length),
+      );
+    }
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setInner) => AlertDialog(
+          title: const Text('Editar mensaje de contacto',
+              style: TextStyle(fontWeight: FontWeight.w800)),
+          content: SizedBox(
+            width: 480,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: controller,
+                    maxLines: 5,
+                    maxLength: 1000,
+                    decoration: const InputDecoration(
+                      hintText: 'Escribe el mensaje que recibirán los candidatos...',
+                      alignLabelWithHint: true,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text('Toca para insertar:',
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final token in const ['{nombre}', '{empresa}', '{competencias}'])
+                        ActionChip(
+                          label: Text(token, style: const TextStyle(fontSize: 12)),
+                          backgroundColor: KairosPalette.primary.withValues(alpha: 0.12),
+                          side: BorderSide.none,
+                          onPressed: () => insertToken(token),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    '{nombre}: nombre del candidato\n'
+                    '{empresa}: el nombre de tu empresa\n'
+                    '{competencias}: competencias coincidentes',
+                    style: TextStyle(color: KairosPalette.secondary, fontSize: 12, height: 1.5),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: saving ? null : () => controller.text = _defaultMessageTemplate,
+              child: const Text('Restablecer'),
+            ),
+            TextButton(
+              onPressed: saving ? null : () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: KairosPalette.primary),
+              onPressed: saving
+                  ? null
+                  : () async {
+                      setInner(() => saving = true);
+                      try {
+                        final data = await _api.setCompanyMessageTemplate(controller.text.trim());
+                        final template = (data['template'] as String?)?.trim();
+                        if (mounted) {
+                          setState(() {
+                            _messageTemplate = (template != null && template.isNotEmpty)
+                                ? template
+                                : _defaultMessageTemplate;
+                            _messageIsDefault = data['isDefault'] as bool? ?? true;
+                          });
+                        }
+                        if (ctx.mounted) Navigator.of(ctx).pop();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Mensaje de contacto actualizado.'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } catch (_) {
+                        setInner(() => saving = false);
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(
+                              content: Text('No se pudo guardar el mensaje. Intenta de nuevo.'),
+                              backgroundColor: Colors.redAccent,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              child: saving
+                  ? const SizedBox(
+                      width: 18, height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Guardar'),
+            ),
           ],
         ),
       ),
