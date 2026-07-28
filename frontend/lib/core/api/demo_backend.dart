@@ -32,6 +32,7 @@ class DemoBackend {
       ..clear()
       ..addAll([1, 2, 3, 12, 14]);
     _quickMatchVisible = true;
+    _messageTemplate = null;
     _followingIds
       ..clear()
       ..addAll([101, 104]);
@@ -312,6 +313,29 @@ class DemoBackend {
   final Set<int> _followingIds = {101, 104};
   final Set<int> _appliedJobIds = {};
   bool _quickMatchVisible = true;
+
+  /// Plantilla de contacto de Quick Match. Debe coincidir con
+  /// `QuickMatchDefaults.MessageTemplate` del backend real.
+  static const String defaultMessageTemplate =
+      'Hola {nombre}, te contactamos desde {empresa}. Vimos que dominas '
+      '{competencias} y nos encantaría conversar contigo sobre una oportunidad '
+      'de práctica. ¿Te interesaría?';
+
+  String? _messageTemplate;
+
+  Future<Map<String, dynamic>> getCompanyMessageTemplate() => _delayed({
+        'template': _messageTemplate ?? defaultMessageTemplate,
+        'isDefault': _messageTemplate == null,
+      });
+
+  Future<Map<String, dynamic>> setCompanyMessageTemplate(String template) {
+    final trimmed = template.trim();
+    _messageTemplate = trimmed.isEmpty ? null : trimmed;
+    return _delayed({
+      'template': _messageTemplate ?? defaultMessageTemplate,
+      'isDefault': _messageTemplate == null,
+    }, 180);
+  }
 
   // ════════════════════════════════════════════════════════════════════════
   //  AUTENTICACIÓN

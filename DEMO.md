@@ -91,6 +91,7 @@ legible directamente en GA (Informes → Interacción → Eventos).
 | `quickmatch_filtro` | Marca o desmarca una competencia en la búsqueda | `competencia`, `accion` |
 | `quickmatch_buscar` | Ejecuta la búsqueda de candidatos | `competencias_buscadas`, `candidatos_encontrados` |
 | `quickmatch_contactar` | Contacta a un candidato | `coincidencia` |
+| `quickmatch_mensaje` | Guarda su mensaje de contacto | `accion` (personalizar/restablecer) |
 | `competencia_perfil` | Agrega o quita una competencia propia | `competencia`, `accion` |
 | `quickmatch_visibilidad` | Activa o desactiva su visibilidad | `visible` |
 | `descargar_cv` | Genera y descarga el CV | — |

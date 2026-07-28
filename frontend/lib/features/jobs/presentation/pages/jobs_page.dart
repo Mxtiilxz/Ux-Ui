@@ -1335,6 +1335,7 @@ class _JobsPageState extends State<JobsPage> {
                       setInner(() => saving = true);
                       try {
                         final data = await _api.setCompanyMessageTemplate(controller.text.trim());
+                        Analytics.quickMatchTemplateEdit(data['isDefault'] as bool? ?? false);
                         final template = (data['template'] as String?)?.trim();
                         if (mounted) {
                           setState(() {

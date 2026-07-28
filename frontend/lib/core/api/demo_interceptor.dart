@@ -72,6 +72,9 @@ class DemoInterceptor extends Interceptor {
     // skills / quick match
     if (_is(s, ['skills'])) return _demo.getSkills();
     if (_is(s, ['skills', 'me'])) return _demo.getMySkills();
+    if (_is(s, ['skills', 'company', 'message'])) {
+      return _demo.getCompanyMessageTemplate();
+    }
     if (_is(s, ['skills', 'candidates'])) {
       final raw = options.queryParameters['skillIds']?.toString() ?? '';
       final ids = raw
@@ -165,6 +168,9 @@ class DemoInterceptor extends Interceptor {
     if (_is(s, ['skills', 'me', 'visibility'])) {
       final visible = await _demo.setQuickMatchVisibility(body['visible'] as bool? ?? false);
       return {'visible': visible};
+    }
+    if (_is(s, ['skills', 'company', 'message'])) {
+      return _demo.setCompanyMessageTemplate(body['template'] as String? ?? '');
     }
     if (s.length == 2 && s[0] == 'posts') {
       await _demo.updatePost(idAt(1), body['content'] as String? ?? '');

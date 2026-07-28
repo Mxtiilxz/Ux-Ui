@@ -61,6 +61,12 @@ class Analytics {
   static void quickMatchContact(int matchPercentage) =>
       _send('quickmatch_contactar', {'coincidencia': matchPercentage});
 
+  /// La empresa guarda su mensaje de contacto (personalizado o restablecido).
+  static void quickMatchTemplateEdit(bool isDefault) =>
+      _send('quickmatch_mensaje', {
+        'accion': isDefault ? 'restablecer' : 'personalizar',
+      });
+
   // ── Perfil y competencias ──────────────────────────────────────────────────
 
   static void skillToggle(String skill, bool added) =>
