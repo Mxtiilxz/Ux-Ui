@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/analytics/analytics.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/models/user_profile.dart';
 import '../../../../core/services/chat_hub_service.dart';
@@ -333,6 +334,7 @@ class _ChatsPageState extends State<ChatsPage> {
     if (receiverId != null) {
       try {
         await _api.sendMessage(receiverId, text);
+        Analytics.sendMessage();
         // Add conversation to list if it was a new chat
         if (!_conversations.any((c) => c.id == selected.id)) {
           setState(() => _conversations.insert(0, selected));

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../core/analytics/analytics.dart';
 import '../../core/api/api_client.dart';
 import '../../features/home/data/models/post_model.dart';
 import '../theme/kairos_palette.dart';
@@ -63,6 +64,7 @@ class _PostCardState extends State<PostCard> {
       _liked = !_liked;
       _likes += _liked ? 1 : -1;
     });
+    Analytics.postLike(_liked);
     try {
       final postId = int.tryParse(widget.post.id);
       if (postId != null) {
@@ -85,6 +87,13 @@ class _PostCardState extends State<PostCard> {
   }
 
   void _toggleExpanded() => setState(() => _isExpanded = !_isExpanded);
+
+  void _sharePost() {
+    Analytics.postShare();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Enlace de la publicación copiado.')),
+    );
+  }
 
   Future<void> _toggleComments() async {
     setState(() => _showComments = !_showComments);
@@ -223,6 +232,7 @@ class _PostCardState extends State<PostCard> {
     setState(() => _submittingComment = true);
     try {
       final dto = await _api.addComment(postId, text);
+      Analytics.postComment();
       _commentController.clear();
       if (mounted) {
         setState(() {
@@ -478,7 +488,7 @@ class _PostCardState extends State<PostCard> {
                         icon: Icons.share_rounded,
                         label: 'Compartir',
                         color: KairosPalette.secondary,
-                        onTap: () {},
+                        onTap: _sharePost,
                       ),
                     ],
                   ),

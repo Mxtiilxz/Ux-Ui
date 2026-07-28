@@ -1,6 +1,15 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
+
+import 'demo_backend.dart';
+import 'demo_interceptor.dart';
+
+/// Modo demostración: la app funciona sin backend, usando datos simulados en
+/// memoria. Se activa al compilar con `--dart-define=DEMO_MODE=true`.
+const bool kDemoMode = bool.fromEnvironment('DEMO_MODE');
 
 class ApiClient {
   static const _baseUrl     = String.fromEnvironment('API_URL', defaultValue: 'https://ingenieria-de-software-grupo-colegio6-production.up.railway.app/api');
@@ -17,6 +26,8 @@ class ApiClient {
       receiveTimeout: const Duration(seconds: 30),
       contentType: 'application/json',
     ));
+
+    if (kDemoMode) _dio.interceptors.add(DemoInterceptor());
 
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
@@ -97,6 +108,13 @@ class ApiClient {
     });
     return response.data as Map<String, dynamic>;
   }
+
+  /// Inicio de sesión del modo demo: no valida credenciales, solo toma el rol
+  /// elegido por el tester. El rol staff no se ofrece a propósito.
+  Future<Map<String, dynamic>> demoLogin({
+    required String role,
+    required String name,
+  }) => DemoBackend.instance.login('demo@kairos.cl', role, name);
 
   Future<Map<String, dynamic>> register({
     required String username,
@@ -338,6 +356,13 @@ class ApiClient {
       'gif'  => 'gif',
       _      => 'jpeg',
     };
+
+    // En modo demo no hay servidor de archivos: la imagen se incrusta como
+    // data URL para que el usuario vea exactamente la que eligió.
+    if (kDemoMode) {
+      return {'cdnUrl': 'data:image/$subtype;base64,${base64Encode(bytes)}'};
+    }
+
     final formData = FormData.fromMap({
       'file': MultipartFile.fromBytes(
         bytes,
@@ -356,6 +381,9 @@ class ApiClient {
   // ── Reports ─────────────────────────────────────────────────────────────────
 
   Future<List<int>> downloadReport({int? month, int? year}) async {
+    if (kDemoMode) {
+      return DemoBackend.instance.generatePdf('Reporte mensual de actividad');
+    }
     final response = await _dio.get<List<int>>(
       '/reports/me',
       queryParameters: {
@@ -371,6 +399,9 @@ class ApiClient {
 
   /// Generate and download a full CV PDF built from the user's activity history.
   Future<List<int>> downloadCurriculum() async {
+    if (kDemoMode) {
+      return DemoBackend.instance.generatePdf('Curriculum Vitae');
+    }
     final response = await _dio.get<List<int>>(
       '/curriculum/me',
       options: Options(responseType: ResponseType.bytes),

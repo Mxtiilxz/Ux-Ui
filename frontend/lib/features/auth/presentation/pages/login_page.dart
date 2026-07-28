@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import '../../../../core/analytics/analytics.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/models/user_profile.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -28,7 +29,50 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+  /// Perfil elegido por el tester en modo demo. Solo estudiante o empresa:
+  /// el rol staff (administración del liceo) no se ofrece a propósito.
+  String _demoRole = 'student';
+
+  Future<void> _submitDemo() async {
+    setState(() => _isLoading = true);
+
+    final client = ApiClient();
+    final name = _demoRole == 'company'
+        ? 'Automatización Industrial S.A.'
+        : 'Camila Vidal Astorga';
+
+    final response = await client.demoLogin(role: _demoRole, name: name);
+    Analytics.login(_demoRole);
+
+    final roleStr = response['role'] as String? ?? 'student';
+    await client.saveToken(response['token'] as String);
+    await client.saveProfile({
+      'id': (response['userId'] as int? ?? 0).toString(),
+      'fullName': name,
+      'role': roleStr,
+      'title': _titleForRole(roleStr),
+      'institution': response['institution'] as String?,
+      'quickMatchVisible': (response['quickMatchVisible'] as bool? ?? false).toString(),
+    });
+
+    if (!mounted) return;
+    widget.onLoginSuccess(UserProfile(
+      id: (response['userId'] as int? ?? 0).toString(),
+      name: name,
+      role: _mapRole(roleStr),
+      title: _titleForRole(roleStr),
+      avatarUrl: '',
+      skills: const [],
+      bio: '',
+      location: '',
+      connections: 0,
+      institution: response['institution'] as String?,
+      quickMatchVisible: response['quickMatchVisible'] as bool? ?? false,
+    ));
+  }
+
   Future<void> _submit() async {
+    if (kDemoMode) return _submitDemo();
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
@@ -159,9 +203,8 @@ class _LoginPageState extends State<LoginPage> {
 
   UserRole _roleFromInput(String text) {
     final normalized = text.toLowerCase();
-    if (normalized.contains('staff') || normalized.contains('docente')) {
-      return UserRole.staff;
-    }
+    // El rol staff (administración del liceo) queda deliberadamente fuera:
+    // los testers no deben poder entrar al panel de gestión.
     if (normalized.contains('company') ||
         normalized.contains('empresa') ||
         normalized.contains('hr')) {
@@ -192,6 +235,85 @@ class _LoginPageState extends State<LoginPage> {
       MaterialPageRoute(
         builder: (_) => RegisterPage(
           onRegisterSuccess: (user, _) => widget.onLoginSuccess(user),
+        ),
+      ),
+    );
+  }
+
+  /// Selector de perfil del modo demo. Reemplaza a los campos de credenciales:
+  /// el tester elige cómo quiere recorrer la app y entra de inmediato.
+  Widget _buildDemoRoleSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'Elige con qué perfil quieres recorrer la plataforma.',
+          style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: 14),
+        _demoRoleOption(
+          role: 'student',
+          icon: Icons.school_rounded,
+          title: 'Estudiante',
+          subtitle: 'Explora el feed, tus competencias y postula a ofertas.',
+        ),
+        const SizedBox(height: 10),
+        _demoRoleOption(
+          role: 'company',
+          icon: Icons.business_center_rounded,
+          title: 'Empresa',
+          subtitle: 'Publica ofertas y busca talento con Quick Match.',
+        ),
+      ],
+    );
+  }
+
+  Widget _demoRoleOption({
+    required String role,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    final selected = _demoRole == role;
+    return InkWell(
+      onTap: _isLoading ? null : () => setState(() => _demoRole = role),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: selected ? AppColors.primary.withValues(alpha: 0.08) : null,
+          border: Border.all(
+            color: selected ? AppColors.primary : AppColors.divider,
+            width: selected ? 1.6 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: selected ? AppColors.primary : AppColors.textTertiary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: selected ? AppColors.primary : AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            if (selected)
+              const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20),
+          ],
         ),
       ),
     );
@@ -275,6 +397,9 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ),
                           const SizedBox(height: 24),
+                          if (kDemoMode) ...[
+                            _buildDemoRoleSelector(),
+                          ] else ...[
                           // Email / Username
                           _FormField(
                             controller: _emailController,
@@ -333,6 +458,7 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                             ),
                           ),
+                          ],
                           const SizedBox(height: 8),
                           // Submit
                           SizedBox(
@@ -370,29 +496,41 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        '¿No tienes cuenta? ',
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 13,
-                        ),
+                  if (kDemoMode)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 24),
+                      child: Text(
+                        'Versión de demostración para pruebas de uso. Los cambios '
+                        'que hagas se mantienen durante la sesión y se reinician '
+                        'al recargar la página.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: AppColors.textTertiary, fontSize: 12),
                       ),
-                      GestureDetector(
-                        onTap: _goToRegister,
-                        child: const Text(
-                          'Regístrate',
+                    )
+                  else
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text(
+                          '¿No tienes cuenta? ',
                           style: TextStyle(
-                            color: AppColors.primary,
+                            color: AppColors.textSecondary,
                             fontSize: 13,
-                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
+                        GestureDetector(
+                          onTap: _goToRegister,
+                          child: const Text(
+                            'Regístrate',
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                 ],
               ),
             ),

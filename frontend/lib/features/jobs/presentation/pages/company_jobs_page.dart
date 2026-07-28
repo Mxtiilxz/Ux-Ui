@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../core/analytics/analytics.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/theme/kairos_palette.dart';
 import '../../../../core/widgets/k_card.dart';
@@ -198,6 +199,7 @@ class _CompanyJobsPageState extends State<CompanyJobsPage> {
   }
 
   void _openApplications(Map<String, dynamic> posting) {
+    Analytics.jobViewApplicants();
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => _ApplicationsPage(
         jobId: posting['id'] as int,

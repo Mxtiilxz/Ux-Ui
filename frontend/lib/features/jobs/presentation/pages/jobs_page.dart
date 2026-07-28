@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../core/analytics/analytics.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/data/mock_data.dart';
 import '../../../../core/models/user_profile.dart';
@@ -101,6 +102,7 @@ class _JobsPageState extends State<JobsPage> {
     setState(() => _generatingCv = true);
     try {
       final bytes = await _api.downloadCurriculum();
+      Analytics.downloadCv();
       downloadFile(bytes, 'kairos-cv.pdf');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -129,6 +131,7 @@ class _JobsPageState extends State<JobsPage> {
     if (jobId == null) return;
     try {
       await _api.applyToJob(jobId);
+      Analytics.jobApply(job.title);
       if (mounted) {
         setState(() => _appliedJobs.add(job.id));
         ScaffoldMessenger.of(context).showSnackBar(
@@ -199,11 +202,17 @@ class _JobsPageState extends State<JobsPage> {
   }
 
   void _toggleSearchSkill(int skillId) {
+    final willSelect = !_selectedSkillIds.contains(skillId);
+    final skill = _skillCatalog.firstWhere(
+      (s) => s['id'] == skillId,
+      orElse: () => const {'name': 'desconocida'},
+    );
+    Analytics.quickMatchSkillToggle(skill['name'] as String, willSelect);
     setState(() {
-      if (_selectedSkillIds.contains(skillId)) {
-        _selectedSkillIds.remove(skillId);
-      } else {
+      if (willSelect) {
         _selectedSkillIds.add(skillId);
+      } else {
+        _selectedSkillIds.remove(skillId);
       }
     });
   }
@@ -216,6 +225,7 @@ class _JobsPageState extends State<JobsPage> {
     });
     try {
       final results = await _api.searchCandidates(_selectedSkillIds.toList());
+      Analytics.quickMatchSearch(_selectedSkillIds.length, results.length);
       if (mounted) setState(() => _candidates = results);
     } catch (_) {
       if (mounted) {
@@ -242,6 +252,7 @@ class _JobsPageState extends State<JobsPage> {
     setState(() => _contactingIds.add(id));
     try {
       await _api.sendMessage(id, message);
+      Analytics.quickMatchContact(candidate['matchPercentage'] as int? ?? 0);
       if (mounted) {
         setState(() {
           _contactedIds.add(id);
@@ -1025,6 +1036,7 @@ class _JobsPageState extends State<JobsPage> {
                           location:    locationCtrl.text.trim().isNotEmpty ? locationCtrl.text.trim() : null,
                           imageUrl:    uploadedImageUrl,
                         );
+                        Analytics.jobCreate();
                         if (ctx.mounted) Navigator.of(ctx).pop();
                         await _loadJobs();
                         if (mounted) {

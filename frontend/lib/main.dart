@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'core/analytics/analytics.dart';
 import 'core/api/api_client.dart';
+import 'core/api/demo_backend.dart';
 import 'core/models/user_profile.dart';
 import 'core/state/user_role_controller.dart';
 import 'core/theme/app_theme.dart';
@@ -94,8 +96,19 @@ class _KairosAppState extends State<KairosApp> {
   }
 
   Future<void> _onLogout() async {
+    Analytics.logout();
     await ApiClient().clearToken();
+    if (kDemoMode) DemoBackend.instance.reset();
     setState(() => _currentUser = null);
+  }
+
+  static const _tabNames = ['inicio', 'trabajos', 'red', 'chats', 'perfil'];
+
+  void _onSelectTab(int index) {
+    if (index >= 0 && index < _tabNames.length) {
+      Analytics.tabView(_tabNames[index]);
+    }
+    setState(() => _selectedIndex = index);
   }
 
   @override
@@ -113,8 +126,7 @@ class _KairosAppState extends State<KairosApp> {
               builder: (context, _) {
                 return AppShell(
                   selectedIndex: _selectedIndex,
-                  onSelectIndex: (index) =>
-                      setState(() => _selectedIndex = index),
+                  onSelectIndex: _onSelectTab,
                   currentUser: _currentUser!,
                   roleController: _roleController,
                   onLogout: _onLogout,

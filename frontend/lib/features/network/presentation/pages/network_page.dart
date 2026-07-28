@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/analytics/analytics.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/models/user_profile.dart';
 import '../../../../core/theme/kairos_palette.dart';
@@ -88,8 +89,10 @@ class _NetworkPageState extends State<NetworkPage> {
     try {
       if (wasConnected) {
         await _api.unfollowUser(userId);
+        Analytics.follow(false);
       } else {
         await _api.followUser(userId);
+        Analytics.follow(true);
       }
     } catch (_) {
       // Revert on failure

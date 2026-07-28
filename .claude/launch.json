@@ -13,6 +13,13 @@
         "--dart-define=API_URL=http://localhost:5001/api"
       ],
       "port": 3000
+    },
+    {
+      "name": "kairos-demo",
+      "cwd": "frontend/build/web",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "4173"],
+      "port": 4173
     }
   ]
 }

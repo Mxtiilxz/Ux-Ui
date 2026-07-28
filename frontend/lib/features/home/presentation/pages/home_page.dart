@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../core/analytics/analytics.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/data/mock_data.dart';
 import '../../../../core/models/user_profile.dart';
@@ -104,6 +105,7 @@ class _HomePageState extends State<HomePage> {
     setState(() => _publishing = true);
     try {
       await _api.createPost(content: text, postType: 'general', imageUrl: _uploadedImageUrl);
+      Analytics.postCreate('general');
       _postController.clear();
       _postFocusNode.unfocus();
       setState(() {
@@ -163,6 +165,7 @@ class _HomePageState extends State<HomePage> {
         imageUrl: _uploadedImageUrl,
         eventDate: eventDate,
       );
+      Analytics.postCreate('event');
       _postController.clear();
       _postFocusNode.unfocus();
       setState(() {
@@ -847,6 +850,7 @@ class _HomePageState extends State<HomePage> {
                               ? null
                               : locationCtrl.text.trim(),
                         );
+                        Analytics.jobCreate();
                         if (ctx.mounted) {
                           Navigator.pop(ctx);
                           ScaffoldMessenger.of(ctx).showSnackBar(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../core/analytics/analytics.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/models/user_profile.dart';
 import '../../../../core/theme/kairos_palette.dart';
@@ -79,6 +80,11 @@ class _ProfilePageState extends State<ProfilePage> {
       } else {
         await _api.addMySkill(skillId);
       }
+      final skill = _skillCatalog.firstWhere(
+        (s) => s['id'] == skillId,
+        orElse: () => const {'name': 'desconocida'},
+      );
+      Analytics.skillToggle(skill['name'] as String, !wasSelected);
     } catch (_) {
       if (mounted) {
         setState(() {
@@ -107,6 +113,7 @@ class _ProfilePageState extends State<ProfilePage> {
     });
     try {
       final confirmed = await _api.setQuickMatchVisibility(value);
+      Analytics.quickMatchVisibility(confirmed);
       if (mounted) setState(() => _quickMatchVisible = confirmed);
     } catch (_) {
       if (mounted) {
@@ -157,6 +164,7 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       final now = DateTime.now();
       final bytes = await _api.downloadReport(month: now.month, year: now.year);
+      Analytics.downloadReport();
       downloadFile(bytes, 'kairos-reporte-${now.year}-${now.month.toString().padLeft(2, '0')}.pdf');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -178,6 +186,7 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _isDownloadingCv = true);
     try {
       final bytes = await _api.downloadCurriculum();
+      Analytics.downloadCv();
       final now = DateTime.now();
       downloadFile(bytes, 'kairos-cv-${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}.pdf');
       if (mounted) {
