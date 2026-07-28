@@ -4,12 +4,12 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../config.dart';
 import 'demo_backend.dart';
 import 'demo_interceptor.dart';
 
-/// Modo demostración: la app funciona sin backend, usando datos simulados en
-/// memoria. Se activa al compilar con `--dart-define=DEMO_MODE=true`.
-const bool kDemoMode = bool.fromEnvironment('DEMO_MODE');
+// Se reexporta para no romper los archivos que ya importaban kDemoMode desde acá.
+export '../config.dart' show kDemoMode;
 
 class ApiClient {
   static const _baseUrl     = String.fromEnvironment('API_URL', defaultValue: 'https://ingenieria-de-software-grupo-colegio6-production.up.railway.app/api');

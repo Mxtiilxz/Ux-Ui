@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:signalr_netcore/signalr_client.dart';
 
+import '../config.dart';
+
 /// Encapsulates the SignalR connection to the backend ChatHub (/hubs/chat).
 ///
 /// Usage:
@@ -36,6 +38,11 @@ class ChatHubService {
 
   /// Connect to the hub. Pass a [token] if JWT auth is enabled on the server.
   Future<void> connect({String url = _defaultUrl, String? token}) async {
+    // En modo demo no hay servidor: intentar conectar dejaría el cliente
+    // reintentando en bucle contra una URL inexistente. Los mensajes se
+    // resuelven igual por HTTP contra el backend simulado.
+    if (kDemoMode) return;
+
     final endpoint = token != null ? '$url?access_token=$token' : url;
 
     _connection = HubConnectionBuilder()

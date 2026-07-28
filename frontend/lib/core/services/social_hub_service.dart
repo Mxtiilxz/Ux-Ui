@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:signalr_netcore/signalr_client.dart';
 
+import '../config.dart';
+
 typedef VoidCallback = void Function();
 
 class SocialHubService {
@@ -58,6 +60,8 @@ class SocialHubService {
   }
 
   Future<void> connect() async {
+    // En modo demo no hay servidor de tiempo real; ver ChatHubService.connect.
+    if (kDemoMode) return;
     if (_connection.state == HubConnectionState.Connected) return;
     await _connection.start();
   }
