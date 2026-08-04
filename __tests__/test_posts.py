@@ -17,7 +17,7 @@ def company_session(session, base_url):
     """Session authenticated as a company user. Skips if none exists."""
     resp = session.post(
         f"{base_url}/api/auth/login",
-        json={"email": "kairos_company@kairos.cl", "password": "Kairos2026!"},
+        json={"email": "empresa@kairos.cl", "password": "Kairos2026!"},
     )
     if resp.status_code != 200:
         pytest.skip("No company seed user found — add one to DevDataSeeder to run these tests.")

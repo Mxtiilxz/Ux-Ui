@@ -4,9 +4,10 @@ Shared fixtures for Kairos API integration tests.
 The backend must be running on BASE_URL before executing the suite:
     cd backend && dotnet run --project src/Kairos.API
 
-Seed credentials (created by DevDataSeeder on first startup):
-    kairos_user1@kairos.cl  /  Kairos2026!
-    kairos_user2@kairos.cl  /  Kairos2026!
+Seed credentials (created by DevDataSeeder on first startup, all with the same password):
+    kairos_user1@kairos.cl  /  Kairos2026!   (student)
+    staff1@kairos.cl        /  Kairos2026!   (staff)
+    empresa@kairos.cl       /  Kairos2026!   (company)
 """
 
 import pytest

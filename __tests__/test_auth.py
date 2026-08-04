@@ -68,7 +68,7 @@ class TestLogin:
     def test_login_returns_correct_role_for_staff(self, session, base_url):
         resp = session.post(
             f"{base_url}/api/auth/login",
-            json={"email": "kairos_user2@kairos.cl", "password": "Kairos2026!"},
+            json={"email": "staff1@kairos.cl", "password": "Kairos2026!"},
         )
         assert resp.status_code == 200
         assert resp.json().get("role") == "staff"
