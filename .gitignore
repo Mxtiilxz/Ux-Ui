@@ -5,6 +5,11 @@ stack.md
 # Node.js artifacts (leftover from an early experiment, unused by this project)
 node_modules/
 
+# Python (suite de tests de integración)
+__pycache__/
+*.pyc
+.pytest_cache/
+
 # .NET build outputs
 **/bin/
 **/obj/

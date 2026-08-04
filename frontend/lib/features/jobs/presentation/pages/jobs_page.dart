@@ -39,7 +39,6 @@ class _JobsPageState extends State<JobsPage> {
   final _api = ApiClient();
   final _picker = ImagePicker();
   List<JobModel> _apiJobs = [];
-  bool _jobsLoading = true;
   bool _generatingCv = false;
   final Set<String> _appliedJobs = <String>{};
 
@@ -93,8 +92,6 @@ class _JobsPageState extends State<JobsPage> {
     } catch (_) {
       // Fall back to mock data
       if (mounted) setState(() => _apiJobs = []);
-    } finally {
-      if (mounted) setState(() => _jobsLoading = false);
     }
   }
 
@@ -927,7 +924,6 @@ class _JobsPageState extends State<JobsPage> {
     bool  submitting   = false;
     bool  uploadingImg = false;
     String? uploadedImageUrl;
-    XFile? pickedImage;
 
     showDialog<void>(
       context: context,
@@ -982,7 +978,7 @@ class _JobsPageState extends State<JobsPage> {
                           Positioned(
                             top: 4, right: 4,
                             child: GestureDetector(
-                              onTap: () => setInner(() { uploadedImageUrl = null; pickedImage = null; }),
+                              onTap: () => setInner(() => uploadedImageUrl = null),
                               child: Container(
                                 decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
                                 padding: const EdgeInsets.all(4),
@@ -997,7 +993,7 @@ class _JobsPageState extends State<JobsPage> {
                         onPressed: uploadingImg ? null : () async {
                           final img = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
                           if (img == null) return;
-                          setInner(() { uploadingImg = true; pickedImage = img; });
+                          setInner(() => uploadingImg = true);
                           try {
                             final result = await _api.uploadImage(img);
                             setInner(() => uploadedImageUrl = result['cdnUrl'] as String?);
