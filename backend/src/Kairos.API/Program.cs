@@ -20,7 +20,7 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ── Infrastructure (MySQL, Blob, JWT, PDF) ────────────────────────────────────
+// ── Infrastructure (PostgreSQL, Storage, JWT, PDF) ────────────────────────────
 builder.Services.AddInfrastructure(builder.Configuration, builder.Environment);
 
 // ── Application (MediatR + FluentValidation) ──────────────────────────────────
@@ -33,8 +33,15 @@ builder.Services.AddMediatR(cfg =>
 builder.Services.AddValidatorsFromAssemblyContaining<LoginCommand>();
 
 // ── Authentication (JWT Bearer) ───────────────────────────────────────────────
-var jwtKey = builder.Configuration["Jwt:SecretKey"]
-    ?? throw new InvalidOperationException("JWT secret key is not configured.");
+// appsettings.json ya no trae la clave: en producción llega por la variable de
+// entorno Jwt__SecretKey y en desarrollo desde appsettings.Development.json.
+// Se comprueba que no venga vacía, no solo que no sea null, porque una cadena
+// vacía firmaría tokens con una clave trivial en vez de fallar al arrancar.
+var jwtKey = builder.Configuration["Jwt:SecretKey"];
+if (string.IsNullOrWhiteSpace(jwtKey))
+    throw new InvalidOperationException(
+        "Falta la clave JWT. Definir la variable de entorno Jwt__SecretKey " +
+        "(mínimo 32 caracteres).");
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -104,6 +111,7 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddCors(opts =>
     opts.AddDefaultPolicy(policy =>
         policy.WithOrigins(
+                  "https://kairoswebapp.netlify.app",
                   "https://kairoslt.netlify.app",
                   "https://statuesque-llama-6b5882.netlify.app",
                   "http://localhost:3000",
@@ -160,35 +168,26 @@ builder.Services.AddRateLimiter(options =>
 var app = builder.Build();
 
 // ── Auto-apply pending EF Core migrations on startup ─────────────────────────
+//
+// El esquema completo lo crea la migración inicial de PostgreSQL. La red de
+// seguridad `EnsureColumnAsync` que existía aquí era específica de MySQL (usaba
+// backticks) y solo hacía falta por la deriva de esquema de la base de Railway;
+// sobre una base creada desde cero por las migraciones no tiene sentido.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    try { await db.Database.MigrateAsync(); } catch { /* migration already applied */ }
-
-    // Safety net: add columns that migrations may have skipped in production.
-    // Uses information_schema check so it works on MySQL 5.7+ (no IF NOT EXISTS needed).
-    await EnsureColumnAsync(db, "job_postings", "ImageUrl", "varchar(500) NULL");
-    await EnsureColumnAsync(db, "users",        "Status",   "varchar(20) NOT NULL DEFAULT 'approved'");
-    await EnsureColumnAsync(db, "users",        "QuickMatchMessageTemplate", "varchar(1000) NULL");
+    await db.Database.MigrateAsync();
 }
 
-static async Task EnsureColumnAsync(ApplicationDbContext db, string table, string column, string definition)
-{
-    try
-    {
-        await db.Database.ExecuteSqlRawAsync($"ALTER TABLE `{table}` ADD COLUMN `{column}` {definition}");
-    }
-    catch (Exception ex) when (
-        ex.Message.Contains("Duplicate column name") ||
-        ex.InnerException?.Message.Contains("Duplicate column name") == true)
-    {
-        // Column already exists — nothing to do
-    }
-}
-
-// ── Seed datos de testeo (solo en desarrollo) ─────────────────────────────────
+// ── Seed de datos ─────────────────────────────────────────────────────────────
+// En desarrollo se cargan usuarios de prueba completos. En producción solo se
+// crea el primer usuario staff, y únicamente si se entregan sus credenciales por
+// variables de entorno: sin al menos un staff nadie puede aprobar los registros,
+// que nacen en estado "pending".
 if (app.Environment.IsDevelopment())
     await DevDataSeeder.SeedAsync(app.Services);
+else
+    await ProductionSeeder.SeedAsync(app.Services, app.Configuration);
 
 // ── Middleware pipeline ────────────────────────────────────────────────────────
 app.UseCors();
@@ -208,6 +207,13 @@ if (app.Environment.IsDevelopment())
 app.UseAuthentication();
 app.UseRateLimiter();
 app.UseAuthorization();
+
+// Health check sin autenticación: los hosts gratuitos lo consultan para decidir
+// si el contenedor sigue vivo. No toca la base de datos a propósito, para que un
+// problema de BD no provoque un reinicio en bucle.
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
+   .AllowAnonymous()
+   .ExcludeFromDescription();
 
 app.MapControllers();
 app.MapHub<SocialHub>("/hubs/chat");
