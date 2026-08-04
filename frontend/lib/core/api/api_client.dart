@@ -12,7 +12,7 @@ import 'demo_interceptor.dart';
 export '../config.dart' show kDemoMode;
 
 class ApiClient {
-  static const _baseUrl     = String.fromEnvironment('API_URL', defaultValue: 'https://ingenieria-de-software-grupo-colegio6-production.up.railway.app/api');
+  static const _baseUrl     = kApiUrl;
   static const _tokenKey    = 'auth_token';
   static const _profileKey  = 'auth_profile';
 

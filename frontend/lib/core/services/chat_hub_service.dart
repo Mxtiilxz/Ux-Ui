@@ -14,10 +14,7 @@ import '../config.dart';
 ///   await hub.sendMessage(myId, peerId, 'Hello!');
 ///   hub.dispose();
 class ChatHubService {
-  static const _defaultUrl = String.fromEnvironment(
-    'HUB_URL',
-    defaultValue: 'https://ingenieria-de-software-grupo-colegio6-production.up.railway.app/hubs/chat',
-  );
+  static const _defaultUrl = kChatHubUrl;
 
   HubConnection? _connection;
 

@@ -6,7 +6,7 @@ import '../config.dart';
 typedef VoidCallback = void Function();
 
 class SocialHubService {
-  static const _hubUrl = 'http://localhost:5001/hubs/social';
+  static const _hubUrl = kSocialHubUrl;
 
   late final HubConnection _connection;
 
