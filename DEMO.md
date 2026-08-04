@@ -8,21 +8,25 @@ durante la sesión del navegador.
 
 ## 1. Configurar Google Analytics
 
-1. En Google Analytics crea una propiedad y un **flujo de datos web**. Cuando te
-   pida la URL del sitio, usa la del despliegue (por ejemplo
-   `https://kairoslt.netlify.app`).
-2. Copia el **ID de medición** que te entrega (formato `G-XXXXXXXXXX`).
-3. Abre `build/web/index.html` y reemplaza el valor de la línea marcada:
+**Ya está configurado.** El sitio publicado en
+[kairoswebapp.netlify.app](https://kairoswebapp.netlify.app) mide contra la propiedad
+"Kairos" con el ID `G-XDGCXT8NRL`, definido en `web/index.html`:
 
-   ```js
-   var KAIROS_GA_ID = 'G-XXXXXXXXXX';   /* <-- CAMBIAR AQUI */
-   ```
+```js
+var KAIROS_GA_ID = 'G-XDGCXT8NRL';
+```
 
-   Mientras diga `G-XXXXXXXXXX`, el seguimiento queda desactivado y la app
-   funciona igual (útil para probar sin ensuciar las estadísticas).
+Para apuntar a otra propiedad basta con cambiar esa constante. Mientras el valor
+contenga `XXXX`, el seguimiento queda desactivado y la app funciona igual — útil
+para probar sin ensuciar las estadísticas.
 
-> Puedes editar ese archivo directamente en la carpeta `build/web` — no hace
-> falta recompilar.
+> Puedes editar el archivo directamente en `build/web/index.html` tras compilar —
+> no hace falta recompilar para cambiar el ID.
+
+> **Nota metodológica:** los bloqueadores de rastreo y las VPN impiden que el
+> evento llegue a `google-analytics.com`. Los eventos se disparan igual y se ven
+> en consola, pero no se registran. Conviene mencionarlo como limitación del
+> estudio: suele afectar a entre un 10 % y un 30 % de los visitantes.
 
 ---
 
@@ -31,7 +35,7 @@ durante la sesión del navegador.
 ### Netlify (gratis, sin instalar nada)
 
 1. Entra a [app.netlify.com](https://app.netlify.com) con tu cuenta.
-2. Abre el sitio existente (`kairoslt`) → pestaña **Deploys**.
+2. Abre el sitio existente (`kairoswebapp`) → pestaña **Deploys**.
 3. Arrastra la carpeta `frontend/build/web` completa sobre la zona de
    "Drag and drop your site output folder here".
 
@@ -118,8 +122,24 @@ El modo demo se activa solo al compilar con el indicador correspondiente. Para
 generar la build normal, que habla con un backend real:
 
 ```bash
-flutter build web --release --dart-define=API_URL=https://TU-BACKEND/api
+flutter build web --release --dart-define=API_URL=https://TU-BACKEND/api --dart-define=HUB_URL=https://TU-BACKEND/hubs/chat
 ```
 
 Sin `--dart-define=DEMO_MODE=true` la aplicación usa la API de verdad y el
 inicio de sesión vuelve a pedir credenciales.
+
+Para levantar ese backend real, ver [PRODUCCION.md](PRODUCCION.md).
+
+---
+
+## 6. Cómo se compiló esta build
+
+```bash
+cd frontend
+flutter build web --release --dart-define=DEMO_MODE=true
+```
+
+El flag vive en `lib/core/config.dart` como `kDemoMode`. Con él activo,
+`demo_interceptor.dart` intercepta cada petición de Dio y la resuelve contra
+`demo_backend.dart`, y los servicios SignalR no intentan conectarse. Ninguna
+pantalla necesitó modificarse para soportar el modo demo.

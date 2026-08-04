@@ -59,7 +59,10 @@ pytest -x
 | Email | Password | Rol |
 |---|---|---|
 | `kairos_user1@kairos.cl` | `Kairos2026!` | student |
-| `kairos_user2@kairos.cl` | `Kairos2026!` | staff |
+| `staff1@kairos.cl` | `Kairos2026!` | staff |
+| `empresa@kairos.cl` | `Kairos2026!` | company |
+
+La lista completa de usuarios del seeder está en el [README raíz](../README.md).
 
 ---
 

@@ -2,7 +2,24 @@
 
 Red social para estudiantes técnico-profesionales de liceos técnicos. Conecta alumnos con empresas, prácticas profesionales y la comunidad de su área.
 
-**app en producción:** [https://kairoslt.netlify.app](https://kairoslt.netlify.app)
+**Demo pública:** [https://kairoswebapp.netlify.app](https://kairoswebapp.netlify.app) — build compilada con
+`DEMO_MODE=true`, funciona sin backend y con datos en memoria. Ver [DEMO.md](DEMO.md).
+
+> ⚠️ **No hay despliegue de producción activo.** La API en Railway está caída y el
+> frontend publicado corre en modo demo. El plan para levantar la versión funcional
+> con base de datos real está en [PRODUCCION.md](PRODUCCION.md).
+
+---
+
+## Documentación
+
+| Archivo | Contenido |
+|---|---|
+| [PRODUCCION.md](PRODUCCION.md) | Plan de despliegue: hosting, secretos, brechas pendientes |
+| [DEMO.md](DEMO.md) | Modo demo sin backend y eventos de Google Analytics |
+| [backend/README.md](backend/README.md) | Arquitectura, endpoints, rate limiting, cómo levantar la API |
+| [frontend/README.md](frontend/README.md) | Estructura Flutter, tema, flags de compilación |
+| [\_\_tests\_\_/README.md](__tests__/README.md) | Suite de tests de integración (pytest) |
 
 ---
 
@@ -18,7 +35,8 @@ Red social para estudiantes técnico-profesionales de liceos técnicos. Conecta 
 | Generación PDF | QuestPDF |
 | Autenticación | JWT Bearer HS256 |
 | Rate limiting | ASP.NET Core Rate Limiter |
-| Deploy backend | Railway |
+| Analítica | Google Analytics 4 (gtag.js) |
+| Deploy backend | Railway — **actualmente fuera de servicio** |
 | Deploy frontend | Netlify |
 
 ---
@@ -38,19 +56,24 @@ Red social para estudiantes técnico-profesionales de liceos técnicos. Conecta 
 └── frontend/
     └── lib/
         ├── core/
-        │   ├── api/                # ApiClient (Dio + JWT interceptor)
+        │   ├── analytics/          # Eventos de Google Analytics
+        │   ├── api/                # ApiClient (Dio + JWT) y backend demo en memoria
+        │   ├── config.dart         # Flag kDemoMode
+        │   ├── data/               # Datos de relleno de la UI
         │   ├── models/             # UserProfile, etc.
-        │   ├── services/           # SocialHubService (SignalR)
+        │   ├── services/           # ChatHubService, SocialHubService (SignalR)
+        │   ├── state/              # UserRoleController
         │   ├── theme/              # AppColors, KairosPalette
-        │   └── widgets/            # KCard, PostCard y widgets compartidos
+        │   ├── utils/              # Descarga de archivos (web / stub)
+        │   └── widgets/            # AppShell, KCard, PostCard
         └── features/
             ├── auth/               # Login y registro
             ├── home/               # Feed principal
             ├── profile/            # Perfil de usuario con edición y CV PDF
-            ├── jobs/               # Ofertas laborales (empresa y estudiante)
+            ├── jobs/               # Ofertas laborales y Quick Match (empresa y estudiante)
             ├── network/            # Red de contactos
             ├── chat/               # Mensajería
-            └── staff/              # Panel de administración (aprobación, usuarios)
+            └── staff/              # Panel de administración (aprobación, usuarios, CSV)
 ```
 
 ---
@@ -137,7 +160,11 @@ Abrir `http://localhost:3000` en el navegador.
 
 ## Variables de entorno del backend (producción)
 
-Configurar en `appsettings.json` o como variables de entorno en Railway:
+> 🔒 **No pongas estos valores en `appsettings.json`.** Ese archivo está versionado en
+> git; los secretos deben ir como variables de entorno en el proveedor de hosting.
+> Ver Fase 0 de [PRODUCCION.md](PRODUCCION.md).
+
+El doble guion bajo (`__`) es la convención de .NET para anidar secciones:
 
 | Variable | Descripción |
 |---|---|
@@ -164,9 +191,14 @@ Configurar en `appsettings.json` o como variables de entorno en Railway:
 
 ```bash
 cd frontend
-flutter build web
+flutter build web --release --dart-define=API_URL=https://TU-BACKEND/api --dart-define=HUB_URL=https://TU-BACKEND/hubs/chat
 netlify deploy --prod --dir=build/web
 ```
+
+Sin los `--dart-define`, la app apunta a la URL de Railway por defecto, que está caída.
+
+Para generar en cambio la build de demostración sin backend, agregar
+`--dart-define=DEMO_MODE=true` (ver [DEMO.md](DEMO.md)).
 
 ---
 
@@ -194,6 +226,23 @@ netlify deploy --prod --dir=build/web
 - Persistencia de sesión en web (localStorage vía flutter_secure_storage)
 - Rate limiting en endpoints sensibles (login, generación de CV, búsqueda de Quick Match)
 - Datos de prueba automáticos en entorno de desarrollo
+- Modo demo sin backend para estudios de usabilidad (`--dart-define=DEMO_MODE=true`)
+
+---
+
+## Limitaciones conocidas
+
+- **El CV en PDF y el reporte mensual salen casi vacíos.** Ambos se construyen desde la
+  tabla `UserActivity`, pero solo la creación de publicaciones escribe en ella. Likes,
+  comentarios, seguimientos, postulaciones y logins no registran actividad.
+- **La subida de imágenes no funciona en producción**: fuera de `Development` el backend
+  usa Azure Blob y las credenciales de `appsettings.json` son de relleno.
+- **Ningún usuario `staff` existe en producción**, por lo que los registros quedan
+  bloqueados en estado `pending` sin nadie que pueda aprobarlos.
+- El CV generado es un registro de actividad, no un currículum con secciones de
+  educación y experiencia.
+
+Todas están detalladas con su solución en [PRODUCCION.md](PRODUCCION.md).
 
 ---
 
