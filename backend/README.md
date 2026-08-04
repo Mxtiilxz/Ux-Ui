@@ -13,7 +13,7 @@ Cuatro capas. Cada una solo puede depender de las capas internas, nunca de las e
 ```
 Kairos.Domain          ← Entidades y enums. Sin dependencias externas.
 Kairos.Application     ← Casos de uso (CQRS con MediatR). Solo conoce Domain.
-Kairos.Infrastructure  ← EF Core, JWT, Azure Blob, PDF. Implementa las interfaces de Application.
+Kairos.Infrastructure  ← EF Core, JWT, Storage, PDF. Implementa las interfaces de Application.
 Kairos.API             ← Controllers, SignalR Hub, middlewares. Punto de entrada.
 ```
 
@@ -21,8 +21,10 @@ Kairos.API             ← Controllers, SignalR Hub, middlewares. Punto de entra
   lógica de framework.
 - **Application** define los casos de uso como `Commands` y `Queries`. Habla con la base de
   datos solo a través de `IApplicationDbContext`, nunca directamente con EF Core.
-- **Infrastructure** es la única capa que sabe conectarse a MySQL, Azure Blob o generar un
-  PDF. Si algún día se cambia el motor de base de datos, solo esta capa cambia.
+- **Infrastructure** es la única capa que sabe conectarse a Postgres, al almacenamiento de
+  archivos o generar un PDF. Esto se puso a prueba al migrar de MySQL a PostgreSQL: solo
+  cambiaron el paquete del proveedor y tres archivos de esta capa, sin tocar entidades,
+  casos de uso ni controladores.
 - **API** recibe las peticiones HTTP, las convierte en Commands/Queries y los despacha con
   MediatR.
 
@@ -33,11 +35,11 @@ Kairos.API             ← Controllers, SignalR Hub, middlewares. Punto de entra
 | Componente | Tecnología |
 |---|---|
 | Framework | .NET 8 |
-| Base de datos | MySQL 8.0 vía Pomelo EF Core |
+| Base de datos | PostgreSQL vía Npgsql EF Core (Supabase) |
 | Patrón de aplicación | CQRS + MediatR |
 | Validación | FluentValidation |
 | Autenticación | JWT Bearer (HS256) |
-| Almacenamiento de archivos | Azure Blob (producción) / filesystem local (desarrollo) |
+| Almacenamiento de archivos | Supabase Storage (producción) / filesystem local (desarrollo) |
 | Generación de PDF | QuestPDF |
 | Tiempo real | ASP.NET Core SignalR |
 
@@ -63,9 +65,8 @@ Kairos.API             ← Controllers, SignalR Hub, middlewares. Punto de entra
 > ella. Likes, comentarios, seguimientos, postulaciones y logins no registran actividad, por
 > lo que el CV y el reporte salen casi vacíos. Ver Fase 5 de [PRODUCCION.md](../PRODUCCION.md).
 
-Las migraciones se aplican solas al arrancar la API (`Program.cs`), que además ejecuta un
-`EnsureColumnAsync` como red de seguridad para columnas que ciertas migraciones pudieron
-omitir en bases ya desplegadas.
+Las migraciones se aplican solas al arrancar la API (`Program.cs`). El esquema completo lo
+crea la migración inicial `InitPostgres`.
 
 ---
 
@@ -154,6 +155,12 @@ Todos verifican el claim de rol y devuelven `403` si el usuario no es `staff`.
 | `GET` | `/api/reports/me` | Reporte mensual de participación en PDF | Sí |
 | `POST` | `/api/storage/upload` | Subir imagen o video (máx. 50 MB) | Sí |
 
+### Operación
+
+| Método | Ruta | Descripción | Auth |
+|---|---|---|---|
+| `GET` | `/health` | Devuelve `{"status":"ok"}`. No consulta la base de datos, para que un fallo de BD no provoque reinicios en bucle. | No |
+
 ---
 
 ## Rate limiting
@@ -216,16 +223,15 @@ string: `?access_token=<token>`.
 ### Requisitos previos
 
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8)
-- MySQL 8.0 corriendo localmente
+- PostgreSQL 14+ corriendo localmente
 - EF Core CLI: `dotnet tool install --global dotnet-ef --version 8.*`
 
-### 1. Configurar MySQL
+### 1. Configurar PostgreSQL
 
 ```sql
 CREATE DATABASE kairos;
-CREATE USER 'kairos_user'@'localhost' IDENTIFIED BY 'tu_password';
-GRANT ALL PRIVILEGES ON kairos.* TO 'kairos_user'@'localhost';
-FLUSH PRIVILEGES;
+CREATE USER kairos_user WITH PASSWORD 'tu_password';
+GRANT ALL PRIVILEGES ON DATABASE kairos TO kairos_user;
 ```
 
 ### 2. Configurar appsettings
@@ -236,18 +242,19 @@ local:
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=localhost;Port=3306;Database=kairos;User=kairos_user;Password=tu_password;"
+    "DefaultConnection": "Host=localhost;Port=5432;Database=kairos;Username=kairos_user;Password=tu_password"
   }
 }
 ```
 
-> 🔒 **No escribas secretos de producción en `appsettings.json`** — está versionado en git.
-> En producción usa variables de entorno (`ConnectionStrings__DefaultConnection`,
-> `Jwt__SecretKey`). Ver Fase 0 de [PRODUCCION.md](../PRODUCCION.md).
+> 🔒 **`appsettings.json` no contiene secretos y debe seguir así** — está versionado en git.
+> En producción todo llega por variables de entorno
+> (`ConnectionStrings__DefaultConnection`, `Jwt__SecretKey`, `Supabase__ServiceKey`).
+> Ver [PRODUCCION.md](../PRODUCCION.md).
 
 > En modo `Development`, `DependencyInjection.cs` registra `LocalStorageService` (guarda en
-> `wwwroot/uploads`) en vez de Azure Blob, sin importar lo que digan esos valores. Para
-> desarrollo local **no necesitas Azurite ni una cuenta de Azure**.
+> `wwwroot/uploads`) en vez de Supabase Storage. Para desarrollo local **no necesitas una
+> cuenta de Supabase**.
 
 ### 3. Aplicar migraciones
 
@@ -280,7 +287,9 @@ el [README raíz](../README.md).
 
 | Error | Causa probable | Solución |
 |---|---|---|
-| `Access denied for user 'root'@'localhost'` | Credenciales viejas en `appsettings.Development.json` | Actualizar la cadena de conexión |
+| `password authentication failed for user` | Credenciales viejas en `appsettings.Development.json` | Actualizar la cadena de conexión |
+| `Falta la clave JWT` al arrancar | No hay `Jwt:SecretKey` en configuración | Definirla en `appsettings.Development.json` o exportar `Jwt__SecretKey` |
+| `prepared statement already exists` en producción | La cadena apunta al Transaction pooler de Supabase (puerto 6543) | Usar el Session pooler (puerto 5432) |
 | `Unable to retrieve project metadata` | Comando ejecutado desde la carpeta incorrecta | Ejecutarlo desde `backend/` |
 | `dotnet-ef not found` | La herramienta no está en el PATH | Agregar `$HOME/.dotnet/tools` al PATH |
 | `Some services are not able to be constructed` | Servicio no registrado en DI | Revisar `DependencyInjection.cs` en `Kairos.Infrastructure` |

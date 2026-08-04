@@ -22,9 +22,11 @@ No se requiere Xcode ni Android Studio para correr en web.
 ```bash
 flutter pub get
 
-# Contra el backend local (el --dart-define es obligatorio: sin él la app
-# apunta a la URL de producción, que está caída)
-flutter run -d web-server --web-port=3000 --dart-define=API_URL=http://localhost:5001/api
+# El backend local en el puerto 5001 es el valor por defecto
+flutter run -d web-server --web-port=3000
+
+# Contra otro backend
+flutter run -d web-server --web-port=3000 --dart-define=BACKEND_URL=https://mi-api.example
 ```
 
 Abrir `http://localhost:3000`.
@@ -35,9 +37,14 @@ Todos se pasan con `--dart-define` y se leen con `String.fromEnvironment`.
 
 | Flag | Default | Efecto |
 |---|---|---|
-| `API_URL` | URL de Railway (caída) | Base de la API REST |
-| `HUB_URL` | URL de Railway (caída) | Hub SignalR de chat |
+| `BACKEND_URL` | `http://localhost:5001` | Origen del backend. De aquí se derivan los tres siguientes |
+| `API_URL` | `$BACKEND_URL/api` | Base de la API REST |
+| `HUB_URL` | `$BACKEND_URL/hubs/chat` | Hub SignalR de mensajería |
+| `SOCIAL_HUB_URL` | `$BACKEND_URL/hubs/social` | Hub SignalR de notificaciones sociales |
 | `DEMO_MODE` | `false` | Backend simulado en memoria, sin servidor |
+
+Normalmente basta con `BACKEND_URL`; los otros tres existen para sobrescribir una URL
+concreta cuando haga falta. Todos se definen en `core/config.dart`.
 
 **Modo demo:** con `DEMO_MODE=true` un interceptor de Dio responde todas las peticiones
 desde `core/api/demo_backend.dart` y los hubs SignalR no se conectan. Sirve para estudios
@@ -146,11 +153,8 @@ Dos servicios en `core/services/`, ambos con reintentos automáticos
   comentarios en tiempo real. Eventos: `ReceiveLike`, `ReceiveFollow`,
   `ReceiveComment`, `UserTyping`.
 
-Si el backend no está disponible, ambos degradan sin romper la UI.
-
-> ⚠️ `social_hub_service.dart` tiene la URL del hub fijada a
-> `http://localhost:5001/hubs/social`, sin leer `HUB_URL`. Fuera de desarrollo
-> local no conecta — pendiente en la Fase 4 de [PRODUCCION.md](../PRODUCCION.md).
+Si el backend no está disponible, ambos degradan sin romper la UI. En modo demo
+ninguno de los dos intenta conectarse.
 
 ---
 

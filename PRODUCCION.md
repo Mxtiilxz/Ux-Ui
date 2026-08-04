@@ -1,253 +1,196 @@
-# Plan de paso a producción — Kairos
+# Paso a producción con Supabase
 
-Este documento define cómo llevar Kairos de la demo en memoria (`DEMO_MODE`) a una
-aplicación funcional con base de datos real, accesos restringidos y persistencia de
-publicaciones, comentarios, likes e interacciones.
+El código ya está migrado a PostgreSQL y a Supabase Storage. Este documento explica qué se
+cambió, qué queda por hacer en las consolas web y cómo desplegar.
 
 ---
 
-## 1. Punto de partida
+## 1. Estado
 
-**Lo que ya está construido y funciona** (no requiere trabajo nuevo):
+### Ya implementado en el repositorio
 
-| Capa | Estado |
+| Cambio | Dónde |
 |---|---|
-| Autenticación JWT + BCrypt | ✅ `AuthController`, `JwtService` |
-| Roles `student` / `company` / `staff` | ✅ claim `ClaimTypes.Role`, verificado por endpoint |
-| Flujo de aprobación de cuentas | ✅ `pending` → `approved` / `rejected` (`StaffController`) |
-| Publicaciones, likes, comentarios | ✅ entidades + endpoints en `PostsController` |
-| Red de contactos (seguir) | ✅ `Follow`, `NetworkController` |
-| Ofertas y postulaciones | ✅ `JobPosting`, `JobApplication`, `JobsController` |
-| Mensajería | ✅ `Message`, `ChatController` + SignalR |
-| Quick Match (competencias) | ✅ `Skill`, `UserSkill`, `SkillsController` |
-| Migraciones EF Core | ✅ 5 migraciones, se aplican solas al arrancar |
-| Rate limiting | ✅ login, currículum, búsqueda Quick Match |
-| Dockerfile del backend | ✅ `backend/Dockerfile`, listo para desplegar |
+| Proveedor EF Core: MySQL → PostgreSQL | `Kairos.Infrastructure.csproj`, `DependencyInjection.cs`, `ApplicationDbContextFactory.cs` |
+| Migración inicial nativa de Postgres (11 tablas) | `Migrations/*_InitPostgres.cs` |
+| Almacenamiento de archivos en Supabase Storage | `Services/SupabaseStorageService.cs` |
+| Secretos fuera de `appsettings.json` | `appsettings.json`, `Program.cs` |
+| Seeder del primer usuario `staff` | `Persistence/ProductionSeeder.cs` |
+| Endpoint `GET /health` sin autenticación | `Program.cs` |
+| CORS incluye el dominio de Netlify en uso | `Program.cs` |
+| URLs de API y hubs derivadas de un solo indicador | `frontend/lib/core/config.dart` |
 
-**El estado real del despliegue:**
+### Pendiente
 
-- La API en Railway está **caída** — devuelve `404 Application not found`.
-- La base de datos MySQL de Railway **sigue existiendo** (el puerto `47214` responde).
-- El frontend en Netlify corre con `DEMO_MODE=true`: todo es en memoria y se pierde al recargar.
-
----
-
-## 2. Brechas que hay que cerrar
-
-### 🔴 Bloqueantes
-
-**B1. Los secretos están en el repositorio.**
-`backend/src/Kairos.API/appsettings.json` tiene commiteada la contraseña real de MySQL y
-la clave de firma JWT. Están en el historial de git. Hay que moverlos a variables de
-entorno **y rotar ambos**, porque el valor antiguo ya no es secreto.
-
-**B2. Bloqueo de aprobación en producción.**
-`RegisterCommandHandler` crea todo usuario con `Status = "pending"`. Solo un usuario con
-rol `staff` puede aprobarlo. Pero `DevDataSeeder` corre únicamente si
-`app.Environment.IsDevelopment()` — o sea, **en producción no existe ningún staff y nadie
-puede aprobar a nadie**. La app queda inutilizable desde el primer registro.
-
-**B3. La subida de imágenes está rota en producción.**
-`DependencyInjection.cs` elige `StorageService` (Azure Blob) fuera de desarrollo, pero
-`appsettings.json` tiene credenciales de relleno (`AccountName=ACCOUNT`). Fotos de perfil
-e imágenes de publicaciones fallarán. En desarrollo usa disco local, que en un contenedor
-es efímero.
-
-**B4. El frontend apunta a servidores muertos.**
-- `api_client.dart:15` → URL de Railway caída.
-- `chat_hub_service.dart:17` → misma URL caída.
-- `social_hub_service.dart:9` → **`http://localhost:5001/hubs/social` hardcodeado**, sin
-  `fromEnvironment`. Nunca funcionará fuera de tu máquina.
-
-**B5. CORS no autoriza el dominio actual.**
-La lista blanca en `Program.cs` incluye `kairoslt.netlify.app` pero no
-`kairoswebapp.netlify.app`, que es el dominio en uso.
-
-### 🟡 Importantes
-
-**I1. El registro de interacciones está casi vacío.**
-La entidad `UserActivity` existe y el generador de CV y el reporte de usuario dependen de
-ella, pero **solo `CreatePostCommandHandler` escribe en ella**. Likes, comentarios,
-seguimientos, postulaciones y logins no registran nada. Resultado: el CV automático y el
-reporte salen prácticamente en blanco. Esto es exactamente el "almacenamiento de
-interacciones" que falta.
-
-**I2. No hay endpoint de salud.** Los hosts gratuitos necesitan `/health` para no reiniciar
-el contenedor por error.
-
-**I3. `DEMO_MODE` debe conservarse, no borrarse.** Es un flag de compilación y sirve para
-futuros estudios de usabilidad sin depender del servidor.
-
-### 🟢 Deseables (no bloquean)
-
-- Verificación de correo al registrarse.
-- Refresh tokens (hoy el JWT dura 24 h fijas y no se puede revocar).
-- Respaldos automáticos de la base de datos.
+| Tarea | Por qué |
+|---|---|
+| Crear el proyecto en Supabase y aplicar la migración | Requiere tu cuenta |
+| Desplegar la API en un host | Supabase no ejecuta contenedores .NET |
+| Rotar la clave JWT y la contraseña de MySQL antigua | Estuvieron en git; siguen comprometidas |
+| Completar el registro de interacciones | El CV y el reporte salen casi vacíos — sección 6 |
 
 ---
 
-## 3. Opciones de hosting
+## 2. Por qué Supabase no aloja la API
 
-El backend es un contenedor Docker de .NET 8 y necesita MySQL, almacenamiento de archivos
-y estar siempre disponible.
+Supabase ofrece Postgres, Auth, Storage, Realtime y Edge Functions. Las Edge Functions son
+**Deno/TypeScript únicamente**: no ejecutan contenedores Docker ni el runtime de .NET.
 
-### Opción A — Railway (recomendada si aceptas ~$5 USD/mes)
+El backend de Kairos son cuatro proyectos de ASP.NET Core, así que Supabase cubre la base de
+datos y los archivos, pero la API necesita su propio host. Opciones gratuitas:
 
-| Pieza | Servicio | Costo |
-|---|---|---|
-| API | Railway (Dockerfile ya listo) | Plan Hobby $5/mes, incluye $5 de consumo |
-| Base de datos | Railway MySQL (**ya existe**) | incluido en el consumo |
-| Imágenes | Volumen persistente de Railway | incluido |
-| Frontend | Netlify | gratis |
-
-**Por qué:** cero código nuevo para almacenamiento, la base de datos ya está creada con las
-migraciones aplicadas, y el redespliegue es automático desde GitHub. Es el camino más corto
-a una app funcional.
-
-**Contra:** es el único que cuesta dinero.
-
-### Opción B — Todo gratis
-
-| Pieza | Servicio | Límite |
-|---|---|---|
-| API | Koyeb free | 1 servicio, no duerme |
-| Base de datos | TiDB Cloud Serverless | compatible MySQL, 5 GB, sin expiración |
-| Imágenes | Cloudinary free | 25 GB — requiere un `IStorageService` nuevo |
-| Frontend | Netlify | gratis |
-
-**Por qué:** costo cero real y sin fecha de vencimiento.
-
-**Contra:** tres proveedores distintos que administrar, y hay que escribir
-`CloudinaryStorageService`. Alternativa a Koyeb es Render free, pero **duerme a los 15
-minutos de inactividad** y el arranque en frío tarda ~50 s — mala experiencia para una
-evaluación.
-
-### Opción C — Azure for Students (mejor opción gratuita si calificas)
-
-| Pieza | Servicio | Costo |
-|---|---|---|
-| API | App Service F1 | gratis |
-| Base de datos | Azure Database for MySQL Flexible B1ms | gratis 12 meses |
-| Imágenes | Azure Blob Storage | **ya soportado en el código** |
-| Frontend | Netlify o Static Web Apps | gratis |
-
-**Por qué:** `StorageService` ya está implementado contra Azure Blob — solo hay que poner
-credenciales reales. Da $100 de crédito sin tarjeta de crédito.
-
-**Contra:** requiere correo institucional válido, y el beneficio expira.
-
-### Recomendación
-
-**Opción A si puedes gastar $5/mes** — llegas a una app funcional en una tarde y sin
-escribir código de infraestructura. **Opción C si tienes correo institucional** — mismo
-resultado, gratis, a cambio de configurar Azure. La Opción B déjala como plan de respaldo:
-funciona, pero pagas la diferencia en tiempo de integración.
+| Host | Nota |
+|---|---|
+| **Koyeb** | 1 servicio gratis, no duerme. Recomendado. |
+| Render | Gratis, pero duerme a los 15 min y el arranque en frío tarda ~50 s |
+| Fly.io | Docker nativo, requiere tarjeta aunque no cobre |
 
 ---
 
-## 4. Plan de ejecución por fases
+## 3. Configurar Supabase
 
-### Fase 0 — Seguridad (hacer primero, bloquea todo lo demás)
+### 3.1 Base de datos
 
-1. Vaciar los valores sensibles de `appsettings.json` dejando solo la estructura.
-2. Rotar la contraseña de MySQL en el proveedor.
-3. Generar una clave JWT nueva de 32+ caracteres.
-4. Configurar en el host como variables de entorno:
-   - `ConnectionStrings__DefaultConnection`
-   - `Jwt__SecretKey`
-   - `ASPNETCORE_ENVIRONMENT=Production`
-5. Documentar en el README que `appsettings.Development.json` es solo local.
+1. Crear un proyecto en [supabase.com](https://supabase.com). Anotar la contraseña de la
+   base de datos que se define al crearlo — no se puede volver a ver.
+2. En **Project Settings → Database → Connection string**, copiar la cadena en formato
+   **.NET / ADO**. Queda parecida a:
 
-> El doble guion bajo (`__`) es la convención de .NET para anidar secciones en variables de
-> entorno. No hace falta tocar `Program.cs`.
+   ```
+   Host=aws-0-us-east-1.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.abcdefgh;Password=TU_PASSWORD;SSL Mode=Require;Trust Server Certificate=true
+   ```
 
-### Fase 1 — Desbloquear el acceso de administración
+   > Usar el **Session pooler** (puerto 5432), no el Transaction pooler (6543): este último
+   > no admite sentencias preparadas y EF Core las usa.
 
-6. Crear `ProductionSeeder` que corra en producción **solo si** existe la variable
-   `SEED_STAFF_EMAIL`, y que cree un usuario `staff` con `Status = "approved"` tomando
-   correo y contraseña de variables de entorno. Idempotente: si el correo ya existe, no
-   hace nada.
-7. Invocarlo desde `Program.cs` junto al bloque de migraciones.
-8. Tras el primer arranque, borrar las variables del host para que no queden expuestas.
-
-Con esto el flujo queda cerrado: alguien se registra → queda `pending` → el staff entra al
-panel y lo aprueba → puede usar la app.
-
-### Fase 2 — Base de datos y despliegue del backend
-
-9. Provisionar la base de datos según la opción elegida.
-10. Verificar que las 5 migraciones aplican limpias sobre una base vacía
-    (`dotnet ef database update`). Nota: la migración `AddQuickMatchSkills` fue editada a
-    mano y `Program.cs` tiene una red de seguridad `EnsureColumnAsync` — probar en base
-    vacía **y** sobre la base actual de Railway.
-11. Agregar `GET /health` que devuelva `200 OK` sin autenticación.
-12. Desplegar el contenedor y confirmar `/health` y `/swagger`.
-
-### Fase 3 — Almacenamiento de imágenes
-
-Según la opción:
-- **A:** montar un volumen en `/app/wwwroot/uploads` y forzar `LocalStorageService` también
-  en producción. Sin código nuevo.
-- **B:** implementar `CloudinaryStorageService : IStorageService` y registrarlo en
-  `DependencyInjection`.
-- **C:** rellenar `AzureBlob:ConnectionString` y `CdnBaseUrl` con valores reales.
-
-### Fase 4 — Conectar el frontend
-
-13. Agregar el dominio de Netlify a la lista de CORS en `Program.cs`.
-14. Corregir `social_hub_service.dart` para leer `HUB_URL` desde `fromEnvironment` en vez de
-    `localhost:5001`.
-15. Actualizar los `defaultValue` de `api_client.dart` y `chat_hub_service.dart` a la URL
-    nueva.
-16. Compilar sin modo demo:
+3. Aplicar la migración desde tu equipo:
 
 ```bash
-flutter build web --release --dart-define=API_URL=https://TU-API/api --dart-define=HUB_URL=https://TU-API/hubs/chat
+cd backend
+KAIROS_DESIGN_TIME_CONNECTION="LA_CADENA_DE_ARRIBA" dotnet ef database update --project src/Kairos.Infrastructure --startup-project src/Kairos.API
 ```
 
-17. Publicar en Netlify y verificar el recorrido completo: registro → aprobación por staff →
-    login → publicar → comentar → dar like → recargar y comprobar que **todo persiste**.
+   La API también aplica las migraciones sola al arrancar, así que este paso es opcional;
+   sirve para confirmar que la conexión funciona antes de desplegar.
 
-### Fase 5 — Completar el registro de interacciones (I1)
+### 3.2 Almacenamiento de imágenes
 
-18. Escribir en `UserActivity` desde los handlers que hoy no lo hacen:
-    `LoginCommandHandler`, `ToggleLikeCommandHandler`, `AddCommentCommandHandler`,
-    `FollowUserCommandHandler`, `ApplyToJobCommandHandler`, `UpdateProfileCommandHandler`.
-19. Con eso el CV automático y el reporte de usuario pasan a tener contenido real.
+1. En **Storage**, crear un bucket llamado `kairos-media`.
+2. Marcarlo como **público**. `SupabaseStorageService` devuelve URLs públicas directas; con
+   un bucket privado habría que firmar URLs temporales en cada lectura, lo que obligaría a
+   cambiar la interfaz `IStorageService`.
+3. En **Project Settings → API**, copiar la **Project URL** y la clave **`service_role`**.
 
-> Conviene resolverlo con un `IActivityLogger` inyectado, o con un behavior de MediatR, para
-> no repetir el mismo bloque en seis handlers.
-
-### Fase 6 — Endurecimiento (posterior)
-
-20. Respaldos periódicos de la base de datos.
-21. Verificación de correo en el registro.
-22. Refresh tokens con revocación.
+> 🔒 La clave `service_role` salta las políticas de Row Level Security. Va solo en el
+> servidor, nunca en la app Flutter.
 
 ---
 
-## 5. Orden sugerido y esfuerzo
+## 4. Desplegar la API
 
-| Fase | Bloquea | Esfuerzo |
-|---|---|---|
-| 0 — Secretos | todo | bajo |
-| 1 — Seeder de staff | el uso real de la app | bajo |
-| 2 — BD y despliegue | el frontend | medio |
-| 3 — Imágenes | perfiles y publicaciones con foto | bajo–medio |
-| 4 — Frontend | — | bajo |
-| 5 — Interacciones | CV y reportes | medio |
-| 6 — Endurecimiento | — | posterior |
+### Variables de entorno
 
-Las fases 0 a 4 son el mínimo para tener una aplicación funcional y usable. La fase 5 es lo
-que hace que las funciones de CV y reportes dejen de estar vacías.
+| Variable | Valor |
+|---|---|
+| `ConnectionStrings__DefaultConnection` | La cadena del paso 3.1 |
+| `Jwt__SecretKey` | Clave nueva de 32+ caracteres |
+| `Supabase__Url` | Project URL, ej. `https://abcdefgh.supabase.co` |
+| `Supabase__ServiceKey` | Clave `service_role` |
+| `Supabase__Bucket` | `kairos-media` |
+| `ASPNETCORE_ENVIRONMENT` | `Production` |
+
+Generar la clave JWT:
+
+```bash
+openssl rand -base64 48
+```
+
+### Primer arranque: crear el usuario staff
+
+Sin al menos un `staff` la plataforma queda bloqueada, porque todo registro nace en estado
+`pending` y solo un `staff` puede aprobarlo.
+
+Agregar temporalmente estas tres variables:
+
+| Variable | Ejemplo |
+|---|---|
+| `SEED_STAFF_EMAIL` | `admin@kairos.cl` |
+| `SEED_STAFF_PASSWORD` | una contraseña fuerte |
+| `SEED_STAFF_NAME` | `Administración Liceo` |
+
+Al arrancar, `ProductionSeeder` crea la cuenta ya aprobada. Es idempotente: si el correo ya
+existe no hace nada. **Después del primer arranque, borrar las tres variables del host.**
+
+Si no se definen y no existe ningún staff, la API arranca igual pero deja una advertencia
+en el log.
+
+### Desplegar en Koyeb
+
+1. Conectar el repositorio de GitHub.
+2. Koyeb detecta `backend/Dockerfile`.
+3. Puerto: `8080` (el que expone el Dockerfile).
+4. Health check: `GET /health`.
+5. Cargar las variables de entorno.
+
+Verificar: `https://TU-API/health` debe devolver `{"status":"ok"}`.
 
 ---
 
-## 6. Qué NO hay que hacer
+## 5. Compilar y publicar el frontend
 
-- **No borrar el modo demo.** `DEMO_MODE`, `demo_backend.dart` y `demo_interceptor.dart`
-  quedan como están; son un flag de compilación y sirven para el próximo estudio.
-- **No hacer público el repositorio** hasta completar la Fase 0. Hoy expondría la
-  contraseña de la base de datos y la clave JWT.
-- **No rehacer el backend.** El modelo de datos, la autenticación y los endpoints ya están
-  completos; el trabajo pendiente es de despliegue y configuración.
+```bash
+cd frontend
+flutter build web --release --dart-define=BACKEND_URL=https://TU-API
+netlify deploy --prod --dir=build/web
+```
+
+Un solo indicador basta: `config.dart` deriva de él la URL de la API y las de ambos hubs.
+`API_URL`, `HUB_URL` y `SOCIAL_HUB_URL` siguen existiendo para sobrescribirlas por separado.
+
+Luego, verificar el recorrido completo: registro → aprobación por el staff → login →
+publicar → comentar → dar me gusta → **recargar y comprobar que todo persiste**.
+
+---
+
+## 6. Pendiente: completar el registro de interacciones
+
+`UserActivity` alimenta el CV en PDF y el reporte mensual, pero **solo
+`CreatePostCommandHandler` escribe en ella**. Logins, likes, comentarios, seguimientos y
+postulaciones no registran nada, así que ambos documentos salen casi vacíos.
+
+Falta escribir actividad desde: `LoginCommandHandler`, `ToggleLikeCommandHandler`,
+`AddCommentCommandHandler`, `FollowUserCommandHandler`, `ApplyToJobCommandHandler` y
+`UpdateProfileCommandHandler`.
+
+Conviene resolverlo con un `IActivityLogger` inyectado o un behavior de MediatR, en vez de
+repetir el mismo bloque en seis handlers.
+
+---
+
+## 7. Advertencias
+
+**Rotar los secretos comprometidos.** La contraseña de la base de datos de Railway y la
+clave JWT antigua estuvieron versionadas en `appsettings.json`. Siguen en el historial de
+git aunque ya no estén en la copia de trabajo. La clave JWT nueva resuelve el lado de la
+API; la base de MySQL de Railway conviene eliminarla.
+
+**No hacer público el repositorio** sin antes reescribir el historial o rotar todo.
+
+**Supabase pausa los proyectos gratuitos tras 7 días de inactividad.** Hay que despausarlos
+a mano desde el panel. Para un proyecto que se usa a ratos esto muerde: alguien entra un
+lunes y la app no responde. `DependencyInjection` reintenta la conexión hasta 3 veces para
+absorber el tiempo de despertar, pero no puede despausar el proyecto.
+
+**Límites del plan gratuito:** 500 MB de base de datos, 1 GB de archivos, 2 proyectos.
+
+---
+
+## 8. Verificación pendiente
+
+La migración genera SQL válido y la solución compila sin advertencias, pero **no se pudo
+aplicar contra un Postgres real** en el entorno donde se hicieron estos cambios (no había
+Docker ni una instancia local). El primer `dotnet ef database update` contra Supabase es el
+que confirma que el esquema se crea completo.
+
+Igualmente sin verificar por depender de credenciales: la subida de archivos a Supabase
+Storage y el arranque de `ProductionSeeder`.

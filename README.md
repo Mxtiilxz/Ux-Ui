@@ -5,9 +5,9 @@ Red social para estudiantes técnico-profesionales de liceos técnicos. Conecta 
 **Demo pública:** [https://kairoswebapp.netlify.app](https://kairoswebapp.netlify.app) — build compilada con
 `DEMO_MODE=true`, funciona sin backend y con datos en memoria. Ver [DEMO.md](DEMO.md).
 
-> ⚠️ **No hay despliegue de producción activo.** La API en Railway está caída y el
-> frontend publicado corre en modo demo. El plan para levantar la versión funcional
-> con base de datos real está en [PRODUCCION.md](PRODUCCION.md).
+> ⚠️ **No hay despliegue de producción activo.** El frontend publicado corre en modo demo.
+> El código ya está migrado a PostgreSQL y Supabase Storage; falta crear el proyecto en
+> Supabase y desplegar la API. Los pasos están en [PRODUCCION.md](PRODUCCION.md).
 
 ---
 
@@ -29,14 +29,14 @@ Red social para estudiantes técnico-profesionales de liceos técnicos. Conecta 
 |---|---|
 | Frontend | Flutter 3 (web + mobile) |
 | Backend | ASP.NET Core 8 — Clean Architecture (CQRS + MediatR) |
-| Base de datos | MySQL 8.0 via Pomelo EF Core |
-| Almacenamiento | Azure Blob Storage (producción) / filesystem local (dev) |
+| Base de datos | PostgreSQL via Npgsql EF Core (Supabase) |
+| Almacenamiento | Supabase Storage (producción) / filesystem local (dev) |
 | Tiempo real | ASP.NET Core SignalR |
 | Generación PDF | QuestPDF |
 | Autenticación | JWT Bearer HS256 |
 | Rate limiting | ASP.NET Core Rate Limiter |
 | Analítica | Google Analytics 4 (gtag.js) |
-| Deploy backend | Railway — **actualmente fuera de servicio** |
+| Deploy backend | Pendiente — ver [PRODUCCION.md](PRODUCCION.md) |
 | Deploy frontend | Netlify |
 
 ---
@@ -82,7 +82,7 @@ Red social para estudiantes técnico-profesionales de liceos técnicos. Conecta 
 
 ### Backend
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8)
-- MySQL 8.0 corriendo localmente
+- PostgreSQL 14+ corriendo localmente
 
 ### Frontend
 - [Flutter 3.x](https://docs.flutter.dev/get-started/install) con soporte web habilitado
@@ -93,14 +93,15 @@ Red social para estudiantes técnico-profesionales de liceos técnicos. Conecta 
 
 ### 1. Base de datos
 
-Crear la base de datos y el usuario en MySQL:
+Crear la base de datos y el usuario en PostgreSQL:
 
 ```sql
 CREATE DATABASE kairos;
-CREATE USER 'kairos_user'@'localhost' IDENTIFIED BY 'kairos2026';
-GRANT ALL PRIVILEGES ON kairos.* TO 'kairos_user'@'localhost';
-FLUSH PRIVILEGES;
+CREATE USER kairos_user WITH PASSWORD 'kairos2026';
+GRANT ALL PRIVILEGES ON DATABASE kairos TO kairos_user;
 ```
+
+Ajustar la cadena de conexión en `backend/src/Kairos.API/appsettings.Development.json`.
 
 ### 2. Backend
 
@@ -137,9 +138,8 @@ Swagger UI: `http://localhost:5001/swagger`
 >   **personalizado**, para ver ambos estados de la funcionalidad)
 
 > En modo `Development` la subida de archivos usa el filesystem local
-> automáticamente (`LocalStorageService`) — **no necesitas Azure Blob ni
-> Azurite para desarrollar localmente**, esos valores solo importan en
-> producción.
+> automáticamente (`LocalStorageService`) — **no necesitas una cuenta de Supabase
+> para desarrollar localmente**, esos valores solo importan en producción.
 
 ### 3. Frontend
 
@@ -168,34 +168,49 @@ El doble guion bajo (`__`) es la convención de .NET para anidar secciones:
 
 | Variable | Descripción |
 |---|---|
-| `ConnectionStrings__DefaultConnection` | Cadena de conexión MySQL |
+| `ConnectionStrings__DefaultConnection` | Cadena de conexión PostgreSQL (Supabase) |
 | `Jwt__SecretKey` | Clave secreta JWT (mínimo 32 caracteres) |
-| `Jwt__Issuer` | Emisor del token (ej. `kairos-api`) |
-| `Jwt__Audience` | Audiencia del token (ej. `kairos-app`) |
-| `AzureBlob__ConnectionString` | Cadena de conexión Azure Blob Storage |
-| `AzureBlob__ContainerName` | Nombre del contenedor (ej. `kairos-media`) |
-| `AzureBlob__CdnBaseUrl` | URL base del CDN o del contenedor público |
+| `Supabase__Url` | URL del proyecto, ej. `https://abcdefgh.supabase.co` |
+| `Supabase__ServiceKey` | Clave `service_role` — solo en el servidor |
+| `Supabase__Bucket` | Nombre del bucket (ej. `kairos-media`) |
+| `ASPNETCORE_ENVIRONMENT` | `Production` |
+
+Solo para el primer arranque, para crear la cuenta de administración:
+
+| Variable | Descripción |
+|---|---|
+| `SEED_STAFF_EMAIL` | Correo del primer usuario `staff` |
+| `SEED_STAFF_PASSWORD` | Su contraseña |
+| `SEED_STAFF_NAME` | Su nombre visible (opcional) |
+
+Quitarlas del host después del primer arranque.
 
 ---
 
 ## Despliegue
 
-### Backend → Railway
+### Base de datos y archivos → Supabase
 
-1. Conectar el repositorio en [railway.app](https://railway.app)
-2. Railway detecta el `Dockerfile` en `/backend/` automáticamente
-3. Agregar un plugin MySQL en Railway o conectar una BD externa
-4. Configurar las variables de entorno listadas arriba
+Crear el proyecto, copiar la cadena de conexión y crear un bucket público
+`kairos-media`. Pasos detallados en [PRODUCCION.md](PRODUCCION.md).
+
+### Backend → cualquier host con Docker
+
+`backend/Dockerfile` está listo y expone el puerto `8080`. Supabase no ejecuta
+contenedores .NET, así que la API necesita su propio host: Koyeb, Render o Fly.io
+tienen plan gratuito. Configurar las variables de entorno listadas arriba y apuntar
+el health check a `GET /health`.
 
 ### Frontend → Netlify
 
 ```bash
 cd frontend
-flutter build web --release --dart-define=API_URL=https://TU-BACKEND/api --dart-define=HUB_URL=https://TU-BACKEND/hubs/chat
+flutter build web --release --dart-define=BACKEND_URL=https://TU-BACKEND
 netlify deploy --prod --dir=build/web
 ```
 
-Sin los `--dart-define`, la app apunta a la URL de Railway por defecto, que está caída.
+Un solo indicador basta: `core/config.dart` deriva de él la URL de la API y las de
+ambos hubs SignalR. Sin él, la app apunta a `localhost:5001`.
 
 Para generar en cambio la build de demostración sin backend, agregar
 `--dart-define=DEMO_MODE=true` (ver [DEMO.md](DEMO.md)).
@@ -233,14 +248,15 @@ Para generar en cambio la build de demostración sin backend, agregar
 ## Limitaciones conocidas
 
 - **El CV en PDF y el reporte mensual salen casi vacíos.** Ambos se construyen desde la
-  tabla `UserActivity`, pero solo la creación de publicaciones escribe en ella. Likes,
+  tabla `user_activities`, pero solo la creación de publicaciones escribe en ella. Likes,
   comentarios, seguimientos, postulaciones y logins no registran actividad.
-- **La subida de imágenes no funciona en producción**: fuera de `Development` el backend
-  usa Azure Blob y las credenciales de `appsettings.json` son de relleno.
-- **Ningún usuario `staff` existe en producción**, por lo que los registros quedan
-  bloqueados en estado `pending` sin nadie que pueda aprobarlos.
 - El CV generado es un registro de actividad, no un currículum con secciones de
   educación y experiencia.
+- **La migración a PostgreSQL no se ha aplicado todavía contra una base real.** Genera SQL
+  válido y la solución compila, pero el primer `dotnet ef database update` contra Supabase
+  es el que lo confirma.
+- **Supabase pausa los proyectos gratuitos tras 7 días de inactividad** y hay que
+  despausarlos a mano desde el panel.
 
 Todas están detalladas con su solución en [PRODUCCION.md](PRODUCCION.md).
 
@@ -249,9 +265,9 @@ Todas están detalladas con su solución en [PRODUCCION.md](PRODUCCION.md).
 ## Diagrama de arquitectura
 
 ```
-Flutter Web  ──HTTPS──►  ASP.NET Core 8 (Railway)  ──►  MySQL 8 (Railway)
-    │                          │
-    │                          └──►  Azure Blob Storage
-    │
-    └──WebSocket──►  SignalR Hub  ──►  clientes conectados
+Flutter Web    ──HTTPS──►   ASP.NET Core 8    ──►  PostgreSQL (Supabase)
+  (Netlify)                  (host Docker)     │
+      │                            │           └──►  Supabase Storage
+      │                            │
+      └────WebSocket────►    SignalR Hub  ──►  clientes conectados
 ```
