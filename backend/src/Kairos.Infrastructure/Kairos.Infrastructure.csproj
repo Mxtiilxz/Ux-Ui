@@ -6,15 +6,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- MySQL via Pomelo -->
-    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.2" />
+    <!-- PostgreSQL via Npgsql (Supabase) -->
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.11">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-
-    <!-- Azure Blob Storage -->
-    <PackageReference Include="Azure.Storage.Blobs" Version="12.21.0" />
 
     <!-- PDF Generation -->
     <PackageReference Include="QuestPDF" Version="2024.3.4" />

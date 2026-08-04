@@ -6,7 +6,7 @@ namespace Kairos.Infrastructure.Services;
 
 /// <summary>
 /// Dev-only storage: saves files to wwwroot/uploads and serves them as static files.
-/// No Azurite required.
+/// Avoids needing a Supabase account to develop locally.
 /// </summary>
 public class LocalStorageService(IWebHostEnvironment env, IConfiguration config) : IStorageService
 {

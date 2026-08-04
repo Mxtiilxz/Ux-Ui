@@ -22,19 +22,22 @@ public static class DependencyInjection
         IWebHostEnvironment env)
     {
         var connectionString = configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("No se encontró 'DefaultConnection' en appsettings.json");
+            ?? throw new InvalidOperationException(
+                "No se encontró 'DefaultConnection'. En producción se define con la variable " +
+                "de entorno ConnectionStrings__DefaultConnection.");
 
         services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseMySql(
+            options.UseNpgsql(
                 connectionString,
-                ServerVersion.AutoDetect(connectionString),
-                mysqlOptions =>
+                npgsqlOptions =>
                 {
-                    // Reintentar hasta 3 veces si la BD no está disponible al arrancar
-                    mysqlOptions.EnableRetryOnFailure(
+                    // Reintentar hasta 3 veces si la BD no está disponible al arrancar.
+                    // Supabase pausa los proyectos gratuitos tras 7 días sin actividad y
+                    // tarda unos segundos en despertar, así que el reintento importa.
+                    npgsqlOptions.EnableRetryOnFailure(
                         maxRetryCount: 3,
                         maxRetryDelay: TimeSpan.FromSeconds(5),
-                        errorNumbersToAdd: null);
+                        errorCodesToAdd: null);
                 }
             )
         );
@@ -48,12 +51,15 @@ public static class DependencyInjection
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.Section));
         services.AddScoped<IJwtService, JwtService>();
 
-        // Storage: local filesystem in dev, Azure Blob in production
-        services.Configure<AzureBlobOptions>(configuration.GetSection(AzureBlobOptions.Section));
+        // Storage: filesystem local en desarrollo, Supabase Storage en producción.
+        // En Development no hace falta configurar nada de Supabase.
+        services.Configure<SupabaseStorageOptions>(configuration.GetSection(SupabaseStorageOptions.Section));
+        services.AddHttpClient();
+
         if (env.IsDevelopment())
             services.AddScoped<IStorageService, LocalStorageService>();
         else
-            services.AddScoped<IStorageService, StorageService>();
+            services.AddScoped<IStorageService, SupabaseStorageService>();
 
         // PDF generation
         services.AddScoped<ICurriculumGenerator, CurriculumGenerator>();
