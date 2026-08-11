@@ -39,6 +39,7 @@ class _JobsPageState extends State<JobsPage> {
   final _api = ApiClient();
   final _picker = ImagePicker();
   List<JobModel> _apiJobs = [];
+  bool _jobsLoading = true;
   bool _generatingCv = false;
   final Set<String> _appliedJobs = <String>{};
 
@@ -92,6 +93,8 @@ class _JobsPageState extends State<JobsPage> {
     } catch (_) {
       // Fall back to mock data
       if (mounted) setState(() => _apiJobs = []);
+    } finally {
+      if (mounted) setState(() => _jobsLoading = false);
     }
   }
 
