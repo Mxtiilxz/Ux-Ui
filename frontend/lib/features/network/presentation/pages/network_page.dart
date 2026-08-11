@@ -29,16 +29,20 @@ class _NetworkPageState extends State<NetworkPage> {
   }
 
   Future<void> _loadSuggestions() async {
-    if (mounted) setState(() { _loading = true; _error = false; });
+    if (mounted)
+      setState(() {
+        _loading = true;
+        _error = false;
+      });
     try {
       final data = await _api.getNetworkSuggestions();
       final users = data.cast<Map<String, dynamic>>().map((json) {
         final roleStr = (json['role'] as String? ?? 'student').toLowerCase();
         final role = switch (roleStr) {
-          'staff'   => UserRole.staff,
+          'staff' => UserRole.staff,
           'company' => UserRole.company,
-          'alumni'  => UserRole.alumni,
-          _         => UserRole.student,
+          'alumni' => UserRole.alumni,
+          _ => UserRole.student,
         };
         // Pre-fill followed state from API
         if (json['isFollowing'] == true) {
@@ -153,6 +157,7 @@ class _NetworkPageState extends State<NetworkPage> {
               controller: _searchController,
               onChanged: (_) => setState(() {}),
               decoration: const InputDecoration(
+                labelText: 'Buscar personas',
                 hintText: 'Buscar por nombre, oficio o habilidad...',
                 prefixIcon: Icon(Icons.search_rounded),
               ),
@@ -203,23 +208,35 @@ class _NetworkPageState extends State<NetworkPage> {
             ),
           const SizedBox(height: 12),
           if (_loading)
-            const Center(child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 40),
-              child: CircularProgressIndicator(),
-            ))
+            Semantics(
+              liveRegion: true,
+              container: true,
+              label: 'Cargando sugerencias de red',
+              child: Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 40),
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+            )
           else if (_error)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 40),
-                child: Column(
-                  children: [
-                    const Text('No se pudo cargar la red. Intenta de nuevo.'),
-                    const SizedBox(height: 12),
-                    ElevatedButton(
-                      onPressed: _loadSuggestions,
-                      child: const Text('Reintentar'),
-                    ),
-                  ],
+            Semantics(
+              liveRegion: true,
+              container: true,
+              label: 'No se pudo cargar la red. Intenta de nuevo.',
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 40),
+                  child: Column(
+                    children: [
+                      const Text('No se pudo cargar la red. Intenta de nuevo.'),
+                      const SizedBox(height: 12),
+                      ElevatedButton(
+                        onPressed: _loadSuggestions,
+                        child: const Text('Reintentar'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             )
@@ -343,17 +360,19 @@ class _NetworkPageState extends State<NetworkPage> {
               children: [
                 Transform.translate(
                   offset: Offset(0, mobile ? -24 : -30),
-                  child: CircleAvatar(
-                    radius: mobile ? 32 : 36,
-                    backgroundColor: Colors.white,
+                  child: ExcludeSemantics(
                     child: CircleAvatar(
-                      radius: mobile ? 28 : 32,
-                      backgroundImage: user.avatarUrl.trim().isNotEmpty
-                          ? NetworkImage(user.avatarUrl)
-                          : null,
-                      child: user.avatarUrl.trim().isEmpty
-                          ? const Icon(Icons.person_rounded)
-                          : null,
+                      radius: mobile ? 32 : 36,
+                      backgroundColor: Colors.white,
+                      child: CircleAvatar(
+                        radius: mobile ? 28 : 32,
+                        backgroundImage: user.avatarUrl.trim().isNotEmpty
+                            ? NetworkImage(user.avatarUrl)
+                            : null,
+                        child: user.avatarUrl.trim().isEmpty
+                            ? const Icon(Icons.person_rounded)
+                            : null,
+                      ),
                     ),
                   ),
                 ),

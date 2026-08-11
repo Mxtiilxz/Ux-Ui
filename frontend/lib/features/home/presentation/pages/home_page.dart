@@ -76,7 +76,10 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _pickImage() async {
-    final image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
     if (image == null) return;
     setState(() {
       _selectedImage = image;
@@ -85,12 +88,16 @@ class _HomePageState extends State<HomePage> {
     });
     try {
       final result = await _api.uploadImage(image);
-      if (mounted) setState(() => _uploadedImageUrl = result['cdnUrl'] as String?);
+      if (mounted)
+        setState(() => _uploadedImageUrl = result['cdnUrl'] as String?);
     } catch (_) {
       if (mounted) {
         setState(() => _selectedImage = null);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo subir la imagen.'), backgroundColor: Colors.redAccent),
+          const SnackBar(
+            content: Text('No se pudo subir la imagen.'),
+            backgroundColor: KairosPalette.danger,
+          ),
         );
       }
     } finally {
@@ -104,7 +111,11 @@ class _HomePageState extends State<HomePage> {
 
     setState(() => _publishing = true);
     try {
-      await _api.createPost(content: text, postType: 'general', imageUrl: _uploadedImageUrl);
+      await _api.createPost(
+        content: text,
+        postType: 'general',
+        imageUrl: _uploadedImageUrl,
+      );
       Analytics.postCreate('general');
       _postController.clear();
       _postFocusNode.unfocus();
@@ -118,7 +129,7 @@ class _HomePageState extends State<HomePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('No se pudo publicar. Intenta de nuevo.'),
-            backgroundColor: Colors.redAccent,
+            backgroundColor: KairosPalette.danger,
           ),
         );
       }
@@ -132,7 +143,9 @@ class _HomePageState extends State<HomePage> {
     if (text.isEmpty && _uploadedImageUrl == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Escribe una descripción o agrega una imagen para el evento.'),
+          content: Text(
+            'Escribe una descripción o agrega una imagen para el evento.',
+          ),
         ),
       );
       return;
@@ -178,7 +191,7 @@ class _HomePageState extends State<HomePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('No se pudo publicar el evento. Intenta de nuevo.'),
-            backgroundColor: Colors.redAccent,
+            backgroundColor: KairosPalette.danger,
           ),
         );
       }
@@ -296,46 +309,56 @@ class _HomePageState extends State<HomePage> {
                 colors: [Color(0x1A0F766E), Color(0xFFE8F3EF)],
               ),
               borderColor: KairosPalette.primary,
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: KairosPalette.primary,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: const Icon(
-                      Icons.manage_accounts_rounded,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Panel de Gestión',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 16,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Crea cuentas de alumnos o staff desde un CSV.',
-                          style: TextStyle(fontSize: 13),
-                        ),
-                      ],
-                    ),
-                  ),
                   Row(
-                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: KairosPalette.primary,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Icon(
+                          Icons.manage_accounts_rounded,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Panel de Gestión',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 16,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Crea cuentas de alumnos o staff desde un CSV.',
+                              style: TextStyle(fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
                       ElevatedButton.icon(
                         onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const RegistrationRequestsPage()),
+                          MaterialPageRoute(
+                            builder: (_) => const RegistrationRequestsPage(),
+                          ),
                         ),
                         icon: const Icon(Icons.person_add_rounded, size: 18),
                         label: const Text('Solicitudes'),
@@ -344,22 +367,27 @@ class _HomePageState extends State<HomePage> {
                           foregroundColor: Colors.white,
                         ),
                       ),
-                      const SizedBox(width: 8),
                       ElevatedButton.icon(
                         onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const UserManagementPage()),
+                          MaterialPageRoute(
+                            builder: (_) => const UserManagementPage(),
+                          ),
                         ),
-                        icon: const Icon(Icons.manage_accounts_rounded, size: 18),
+                        icon: const Icon(
+                          Icons.manage_accounts_rounded,
+                          size: 18,
+                        ),
                         label: const Text('Usuarios'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: KairosPalette.primary,
                           foregroundColor: Colors.white,
                         ),
                       ),
-                      const SizedBox(width: 8),
                       ElevatedButton.icon(
                         onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const StaffManagementPage()),
+                          MaterialPageRoute(
+                            builder: (_) => const StaffManagementPage(),
+                          ),
                         ),
                         icon: const Icon(Icons.upload_file_rounded, size: 18),
                         label: const Text('Importar CSV'),
@@ -407,6 +435,7 @@ class _HomePageState extends State<HomePage> {
                           keyboardType: TextInputType.multiline,
                           textInputAction: TextInputAction.newline,
                           decoration: InputDecoration(
+                            labelText: 'Contenido de la publicación',
                             hintText: '¿Qué quieres compartir hoy?',
                             filled: true,
                             fillColor: KairosPalette.background,
@@ -458,7 +487,7 @@ class _HomePageState extends State<HomePage> {
                                           fontSize: 12,
                                           fontWeight: FontWeight.w600,
                                           color: atLimit
-                                              ? Colors.redAccent
+                                              ? KairosPalette.danger
                                               : KairosPalette.secondary,
                                         ),
                                       ),
@@ -484,13 +513,17 @@ class _HomePageState extends State<HomePage> {
                           ? Container(
                               height: 120,
                               color: KairosPalette.muted,
-                              child: const Center(child: CircularProgressIndicator()),
+                              child: const Center(
+                                child: CircularProgressIndicator(),
+                              ),
                             )
                           : Image.network(
                               _uploadedImageUrl ?? '',
                               height: 120,
                               width: double.infinity,
                               fit: BoxFit.cover,
+                              semanticLabel:
+                                  'Imagen seleccionada para la publicación',
                               errorBuilder: (_, __, ___) => Container(
                                 height: 120,
                                 color: KairosPalette.muted,
@@ -501,18 +534,27 @@ class _HomePageState extends State<HomePage> {
                     Positioned(
                       top: 4,
                       right: 4,
-                      child: GestureDetector(
-                        onTap: () => setState(() {
-                          _selectedImage = null;
-                          _uploadedImageUrl = null;
-                        }),
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: Colors.black54,
-                            shape: BoxShape.circle,
+                      child: DecoratedBox(
+                        decoration: const BoxDecoration(
+                          color: Colors.black54,
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          tooltip: 'Quitar imagen seleccionada',
+                          constraints: const BoxConstraints.tightFor(
+                            width: 48,
+                            height: 48,
                           ),
-                          child: const Icon(Icons.close, color: Colors.white, size: 16),
+                          padding: EdgeInsets.zero,
+                          onPressed: () => setState(() {
+                            _selectedImage = null;
+                            _uploadedImageUrl = null;
+                          }),
+                          icon: const Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: 18,
+                          ),
                         ),
                       ),
                     ),
@@ -532,24 +574,37 @@ class _HomePageState extends State<HomePage> {
 
         // ── Feed ──────────────────────────────────────────────────────────────
         if (_feedLoading)
-          const Padding(
-            padding: EdgeInsets.all(32),
-            child: Center(child: CircularProgressIndicator()),
+          Semantics(
+            liveRegion: true,
+            container: true,
+            label: 'Cargando publicaciones',
+            child: Padding(
+              padding: EdgeInsets.all(32),
+              child: Center(child: CircularProgressIndicator()),
+            ),
           )
         else if (_feedError != null)
-          KCard(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  const Icon(Icons.error_outline, color: Colors.redAccent),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(_feedError!)),
-                  TextButton(
-                    onPressed: _loadFeed,
-                    child: const Text('Reintentar'),
-                  ),
-                ],
+          Semantics(
+            liveRegion: true,
+            container: true,
+            label: _feedError!,
+            child: KCard(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      color: KairosPalette.danger,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(_feedError!)),
+                    TextButton(
+                      onPressed: _loadFeed,
+                      child: const Text('Reintentar'),
+                    ),
+                  ],
+                ),
               ),
             ),
           )
@@ -572,7 +627,8 @@ class _HomePageState extends State<HomePage> {
                 onEdited: (newContent) {
                   setState(() {
                     final idx = _posts.indexOf(post);
-                    if (idx != -1) _posts[idx] = post.copyWith(content: newContent);
+                    if (idx != -1)
+                      _posts[idx] = post.copyWith(content: newContent);
                   });
                 },
               ),
@@ -730,7 +786,7 @@ class _HomePageState extends State<HomePage> {
   Widget _mediaAction() {
     return SizedBox(
       width: 116,
-      height: 40,
+      height: 48,
       child: OutlinedButton.icon(
         onPressed: _uploadingImage ? null : _pickImage,
         icon: const Icon(Icons.image_rounded, size: 16),
@@ -747,14 +803,18 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _ghostAction(IconData icon, String label, {required VoidCallback onPressed}) {
+  Widget _ghostAction(
+    IconData icon,
+    String label, {
+    required VoidCallback onPressed,
+  }) {
     return OutlinedButton.icon(
       onPressed: onPressed,
       icon: Icon(icon, size: 16),
       label: Text(label),
       style: OutlinedButton.styleFrom(
         foregroundColor: KairosPalette.secondary,
-        minimumSize: const Size(0, 40),
+        minimumSize: const Size(0, 48),
         padding: const EdgeInsets.symmetric(horizontal: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         side: const BorderSide(color: KairosPalette.border),
@@ -768,7 +828,7 @@ class _HomePageState extends State<HomePage> {
       icon: Icon(icon, size: 16),
       label: Text(label),
       style: ElevatedButton.styleFrom(
-        minimumSize: const Size(0, 40),
+        minimumSize: const Size(0, 48),
         padding: const EdgeInsets.symmetric(horizontal: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         backgroundColor: KairosPalette.accent,
@@ -805,8 +865,9 @@ class _HomePageState extends State<HomePage> {
                       labelText: 'Cargo / título *',
                       hintText: 'Ej: Técnico en Automatización',
                     ),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Campo requerido' : null,
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Campo requerido'
+                        : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -816,8 +877,9 @@ class _HomePageState extends State<HomePage> {
                       hintText: 'Describe las responsabilidades del cargo',
                     ),
                     maxLines: 3,
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Campo requerido' : null,
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Campo requerido'
+                        : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -856,7 +918,7 @@ class _HomePageState extends State<HomePage> {
                           ScaffoldMessenger.of(ctx).showSnackBar(
                             const SnackBar(
                               content: Text('Oferta publicada exitosamente.'),
-                              backgroundColor: Colors.green,
+                              backgroundColor: KairosPalette.success,
                             ),
                           );
                         }
@@ -866,7 +928,7 @@ class _HomePageState extends State<HomePage> {
                           ScaffoldMessenger.of(ctx).showSnackBar(
                             const SnackBar(
                               content: Text('No se pudo publicar la oferta.'),
-                              backgroundColor: Colors.redAccent,
+                              backgroundColor: KairosPalette.danger,
                             ),
                           );
                         }
@@ -877,7 +939,9 @@ class _HomePageState extends State<HomePage> {
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Text('Publicar'),
             ),
@@ -890,7 +954,7 @@ class _HomePageState extends State<HomePage> {
   Widget _publishAction() {
     return SizedBox(
       width: 116,
-      height: 40,
+      height: 48,
       child: ElevatedButton(
         onPressed: _publishing ? null : _publishPost,
         style: ElevatedButton.styleFrom(

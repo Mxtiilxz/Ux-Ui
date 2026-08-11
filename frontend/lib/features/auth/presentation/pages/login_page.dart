@@ -19,6 +19,10 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _demoRoleFocusNodes = <String, FocusNode>{
+    'student': FocusNode(debugLabel: 'Demo student role'),
+    'company': FocusNode(debugLabel: 'Demo company role'),
+  };
   bool _obscurePassword = true;
   bool _isLoading = false;
 
@@ -26,6 +30,9 @@ class _LoginPageState extends State<LoginPage> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    for (final node in _demoRoleFocusNodes.values) {
+      node.dispose();
+    }
     super.dispose();
   }
 
@@ -52,23 +59,26 @@ class _LoginPageState extends State<LoginPage> {
       'role': roleStr,
       'title': _titleForRole(roleStr),
       'institution': response['institution'] as String?,
-      'quickMatchVisible': (response['quickMatchVisible'] as bool? ?? false).toString(),
+      'quickMatchVisible': (response['quickMatchVisible'] as bool? ?? false)
+          .toString(),
     });
 
     if (!mounted) return;
-    widget.onLoginSuccess(UserProfile(
-      id: (response['userId'] as int? ?? 0).toString(),
-      name: name,
-      role: _mapRole(roleStr),
-      title: _titleForRole(roleStr),
-      avatarUrl: '',
-      skills: const [],
-      bio: '',
-      location: '',
-      connections: 0,
-      institution: response['institution'] as String?,
-      quickMatchVisible: response['quickMatchVisible'] as bool? ?? false,
-    ));
+    widget.onLoginSuccess(
+      UserProfile(
+        id: (response['userId'] as int? ?? 0).toString(),
+        name: name,
+        role: _mapRole(roleStr),
+        title: _titleForRole(roleStr),
+        avatarUrl: '',
+        skills: const [],
+        bio: '',
+        location: '',
+        connections: 0,
+        institution: response['institution'] as String?,
+        quickMatchVisible: response['quickMatchVisible'] as bool? ?? false,
+      ),
+    );
   }
 
   Future<void> _submit() async {
@@ -129,7 +139,7 @@ class _LoginPageState extends State<LoginPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Backend no disponible. Ingresando en modo demo.'),
-            backgroundColor: Colors.orangeAccent,
+            backgroundColor: AppColors.warning,
           ),
         );
         widget.onLoginSuccess(demoUser);
@@ -139,7 +149,7 @@ class _LoginPageState extends State<LoginPage> {
       setState(() => _isLoading = false);
       final message = _extractErrorMessage(e.response?.data);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
+        SnackBar(content: Text(message), backgroundColor: AppColors.danger),
       );
     } catch (_) {
       if (!mounted) return;
@@ -147,7 +157,7 @@ class _LoginPageState extends State<LoginPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Error al conectar con el servidor'),
-          backgroundColor: Colors.redAccent,
+          backgroundColor: AppColors.danger,
         ),
       );
     }
@@ -197,7 +207,9 @@ class _LoginPageState extends State<LoginPage> {
       bio: 'Modo demo sin conexion al backend.',
       location: 'La Florida, Santiago',
       connections: 0,
-      institution: role == UserRole.company ? null : 'Liceo Tecnico Cardenal Jose Maria Caro',
+      institution: role == UserRole.company
+          ? null
+          : 'Liceo Tecnico Cardenal Jose Maria Caro',
     );
   }
 
@@ -243,28 +255,36 @@ class _LoginPageState extends State<LoginPage> {
   /// Selector de perfil del modo demo. Reemplaza a los campos de credenciales:
   /// el tester elige cómo quiere recorrer la app y entra de inmediato.
   Widget _buildDemoRoleSelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Text(
-          'Elige con qué perfil quieres recorrer la plataforma.',
-          style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-        ),
-        const SizedBox(height: 14),
-        _demoRoleOption(
-          role: 'student',
-          icon: Icons.school_rounded,
-          title: 'Estudiante',
-          subtitle: 'Explora el feed, tus competencias y postula a ofertas.',
-        ),
-        const SizedBox(height: 10),
-        _demoRoleOption(
-          role: 'company',
-          icon: Icons.business_center_rounded,
-          title: 'Empresa',
-          subtitle: 'Publica ofertas y busca talento con Quick Match.',
-        ),
-      ],
+    return RadioGroup<String>(
+      groupValue: _demoRole,
+      onChanged: (role) {
+        if (!_isLoading && role != null) {
+          setState(() => _demoRole = role);
+        }
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Elige con qué perfil quieres recorrer la plataforma.',
+            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 14),
+          _demoRoleOption(
+            role: 'student',
+            icon: Icons.school_rounded,
+            title: 'Estudiante',
+            subtitle: 'Explora el feed, tus competencias y postula a ofertas.',
+          ),
+          const SizedBox(height: 10),
+          _demoRoleOption(
+            role: 'company',
+            icon: Icons.business_center_rounded,
+            title: 'Empresa',
+            subtitle: 'Publica ofertas y busca talento con Quick Match.',
+          ),
+        ],
+      ),
     );
   }
 
@@ -275,45 +295,37 @@ class _LoginPageState extends State<LoginPage> {
     required String subtitle,
   }) {
     final selected = _demoRole == role;
-    return InkWell(
-      onTap: _isLoading ? null : () => setState(() => _demoRole = role),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: selected ? AppColors.primary.withValues(alpha: 0.08) : null,
-          border: Border.all(
-            color: selected ? AppColors.primary : AppColors.divider,
-            width: selected ? 1.6 : 1,
+    return Material(
+      color: selected
+          ? AppColors.primary.withValues(alpha: 0.08)
+          : AppColors.background,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: selected ? AppColors.primary : AppColors.divider,
+          width: selected ? 1.6 : 1,
+        ),
+      ),
+      child: RadioListTile<String>(
+        value: role,
+        selected: selected,
+        enabled: !_isLoading,
+        focusNode: _demoRoleFocusNodes[role],
+        activeColor: AppColors.primary,
+        controlAffinity: ListTileControlAffinity.trailing,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        secondary: ExcludeSemantics(child: Icon(icon)),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: selected ? AppColors.primary : AppColors.textPrimary,
           ),
         ),
-        child: Row(
-          children: [
-            Icon(icon, color: selected ? AppColors.primary : AppColors.textTertiary),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: selected ? AppColors.primary : AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                  ),
-                ],
-              ),
-            ),
-            if (selected)
-              const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20),
-          ],
+        subtitle: Text(
+          subtitle,
+          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
         ),
       ),
     );
@@ -400,69 +412,72 @@ class _LoginPageState extends State<LoginPage> {
                           if (kDemoMode) ...[
                             _buildDemoRoleSelector(),
                           ] else ...[
-                          // Email / Username
-                          _FormField(
-                            controller: _emailController,
-                            label: 'Correo o usuario',
-                            hint: 'correo@liceo.cl',
-                            prefixIcon: Icons.person_outline,
-                            keyboardType: TextInputType.emailAddress,
-                            validator: (v) {
-                              if (v == null || v.trim().isEmpty) {
-                                return 'Ingresa tu correo o usuario';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                          // Password
-                          _FormField(
-                            controller: _passwordController,
-                            label: 'Contraseña',
-                            hint: '••••••••',
-                            prefixIcon: Icons.lock_outline,
-                            obscureText: _obscurePassword,
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscurePassword
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined,
-                                color: AppColors.textTertiary,
-                                size: 20,
-                              ),
-                              onPressed: () => setState(
-                                () => _obscurePassword = !_obscurePassword,
-                              ),
+                            // Email / Username
+                            _FormField(
+                              controller: _emailController,
+                              label: 'Correo o usuario',
+                              hint: 'correo@liceo.cl',
+                              prefixIcon: Icons.person_outline,
+                              keyboardType: TextInputType.emailAddress,
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) {
+                                  return 'Ingresa tu correo o usuario';
+                                }
+                                return null;
+                              },
                             ),
-                            validator: (v) {
-                              if (v == null || v.isEmpty) {
-                                return 'Ingresa tu contraseña';
-                              }
-                              if (v.length < 6) {
-                                return 'Mínimo 6 caracteres';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 8),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: () {},
-                              child: const Text(
-                                '¿Olvidaste tu contraseña?',
-                                style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontSize: 12,
+                            const SizedBox(height: 16),
+                            // Password
+                            _FormField(
+                              controller: _passwordController,
+                              label: 'Contraseña',
+                              hint: '••••••••',
+                              prefixIcon: Icons.lock_outline,
+                              obscureText: _obscurePassword,
+                              suffixIcon: IconButton(
+                                tooltip: _obscurePassword
+                                    ? 'Mostrar contraseña'
+                                    : 'Ocultar contraseña',
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
+                                  color: AppColors.textTertiary,
+                                  size: 20,
+                                ),
+                                onPressed: () => setState(
+                                  () => _obscurePassword = !_obscurePassword,
+                                ),
+                              ),
+                              validator: (v) {
+                                if (v == null || v.isEmpty) {
+                                  return 'Ingresa tu contraseña';
+                                }
+                                if (v.length < 6) {
+                                  return 'Mínimo 6 caracteres';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 8),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: () {},
+                                child: const Text(
+                                  '¿Olvidaste tu contraseña?',
+                                  style: TextStyle(
+                                    color: AppColors.primary,
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
                           ],
                           const SizedBox(height: 8),
                           // Submit
                           SizedBox(
-                            height: 46,
+                            height: 48,
                             child: ElevatedButton(
                               onPressed: _isLoading ? null : _submit,
                               style: ElevatedButton.styleFrom(
@@ -504,12 +519,16 @@ class _LoginPageState extends State<LoginPage> {
                         'que hagas se mantienen durante la sesión y se reinician '
                         'al recargar la página.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: AppColors.textTertiary, fontSize: 12),
+                        style: TextStyle(
+                          color: AppColors.textTertiary,
+                          fontSize: 12,
+                        ),
                       ),
                     )
                   else
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         const Text(
                           '¿No tienes cuenta? ',
@@ -518,8 +537,12 @@ class _LoginPageState extends State<LoginPage> {
                             fontSize: 13,
                           ),
                         ),
-                        GestureDetector(
-                          onTap: _goToRegister,
+                        TextButton(
+                          onPressed: _goToRegister,
+                          style: TextButton.styleFrom(
+                            minimumSize: const Size(48, 48),
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                          ),
                           child: const Text(
                             'Regístrate',
                             style: TextStyle(
@@ -567,15 +590,6 @@ class _FormField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 6),
         TextFormField(
           controller: controller,
           obscureText: obscureText,
@@ -583,6 +597,8 @@ class _FormField extends StatelessWidget {
           validator: validator,
           style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
           decoration: InputDecoration(
+            labelText: label,
+            floatingLabelBehavior: FloatingLabelBehavior.always,
             hintText: hint,
             hintStyle: const TextStyle(
               color: AppColors.textTertiary,
@@ -617,11 +633,11 @@ class _FormField extends StatelessWidget {
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Colors.redAccent),
+              borderSide: const BorderSide(color: AppColors.danger),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+              borderSide: const BorderSide(color: AppColors.danger, width: 1.5),
             ),
           ),
         ),

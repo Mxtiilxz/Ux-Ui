@@ -46,9 +46,15 @@ class _UserManagementPageState extends State<UserManagementPage> {
       builder: (ctx) => AlertDialog(
         title: Row(
           children: [
-            const Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
+            const Icon(
+              Icons.warning_amber_rounded,
+              color: KairosPalette.danger,
+            ),
             const SizedBox(width: 8),
-            const Text('Eliminar perfil', style: TextStyle(fontWeight: FontWeight.w800)),
+            const Text(
+              'Eliminar perfil',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
           ],
         ),
         content: Column(
@@ -60,22 +66,30 @@ class _UserManagementPageState extends State<UserManagementPage> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.red.shade50,
+                color: KairosPalette.danger.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Text(
                 'Esta acción es permanente. Se eliminarán todos sus datos, publicaciones y postulaciones.',
-                style: TextStyle(color: Colors.redAccent, fontSize: 13),
+                style: TextStyle(color: KairosPalette.danger, fontSize: 13),
               ),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: KairosPalette.danger,
+            ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Eliminar permanentemente', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'Eliminar permanentemente',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -89,13 +103,19 @@ class _UserManagementPageState extends State<UserManagementPage> {
       if (mounted) {
         setState(() => _users.removeWhere((u) => u['id'] == userId));
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Perfil de "$name" eliminado.'), backgroundColor: Colors.green),
+          SnackBar(
+            content: Text('Perfil de "$name" eliminado.'),
+            backgroundColor: KairosPalette.success,
+          ),
         );
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al eliminar el perfil.'), backgroundColor: Colors.redAccent),
+          const SnackBar(
+            content: Text('Error al eliminar el perfil.'),
+            backgroundColor: KairosPalette.danger,
+          ),
         );
       }
     } finally {
@@ -107,9 +127,11 @@ class _UserManagementPageState extends State<UserManagementPage> {
     if (_search.isEmpty) return _users;
     final q = _search.toLowerCase();
     return _users
-        .where((u) =>
-            (u['fullName'] as String? ?? '').toLowerCase().contains(q) ||
-            (u['email'] as String? ?? '').toLowerCase().contains(q))
+        .where(
+          (u) =>
+              (u['fullName'] as String? ?? '').toLowerCase().contains(q) ||
+              (u['email'] as String? ?? '').toLowerCase().contains(q),
+        )
         .toList();
   }
 
@@ -118,19 +140,32 @@ class _UserManagementPageState extends State<UserManagementPage> {
     final filtered = _filtered;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Gestión de usuarios', style: TextStyle(fontWeight: FontWeight.w800)),
+        title: const Text(
+          'Gestión de usuarios',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
         actions: [
-          IconButton(tooltip: 'Actualizar', onPressed: _load, icon: const Icon(Icons.refresh_rounded)),
+          IconButton(
+            tooltip: 'Actualizar',
+            onPressed: _load,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? Semantics(
+              liveRegion: true,
+              container: true,
+              label: 'Cargando usuarios',
+              child: Center(child: CircularProgressIndicator()),
+            )
           : Column(
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                   child: TextField(
                     decoration: const InputDecoration(
+                      labelText: 'Buscar usuarios',
                       hintText: 'Buscar por nombre o correo...',
                       prefixIcon: Icon(Icons.search_rounded),
                     ),
@@ -138,9 +173,14 @@ class _UserManagementPageState extends State<UserManagementPage> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Text('${filtered.length} usuario${filtered.length == 1 ? '' : 's'}',
-                      style: const TextStyle(color: KairosPalette.secondary)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: Text(
+                    '${filtered.length} usuario${filtered.length == 1 ? '' : 's'}',
+                    style: const TextStyle(color: KairosPalette.secondary),
+                  ),
                 ),
                 Expanded(
                   child: ListView.separated(
@@ -152,62 +192,129 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       final id = u['id'] as int;
                       final busy = _deleting.contains(id);
                       final status = u['status'] as String? ?? 'approved';
-                      final roleLabel = switch ((u['role'] as String? ?? 'student').toLowerCase()) {
+                      final roleLabel = switch ((u['role'] as String? ??
+                              'student')
+                          .toLowerCase()) {
                         'company' => 'Empresa',
                         'staff' => 'Staff',
                         'alumni' => 'Egresado',
                         _ => 'Estudiante',
                       };
                       return KCard(
-                        child: Row(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            CircleAvatar(
-                              radius: 22,
-                              backgroundColor: KairosPalette.muted,
-                              child: Text(
-                                (u['fullName'] as String? ?? '?').substring(0, 1).toUpperCase(),
-                                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(u['fullName'] as String? ?? '-',
-                                      style: const TextStyle(fontWeight: FontWeight.w700)),
-                                  Text(u['email'] as String? ?? '-',
-                                      style: const TextStyle(color: KairosPalette.secondary, fontSize: 12)),
-                                  Row(
-                                    children: [
-                                      Chip(
-                                        label: Text(roleLabel, style: const TextStyle(fontSize: 11)),
-                                        side: BorderSide.none,
-                                        backgroundColor: KairosPalette.muted,
-                                        padding: EdgeInsets.zero,
-                                        visualDensity: VisualDensity.compact,
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Semantics(
+                                  label:
+                                      'Avatar de ${u['fullName'] as String? ?? 'usuario'}',
+                                  image: true,
+                                  child: CircleAvatar(
+                                    radius: 22,
+                                    backgroundColor: KairosPalette.muted,
+                                    child: Text(
+                                      (u['fullName'] as String? ?? '?')
+                                          .substring(0, 1)
+                                          .toUpperCase(),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 18,
                                       ),
-                                      const SizedBox(width: 6),
-                                      if (status == 'pending')
-                                        Chip(
-                                          label: const Text('Pendiente', style: TextStyle(fontSize: 11, color: Colors.orange)),
-                                          side: const BorderSide(color: Colors.orange),
-                                          backgroundColor: Colors.orange.shade50,
-                                          padding: EdgeInsets.zero,
-                                          visualDensity: VisualDensity.compact,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        u['fullName'] as String? ?? '-',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
                                         ),
+                                      ),
+                                      Text(
+                                        u['email'] as String? ?? '-',
+                                        style: const TextStyle(
+                                          color: KairosPalette.secondary,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                      Wrap(
+                                        spacing: 6,
+                                        runSpacing: 4,
+                                        children: [
+                                          Chip(
+                                            label: Text(
+                                              roleLabel,
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                            side: BorderSide.none,
+                                            backgroundColor:
+                                                KairosPalette.muted,
+                                            padding: EdgeInsets.zero,
+                                            visualDensity:
+                                                VisualDensity.compact,
+                                          ),
+                                          if (status == 'pending')
+                                            Chip(
+                                              label: const Text(
+                                                'Pendiente',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: KairosPalette.warning,
+                                                ),
+                                              ),
+                                              side: const BorderSide(
+                                                color: KairosPalette.warning,
+                                              ),
+                                              backgroundColor: KairosPalette
+                                                  .warning
+                                                  .withValues(alpha: 0.10),
+                                              padding: EdgeInsets.zero,
+                                              visualDensity:
+                                                  VisualDensity.compact,
+                                            ),
+                                        ],
+                                      ),
                                     ],
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                             if (busy)
-                              const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                              const Align(
+                                alignment: Alignment.centerRight,
+                                child: SizedBox(
+                                  width: 48,
+                                  height: 48,
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                ),
+                              )
                             else
-                              IconButton(
-                                tooltip: 'Eliminar perfil',
-                                icon: const Icon(Icons.delete_rounded, color: Colors.redAccent),
-                                onPressed: () => _deleteUser(id, u['fullName'] as String? ?? '-'),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: IconButton(
+                                  tooltip: 'Eliminar perfil',
+                                  icon: const Icon(
+                                    Icons.delete_rounded,
+                                    color: KairosPalette.danger,
+                                  ),
+                                  onPressed: () => _deleteUser(
+                                    id,
+                                    u['fullName'] as String? ?? '-',
+                                  ),
+                                ),
                               ),
                           ],
                         ),

@@ -8,7 +8,8 @@ class RegistrationRequestsPage extends StatefulWidget {
   const RegistrationRequestsPage({super.key});
 
   @override
-  State<RegistrationRequestsPage> createState() => _RegistrationRequestsPageState();
+  State<RegistrationRequestsPage> createState() =>
+      _RegistrationRequestsPageState();
 }
 
 class _RegistrationRequestsPageState extends State<RegistrationRequestsPage> {
@@ -48,13 +49,19 @@ class _RegistrationRequestsPageState extends State<RegistrationRequestsPage> {
       if (mounted) {
         setState(() => _requests.removeWhere((r) => r['id'] == userId));
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cuenta aprobada.'), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text('Cuenta aprobada.'),
+            backgroundColor: KairosPalette.success,
+          ),
         );
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al aprobar.'), backgroundColor: Colors.redAccent),
+          const SnackBar(
+            content: Text('Error al aprobar.'),
+            backgroundColor: KairosPalette.danger,
+          ),
         );
       }
     } finally {
@@ -68,14 +75,17 @@ class _RegistrationRequestsPageState extends State<RegistrationRequestsPage> {
       await _api.rejectUser(userId);
       if (mounted) {
         setState(() => _requests.removeWhere((r) => r['id'] == userId));
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Solicitud rechazada.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Solicitud rechazada.')));
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al rechazar.'), backgroundColor: Colors.redAccent),
+          const SnackBar(
+            content: Text('Error al rechazar.'),
+            backgroundColor: KairosPalette.danger,
+          ),
         );
       }
     } finally {
@@ -87,7 +97,10 @@ class _RegistrationRequestsPageState extends State<RegistrationRequestsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Solicitudes de registro', style: TextStyle(fontWeight: FontWeight.w800)),
+        title: const Text(
+          'Solicitudes de registro',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
         actions: [
           IconButton(
             tooltip: 'Actualizar',
@@ -97,41 +110,68 @@ class _RegistrationRequestsPageState extends State<RegistrationRequestsPage> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? Semantics(
+              liveRegion: true,
+              container: true,
+              label: 'Cargando solicitudes de registro',
+              child: Center(child: CircularProgressIndicator()),
+            )
           : _requests.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.check_circle_rounded, size: 64, color: Colors.green.shade300),
-                      const SizedBox(height: 12),
-                      const Text('No hay solicitudes pendientes.', style: TextStyle(fontSize: 16)),
-                    ],
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.check_circle_rounded,
+                    size: 64,
+                    color: KairosPalette.success,
                   ),
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _requests.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (context, index) {
-                    final req = _requests[index];
-                    final id = req['id'] as int;
-                    final busy = _processing.contains(id);
-                    final roleLabel = switch ((req['role'] as String? ?? 'student').toLowerCase()) {
-                      'company' => 'Empresa',
-                      'staff' => 'Staff',
-                      'alumni' => 'Egresado',
-                      _ => 'Estudiante',
-                    };
-                    return KCard(
-                      child: Row(
+                  const SizedBox(height: 12),
+                  const Text(
+                    'No hay solicitudes pendientes.',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ],
+              ),
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: _requests.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final req = _requests[index];
+                final id = req['id'] as int;
+                final busy = _processing.contains(id);
+                final roleLabel = switch ((req['role'] as String? ?? 'student')
+                    .toLowerCase()) {
+                  'company' => 'Empresa',
+                  'staff' => 'Staff',
+                  'alumni' => 'Egresado',
+                  _ => 'Estudiante',
+                };
+                return KCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          CircleAvatar(
-                            radius: 26,
-                            backgroundColor: KairosPalette.muted,
-                            child: Text(
-                              (req['fullName'] as String? ?? '?').substring(0, 1).toUpperCase(),
-                              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20),
+                          Semantics(
+                            label:
+                                'Avatar de ${req['fullName'] as String? ?? 'usuario'}',
+                            image: true,
+                            child: CircleAvatar(
+                              radius: 26,
+                              backgroundColor: KairosPalette.muted,
+                              child: Text(
+                                (req['fullName'] as String? ?? '?')
+                                    .substring(0, 1)
+                                    .toUpperCase(),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 20,
+                                ),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -141,16 +181,33 @@ class _RegistrationRequestsPageState extends State<RegistrationRequestsPage> {
                               children: [
                                 Text(
                                   req['fullName'] as String? ?? '-',
-                                  style: const TextStyle(fontWeight: FontWeight.w800),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
-                                Text(req['email'] as String? ?? '-',
-                                    style: const TextStyle(color: KairosPalette.secondary, fontSize: 13)),
-                                if ((req['institution'] as String?)?.isNotEmpty == true)
-                                  Text(req['institution'] as String,
-                                      style: const TextStyle(fontSize: 12, color: KairosPalette.secondary)),
+                                Text(
+                                  req['email'] as String? ?? '-',
+                                  style: const TextStyle(
+                                    color: KairosPalette.secondary,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                if ((req['institution'] as String?)
+                                        ?.isNotEmpty ==
+                                    true)
+                                  Text(
+                                    req['institution'] as String,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: KairosPalette.secondary,
+                                    ),
+                                  ),
                                 const SizedBox(height: 4),
                                 Chip(
-                                  label: Text(roleLabel, style: const TextStyle(fontSize: 12)),
+                                  label: Text(
+                                    roleLabel,
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
                                   side: BorderSide.none,
                                   backgroundColor: KairosPalette.muted,
                                   padding: EdgeInsets.zero,
@@ -158,31 +215,50 @@ class _RegistrationRequestsPageState extends State<RegistrationRequestsPage> {
                               ],
                             ),
                           ),
-                          if (busy)
-                            const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 12),
-                              child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
-                            )
-                          else
-                            Row(
-                              children: [
-                                IconButton(
-                                  tooltip: 'Aprobar',
-                                  onPressed: () => _approve(id),
-                                  icon: const Icon(Icons.check_circle_rounded, color: Colors.green),
-                                ),
-                                IconButton(
-                                  tooltip: 'Rechazar',
-                                  onPressed: () => _reject(id),
-                                  icon: const Icon(Icons.cancel_rounded, color: Colors.redAccent),
-                                ),
-                              ],
-                            ),
                         ],
                       ),
-                    );
-                  },
-                ),
+                      const SizedBox(height: 8),
+                      if (busy)
+                        const Align(
+                          alignment: Alignment.centerRight,
+                          child: SizedBox(
+                            width: 48,
+                            height: 48,
+                            child: Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        )
+                      else
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Wrap(
+                            spacing: 4,
+                            children: [
+                              IconButton(
+                                tooltip: 'Aprobar solicitud',
+                                onPressed: () => _approve(id),
+                                icon: const Icon(
+                                  Icons.check_circle_rounded,
+                                  color: KairosPalette.success,
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: 'Rechazar solicitud',
+                                onPressed: () => _reject(id),
+                                icon: const Icon(
+                                  Icons.cancel_rounded,
+                                  color: KairosPalette.danger,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
     );
   }
 }

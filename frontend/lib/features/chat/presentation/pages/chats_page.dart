@@ -11,7 +11,11 @@ import '../../../../core/widgets/k_card.dart';
 import '../../data/models/chat_model.dart';
 
 class ChatsPage extends StatefulWidget {
-  const ChatsPage({super.key, required this.currentUser, this.initialContactId});
+  const ChatsPage({
+    super.key,
+    required this.currentUser,
+    this.initialContactId,
+  });
 
   final UserProfile currentUser;
 
@@ -52,6 +56,8 @@ class _ChatsPageState extends State<ChatsPage> {
   StreamSubscription<dynamic>? _typingSub;
   bool _isTyping = false;
   Timer? _typingTimer;
+  Timer? _statusTimer;
+  String? _liveStatus;
 
   @override
   void initState() {
@@ -66,7 +72,9 @@ class _ChatsPageState extends State<ChatsPage> {
     try {
       final data = await _api.getConversations();
       final conversations = data.cast<Map<String, dynamic>>().map((json) {
-        final lastAt = DateTime.tryParse(json['lastMessageAt'] as String? ?? '');
+        final lastAt = DateTime.tryParse(
+          json['lastMessageAt'] as String? ?? '',
+        );
         String ts = '';
         if (lastAt != null) {
           final diff = DateTime.now().toUtc().difference(lastAt.toUtc());
@@ -102,9 +110,12 @@ class _ChatsPageState extends State<ChatsPage> {
         setState(() => _conversations = conversations);
         if (_selected == null) {
           final target = widget.initialContactId != null
-              ? conversations.where((c) => c.id == widget.initialContactId).firstOrNull
+              ? conversations
+                    .where((c) => c.id == widget.initialContactId)
+                    .firstOrNull
               : null;
-          final toSelect = target ??
+          final toSelect =
+              target ??
               (widget.initialContactId == null && conversations.isNotEmpty
                   ? conversations.first
                   : null);
@@ -196,14 +207,18 @@ class _ChatsPageState extends State<ChatsPage> {
     _msgSub = _hub.onMessage.listen((msg) {
       if (!mounted) return;
       setState(() {
-        _thread.add(ChatMessage(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          text: msg.content,
-          timestamp: msg.timestamp,
-          isMine: msg.senderId == widget.currentUser.id,
-          senderId: msg.senderId,
-        ));
+        _thread.add(
+          ChatMessage(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            text: msg.content,
+            timestamp: msg.timestamp,
+            isMine: msg.senderId == widget.currentUser.id,
+            senderId: msg.senderId,
+          ),
+        );
+        _liveStatus = 'Nuevo mensaje de ${selected.user.name}: ${msg.content}';
       });
+      _clearLiveStatusLater();
       _scrollToBottom();
     });
 
@@ -223,6 +238,7 @@ class _ChatsPageState extends State<ChatsPage> {
     _msgSub?.cancel();
     _typingSub?.cancel();
     _typingTimer?.cancel();
+    _statusTimer?.cancel();
     final selected = _selected;
     if (selected != null) {
       _hub.leaveConversation(widget.currentUser.id, selected.user.id);
@@ -328,6 +344,7 @@ class _ChatsPageState extends State<ChatsPage> {
       senderId: widget.currentUser.id,
     );
     setState(() => _thread.add(optimistic));
+    _setLiveStatus('Mensaje enviado a ${selected.user.name}');
     _scrollToBottom();
 
     final receiverId = int.tryParse(selected.user.id);
@@ -365,28 +382,48 @@ class _ChatsPageState extends State<ChatsPage> {
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
-        );
+        final reduceMotion =
+            MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+        if (reduceMotion) {
+          _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+        } else {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+          );
+        }
       }
     });
   }
 
+  void _setLiveStatus(String status) {
+    _statusTimer?.cancel();
+    if (!mounted) return;
+    setState(() => _liveStatus = status);
+    _clearLiveStatusLater();
+  }
+
+  void _clearLiveStatusLater() {
+    _statusTimer?.cancel();
+    _statusTimer = Timer(const Duration(seconds: 5), () {
+      if (mounted) setState(() => _liveStatus = null);
+    });
+  }
+
   static UserRole _mapRole(String? role) => switch (role?.toLowerCase()) {
-        'staff' => UserRole.staff,
-        'company' => UserRole.company,
-        'alumni' => UserRole.alumni,
-        _ => UserRole.student,
-      };
+    'staff' => UserRole.staff,
+    'company' => UserRole.company,
+    'alumni' => UserRole.alumni,
+    _ => UserRole.student,
+  };
 
   static String _titleForRole(String role) => switch (role.toLowerCase()) {
-        'staff' => 'Staff del Liceo',
-        'company' => 'Representante de Empresa',
-        'alumni' => 'Egresado / Alumni',
-        _ => 'Estudiante',
-      };
+    'staff' => 'Staff del Liceo',
+    'company' => 'Representante de Empresa',
+    'alumni' => 'Egresado / Alumni',
+    _ => 'Estudiante',
+  };
 
   // ── Build ──────────────────────────────────────────────────────────────────
 
@@ -400,24 +437,38 @@ class _ChatsPageState extends State<ChatsPage> {
         : const EdgeInsets.fromLTRB(20, 0, 20, 12);
     final query = _searchController.text.trim().toLowerCase();
 
-    final conversations = _conversations.where((chat) {
-      if (query.isEmpty) return true;
-      return chat.user.name.toLowerCase().contains(query) ||
-          chat.lastMessage.toLowerCase().contains(query) ||
-          chat.user.title.toLowerCase().contains(query);
-    }).toList(growable: false);
+    final conversations = _conversations
+        .where((chat) {
+          if (query.isEmpty) return true;
+          return chat.user.name.toLowerCase().contains(query) ||
+              chat.lastMessage.toLowerCase().contains(query) ||
+              chat.user.title.toLowerCase().contains(query);
+        })
+        .toList(growable: false);
 
     return Padding(
       padding: pagePadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (_liveStatus != null)
+            Semantics(
+              liveRegion: true,
+              container: true,
+              label: _liveStatus!,
+              child: ExcludeSemantics(child: Text(_liveStatus!)),
+            ),
           if (showTopTitle) ...[
-            Text(
-              'Chats',
-              style: TextStyle(
-                fontSize: mobile ? 26 : 34,
-                fontWeight: FontWeight.w900,
+            Semantics(
+              header: true,
+              container: true,
+              label: 'Chats',
+              child: Text(
+                'Chats',
+                style: TextStyle(
+                  fontSize: mobile ? 26 : 34,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -427,14 +478,14 @@ class _ChatsPageState extends State<ChatsPage> {
               padding: EdgeInsets.zero,
               child: mobile
                   ? (_showConversationListOnMobile
-                      ? _sidebar(conversations, compact: true)
-                      : _chatPanel(mobile: true, onBack: _backToConversationList))
+                        ? _sidebar(conversations, compact: true)
+                        : _chatPanel(
+                            mobile: true,
+                            onBack: _backToConversationList,
+                          ))
                   : Row(
                       children: [
-                        SizedBox(
-                          width: 340,
-                          child: _sidebar(conversations),
-                        ),
+                        SizedBox(width: 340, child: _sidebar(conversations)),
                         const VerticalDivider(width: 1),
                         Expanded(child: _chatPanel()),
                       ],
@@ -467,6 +518,7 @@ class _ChatsPageState extends State<ChatsPage> {
             controller: _searchController,
             onChanged: (_) => setState(() {}),
             decoration: const InputDecoration(
+              labelText: 'Buscar chats',
               hintText: 'Buscar chats...',
               prefixIcon: Icon(Icons.search_rounded),
             ),
@@ -518,8 +570,11 @@ class _ChatsPageState extends State<ChatsPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.chat_bubble_outline_rounded,
-                  size: 40, color: KairosPalette.secondary.withOpacity(0.4)),
+              Icon(
+                Icons.chat_bubble_outline_rounded,
+                size: 40,
+                color: KairosPalette.secondary.withOpacity(0.4),
+              ),
               const SizedBox(height: 12),
               const Text(
                 'Sin conversaciones aún.',
@@ -542,79 +597,98 @@ class _ChatsPageState extends State<ChatsPage> {
       itemBuilder: (context, index) {
         final chat = conversations[index];
         final selected = chat.id == _selected?.id;
-        return InkWell(
+        final summary = [
+          if (chat.unread) 'No leído',
+          if (chat.lastMessage.isNotEmpty) chat.lastMessage,
+          if (chat.timestamp.isNotEmpty) chat.timestamp,
+        ].join('. ');
+        return Semantics(
+          button: true,
+          selected: selected,
+          container: true,
+          excludeSemantics: true,
+          label: 'Conversación con ${chat.user.name}',
+          value: summary,
+          hint: selected ? 'Conversación seleccionada' : 'Abrir conversación',
           onTap: () => _selectConversation(chat),
-          child: Container(
-            padding: compact
-                ? const EdgeInsets.symmetric(horizontal: 12, vertical: 10)
-                : const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: selected ? const Color(0x120F766E) : null,
-              border: const Border(
-                bottom: BorderSide(color: KairosPalette.border),
+          child: InkWell(
+            onTap: () => _selectConversation(chat),
+            child: Container(
+              padding: compact
+                  ? const EdgeInsets.symmetric(horizontal: 12, vertical: 10)
+                  : const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: selected ? const Color(0x120F766E) : null,
+                border: const Border(
+                  bottom: BorderSide(color: KairosPalette.border),
+                ),
               ),
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  backgroundImage: chat.user.avatarUrl.trim().isNotEmpty
-                      ? NetworkImage(chat.user.avatarUrl)
-                      : null,
-                  child: chat.user.avatarUrl.trim().isEmpty
-                      ? const Icon(Icons.person_rounded)
-                      : null,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              chat.user.name,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w800),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          Text(chat.timestamp,
-                              style: const TextStyle(fontSize: 11)),
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        chat.user.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: KairosPalette.secondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        chat.lastMessage,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: KairosPalette.foreground),
-                      ),
-                    ],
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundImage: chat.user.avatarUrl.trim().isNotEmpty
+                        ? NetworkImage(chat.user.avatarUrl)
+                        : null,
+                    child: chat.user.avatarUrl.trim().isEmpty
+                        ? const Icon(Icons.person_rounded)
+                        : null,
                   ),
-                ),
-                if (chat.unread)
-                  Container(
-                    width: 9,
-                    height: 9,
-                    margin: const EdgeInsets.only(left: 8),
-                    decoration: const BoxDecoration(
-                      color: KairosPalette.accent,
-                      shape: BoxShape.circle,
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                chat.user.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Text(
+                              chat.timestamp,
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          chat.user.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: KairosPalette.secondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          chat.lastMessage,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: KairosPalette.foreground,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-              ],
+                  if (chat.unread)
+                    Container(
+                      width: 9,
+                      height: 9,
+                      margin: const EdgeInsets.only(left: 8),
+                      decoration: const BoxDecoration(
+                        color: KairosPalette.accent,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         );
@@ -633,8 +707,11 @@ class _ChatsPageState extends State<ChatsPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.people_outline_rounded,
-                  size: 40, color: KairosPalette.secondary.withOpacity(0.4)),
+              Icon(
+                Icons.people_outline_rounded,
+                size: 40,
+                color: KairosPalette.secondary.withOpacity(0.4),
+              ),
               const SizedBox(height: 12),
               const Text(
                 'Sigue a alguien en tu red\npara iniciar una conversación.',
@@ -665,8 +742,9 @@ class _ChatsPageState extends State<ChatsPage> {
           child: Row(
             children: [
               CircleAvatar(
-                backgroundImage:
-                    avatar.trim().isNotEmpty ? NetworkImage(avatar) : null,
+                backgroundImage: avatar.trim().isNotEmpty
+                    ? NetworkImage(avatar)
+                    : null,
                 child: avatar.trim().isEmpty
                     ? const Icon(Icons.person_rounded)
                     : null,
@@ -676,29 +754,42 @@ class _ChatsPageState extends State<ChatsPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(name,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                        overflow: TextOverflow.ellipsis),
-                    Text(title,
-                        style: const TextStyle(
-                            fontSize: 12,
-                            color: KairosPalette.secondary),
-                        overflow: TextOverflow.ellipsis),
+                    Text(
+                      name,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: KairosPalette.secondary,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 ),
               ),
               const SizedBox(width: 8),
-              OutlinedButton(
-                onPressed: () => _openSuggestion(s),
-                style: OutlinedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  side: const BorderSide(color: KairosPalette.primary),
-                  foregroundColor: KairosPalette.primary,
+              Semantics(
+                button: true,
+                container: true,
+                excludeSemantics: true,
+                label: 'Chatear con $name',
+                onTap: () => _openSuggestion(s),
+                child: OutlinedButton(
+                  onPressed: () => _openSuggestion(s),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    minimumSize: const Size(48, 48),
+                    side: const BorderSide(color: KairosPalette.primary),
+                    foregroundColor: KairosPalette.primary,
+                  ),
+                  child: const Text('Chatear', style: TextStyle(fontSize: 12)),
                 ),
-                child: const Text('Chatear', style: TextStyle(fontSize: 12)),
               ),
             ],
           ),
@@ -726,158 +817,191 @@ class _ChatsPageState extends State<ChatsPage> {
     return Column(
       children: [
         // Header
-        Container(
-          height: isMobile ? 70 : 76,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: const BoxDecoration(
-            color: Color(0x140F766E),
-            border: Border(bottom: BorderSide(color: KairosPalette.border)),
-          ),
-          child: Row(
-            children: [
-              if (isMobile && onBack != null)
-                IconButton(
-                  tooltip: 'Volver a conversaciones',
-                  onPressed: onBack,
-                  icon: const Icon(Icons.arrow_back_rounded),
+        Semantics(
+          header: true,
+          container: true,
+          explicitChildNodes: true,
+          label: 'Conversación con ${selected.user.name}',
+          child: Container(
+            height: isMobile ? 70 : 76,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: const BoxDecoration(
+              color: Color(0x140F766E),
+              border: Border(bottom: BorderSide(color: KairosPalette.border)),
+            ),
+            child: Row(
+              children: [
+                if (isMobile && onBack != null)
+                  IconButton(
+                    tooltip: 'Volver a conversaciones',
+                    onPressed: onBack,
+                    icon: const Icon(Icons.arrow_back_rounded),
+                  ),
+                Semantics(
+                  image: true,
+                  label: 'Foto de perfil de ${selected.user.name}',
+                  child: CircleAvatar(
+                    backgroundImage: selected.user.avatarUrl.trim().isNotEmpty
+                        ? NetworkImage(selected.user.avatarUrl)
+                        : null,
+                    child: selected.user.avatarUrl.trim().isEmpty
+                        ? const Icon(Icons.person_rounded)
+                        : null,
+                  ),
                 ),
-              CircleAvatar(
-                backgroundImage: selected.user.avatarUrl.trim().isNotEmpty
-                    ? NetworkImage(selected.user.avatarUrl)
-                    : null,
-                child: selected.user.avatarUrl.trim().isEmpty
-                    ? const Icon(Icons.person_rounded)
-                    : null,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      selected.user.name,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w800, fontSize: 16),
-                    ),
-                    Text(
-                      selected.user.title,
-                      style: const TextStyle(color: KairosPalette.secondary),
-                    ),
-                  ],
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        selected.user.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        selected.user.title,
+                        style: const TextStyle(color: KairosPalette.secondary),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
 
         // Messages
         Expanded(
           child: _loadingThread
-              ? const Center(child: CircularProgressIndicator())
+              ? Semantics(
+                  liveRegion: true,
+                  label: 'Cargando mensajes',
+                  child: Center(child: CircularProgressIndicator()),
+                )
               : _thread.isEmpty && !_isTyping
-                  ? Center(
-                      child: Text(
-                        'Aún no hay mensajes.\n¡Sé el primero en escribir!',
-                        style: TextStyle(
-                            color: KairosPalette.secondary.withOpacity(0.7)),
-                        textAlign: TextAlign.center,
-                      ),
-                    )
-                  : ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.all(14),
-                      itemCount: _thread.length + (_isTyping ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if (_isTyping && index == _thread.length) {
-                          return Align(
-                            alignment: Alignment.centerLeft,
-                            child: Container(
-                              margin: const EdgeInsets.only(bottom: 10),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                    color: KairosPalette.border),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    '${selected.user.name} está escribiendo',
-                                    style: const TextStyle(
-                                      color: KairosPalette.secondary,
-                                      fontSize: 12,
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  const SizedBox(
-                                    width: 12,
-                                    height: 12,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 1.5,
-                                      color: KairosPalette.secondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        }
-
-                        final msg = _thread[index];
-                        return Align(
-                          alignment: msg.isMine
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
+              ? Semantics(
+                  container: true,
+                  label: 'No hay mensajes. Sé el primero en escribir.',
+                  child: Center(
+                    child: Text(
+                      'Aún no hay mensajes.\n¡Sé el primero en escribir!',
+                      style: TextStyle(color: KairosPalette.secondary),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                )
+              : ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.all(14),
+                  itemCount: _thread.length + (_isTyping ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (_isTyping && index == _thread.length) {
+                      return Semantics(
+                        liveRegion: true,
+                        container: true,
+                        label: '${selected.user.name} está escribiendo',
+                        child: Align(
+                          alignment: Alignment.centerLeft,
                           child: Container(
                             margin: const EdgeInsets.only(bottom: 10),
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 10),
-                            constraints: BoxConstraints(
-                              maxWidth: isMobile
-                                  ? MediaQuery.sizeOf(context).width * 0.72
-                                  : 480,
+                              horizontal: 14,
+                              vertical: 10,
                             ),
                             decoration: BoxDecoration(
-                              color: msg.isMine
-                                  ? KairosPalette.primary
-                                  : Colors.white,
+                              color: Colors.white,
                               borderRadius: BorderRadius.circular(16),
-                              border: msg.isMine
-                                  ? null
-                                  : Border.all(color: KairosPalette.border),
+                              border: Border.all(color: KairosPalette.border),
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  msg.text,
-                                  style: TextStyle(
-                                    color: msg.isMine
-                                        ? Colors.white
-                                        : KairosPalette.foreground,
+                                  '${selected.user.name} está escribiendo',
+                                  style: const TextStyle(
+                                    color: KairosPalette.secondary,
+                                    fontSize: 12,
+                                    fontStyle: FontStyle.italic,
                                   ),
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  msg.timestamp,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: msg.isMine
-                                        ? Colors.white70
-                                        : KairosPalette.secondary,
+                                const SizedBox(width: 6),
+                                const SizedBox(
+                                  width: 12,
+                                  height: 12,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 1.5,
+                                    color: KairosPalette.secondary,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        );
-                      },
-                    ),
+                        ),
+                      );
+                    }
+
+                    final msg = _thread[index];
+                    return Semantics(
+                      container: true,
+                      excludeSemantics: true,
+                      label:
+                          'Mensaje de ${msg.isMine ? 'ti' : selected.user.name} a las ${msg.timestamp}: ${msg.text}',
+                      child: Align(
+                        alignment: msg.isMine
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          constraints: BoxConstraints(
+                            maxWidth: isMobile
+                                ? MediaQuery.sizeOf(context).width * 0.72
+                                : 480,
+                          ),
+                          decoration: BoxDecoration(
+                            color: msg.isMine
+                                ? KairosPalette.primary
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: msg.isMine
+                                ? null
+                                : Border.all(color: KairosPalette.border),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                msg.text,
+                                style: TextStyle(
+                                  color: msg.isMine
+                                      ? Colors.white
+                                      : KairosPalette.foreground,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                msg.timestamp,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: msg.isMine
+                                      ? Colors.white
+                                      : KairosPalette.secondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
         ),
 
         // Input bar
@@ -894,6 +1018,7 @@ class _ChatsPageState extends State<ChatsPage> {
                   onSubmitted: (_) => _sendMessage(),
                   onChanged: _onInputChanged,
                   decoration: const InputDecoration(
+                    labelText: 'Mensaje',
                     hintText: 'Escribe un mensaje...',
                   ),
                 ),
@@ -904,8 +1029,10 @@ class _ChatsPageState extends State<ChatsPage> {
                   style: IconButton.styleFrom(
                     backgroundColor: KairosPalette.accent,
                     foregroundColor: Colors.white,
+                    minimumSize: const Size(48, 48),
                   ),
                   onPressed: _sendMessage,
+                  tooltip: 'Enviar mensaje',
                   icon: const Icon(Icons.send_rounded, size: 18),
                 )
               else
@@ -941,25 +1068,34 @@ class _SidebarTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: InkWell(
+      child: Semantics(
+        button: true,
+        selected: active,
+        container: true,
+        excludeSemantics: true,
+        label: label,
+        hint: active ? 'Pestaña seleccionada' : 'Mostrar pestaña $label',
         onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: active ? KairosPalette.primary : Colors.transparent,
-                width: 2,
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: active ? KairosPalette.primary : Colors.transparent,
+                  width: 2,
+                ),
               ),
             ),
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: active ? KairosPalette.primary : KairosPalette.secondary,
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: active ? KairosPalette.primary : KairosPalette.secondary,
+              ),
             ),
           ),
         ),

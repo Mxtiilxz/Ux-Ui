@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../core/analytics/analytics.dart';
 import '../../core/api/api_client.dart';
 import '../../features/home/data/models/post_model.dart';
+import '../theme/app_colors.dart';
 import '../theme/kairos_palette.dart';
 import 'k_card.dart';
 
@@ -109,9 +110,11 @@ class _PostCardState extends State<PostCard> {
     try {
       final result = await _api.getComments(postId);
       if (mounted) {
-        setState(() => _comments
-          ..clear()
-          ..addAll(result.cast<Map<String, dynamic>>()));
+        setState(
+          () => _comments
+            ..clear()
+            ..addAll(result.cast<Map<String, dynamic>>()),
+        );
       }
     } catch (_) {
       // Silently ignore — comments stay empty
@@ -126,16 +129,20 @@ class _PostCardState extends State<PostCard> {
       builder: (ctx) => AlertDialog(
         title: const Text('Eliminar publicación'),
         content: const Text(
-            '¿Estás seguro de que quieres eliminar esta publicación? Esta acción no se puede deshacer.'),
+          '¿Estás seguro de que quieres eliminar esta publicación? Esta acción no se puede deshacer.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'Eliminar',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -150,7 +157,7 @@ class _PostCardState extends State<PostCard> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('No se pudo eliminar la publicación.'),
-            backgroundColor: Colors.redAccent,
+            backgroundColor: AppColors.danger,
           ),
         );
       }
@@ -174,6 +181,7 @@ class _PostCardState extends State<PostCard> {
               maxLength: 1000,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
+                labelText: 'Contenido de la publicación',
                 hintText: 'Escribe algo...',
               ),
             ),
@@ -202,8 +210,10 @@ class _PostCardState extends State<PostCard> {
                         if (ctx.mounted) {
                           ScaffoldMessenger.of(ctx).showSnackBar(
                             const SnackBar(
-                              content: Text('No se pudo editar la publicación.'),
-                              backgroundColor: Colors.redAccent,
+                              content: Text(
+                                'No se pudo editar la publicación.',
+                              ),
+                              backgroundColor: AppColors.danger,
                             ),
                           );
                         }
@@ -214,7 +224,10 @@ class _PostCardState extends State<PostCard> {
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
                   : const Text('Guardar'),
             ),
           ],
@@ -279,9 +292,9 @@ class _PostCardState extends State<PostCard> {
       builder: (context, constraints) {
         final maxCardWidth = switch (constraints.maxWidth) {
           >= 1200 => 620.0,
-          >= 900  => 580.0,
-          >= 700  => 540.0,
-          _       => constraints.maxWidth,
+          >= 900 => 580.0,
+          >= 700 => 540.0,
+          _ => constraints.maxWidth,
         };
         final cardWidth = math.min(constraints.maxWidth, maxCardWidth);
         final mediaAspectRatio = _shouldUseSquareMedia(imageUrl) ? 1.0 : 3 / 4;
@@ -303,12 +316,15 @@ class _PostCardState extends State<PostCard> {
                   : null,
               padding: EdgeInsets.zero,
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (post.isEvent)
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 10),
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
                       decoration: const BoxDecoration(
                         color: KairosPalette.primary,
                         borderRadius: BorderRadius.only(
@@ -318,8 +334,11 @@ class _PostCardState extends State<PostCard> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.calendar_month_rounded,
-                              size: 16, color: Colors.white),
+                          const Icon(
+                            Icons.calendar_month_rounded,
+                            size: 16,
+                            color: Colors.white,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             'Evento  ${post.eventDate ?? ''}',
@@ -337,38 +356,51 @@ class _PostCardState extends State<PostCard> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        CircleAvatar(
-                          radius: 22,
-                          backgroundImage: authorAvatar.isNotEmpty
-                              ? NetworkImage(authorAvatar)
-                              : null,
-                          child: authorAvatar.isEmpty
-                              ? const Icon(Icons.person_rounded)
-                              : null,
+                        ExcludeSemantics(
+                          child: CircleAvatar(
+                            radius: 22,
+                            backgroundImage: authorAvatar.isNotEmpty
+                                ? NetworkImage(authorAvatar)
+                                : null,
+                            child: authorAvatar.isEmpty
+                                ? const Icon(Icons.person_rounded)
+                                : null,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(post.author.name,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w800)),
-                              Text(post.author.title,
-                                  style: const TextStyle(
-                                      color: KairosPalette.secondary,
-                                      fontSize: 12)),
-                              Text(post.timestamp,
-                                  style: const TextStyle(
-                                      color: KairosPalette.secondary,
-                                      fontSize: 11)),
+                              Text(
+                                post.author.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              Text(
+                                post.author.title,
+                                style: const TextStyle(
+                                  color: KairosPalette.secondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Text(
+                                post.timestamp,
+                                style: const TextStyle(
+                                  color: KairosPalette.secondary,
+                                  fontSize: 11,
+                                ),
+                              ),
                             ],
                           ),
                         ),
                         _PostMenu(
-                          canEdit: widget.currentUserId.isNotEmpty &&
+                          canEdit:
+                              widget.currentUserId.isNotEmpty &&
                               widget.currentUserId == post.author.id,
-                          canDelete: widget.currentUserId.isNotEmpty &&
+                          canDelete:
+                              widget.currentUserId.isNotEmpty &&
                               (widget.currentUserId == post.author.id ||
                                   widget.currentUserRole == 'staff'),
                           onEdit: _showEditDialog,
@@ -396,13 +428,16 @@ class _PostCardState extends State<PostCard> {
                             child: TextButton(
                               onPressed: _toggleExpanded,
                               style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: Size.zero,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
+                                minimumSize: const Size(48, 48),
+                                tapTargetSize: MaterialTapTargetSize.padded,
                                 foregroundColor: KairosPalette.primary,
                               ),
-                              child:
-                                  Text(_isExpanded ? 'Ver menos' : 'Ver más'),
+                              child: Text(
+                                _isExpanded ? 'Ver menos' : 'Ver más',
+                              ),
                             ),
                           ),
                       ],
@@ -420,6 +455,7 @@ class _PostCardState extends State<PostCard> {
                             width: double.infinity,
                             fit: BoxFit.cover,
                             alignment: Alignment.topCenter,
+                            semanticLabel: post.resolvedImageAltText,
                           ),
                         ),
                       ),
@@ -427,36 +463,47 @@ class _PostCardState extends State<PostCard> {
                   const SizedBox(height: 10),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
                     decoration: const BoxDecoration(
-                      border:
-                          Border(top: BorderSide(color: KairosPalette.border)),
+                      border: Border(
+                        top: BorderSide(color: KairosPalette.border),
+                      ),
                     ),
                     child: LayoutBuilder(
                       builder: (context, constraints) {
-                        final isCompact = constraints.maxWidth < 360;
+                        final isCompact = constraints.maxWidth < 520;
                         if (isCompact) {
                           return Wrap(
                             spacing: 12,
                             runSpacing: 4,
                             children: [
-                              Text('$_likes Me gusta',
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w700)),
                               Text(
-                                  '${post.comments + _comments.length} Comentarios'),
+                                '$_likes Me gusta',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              Text(
+                                '${post.comments + _comments.length} Comentarios',
+                              ),
                               Text('${post.shares} Compartidos'),
                             ],
                           );
                         }
                         return Row(
                           children: [
-                            Text('$_likes Me gusta',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w700)),
+                            Text(
+                              '$_likes Me gusta',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                             const Spacer(),
                             Text(
-                                '${post.comments + _comments.length} Comentarios'),
+                              '${post.comments + _comments.length} Comentarios',
+                            ),
                             const SizedBox(width: 12),
                             Text('${post.shares} Compartidos'),
                           ],
@@ -498,7 +545,8 @@ class _PostCardState extends State<PostCard> {
                     Container(
                       decoration: const BoxDecoration(
                         border: Border(
-                            top: BorderSide(color: KairosPalette.border)),
+                          top: BorderSide(color: KairosPalette.border),
+                        ),
                         color: Color(0x060F766E),
                       ),
                       padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
@@ -509,8 +557,10 @@ class _PostCardState extends State<PostCard> {
                             const Padding(
                               padding: EdgeInsets.symmetric(vertical: 8),
                               child: Center(
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2)),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
                             )
                           else
                             ..._comments.map((c) => _commentTile(c)),
@@ -521,25 +571,30 @@ class _PostCardState extends State<PostCard> {
                                 child: TextField(
                                   controller: _commentController,
                                   decoration: InputDecoration(
+                                    labelText: 'Comentario',
                                     hintText: 'Escribe un comentario...',
                                     isDense: true,
-                                    contentPadding:
-                                        const EdgeInsets.symmetric(
-                                            horizontal: 12, vertical: 10),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 10,
+                                    ),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(20),
                                       borderSide: const BorderSide(
-                                          color: KairosPalette.border),
+                                        color: KairosPalette.border,
+                                      ),
                                     ),
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(20),
                                       borderSide: const BorderSide(
-                                          color: KairosPalette.border),
+                                        color: KairosPalette.border,
+                                      ),
                                     ),
                                     focusedBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(20),
                                       borderSide: const BorderSide(
-                                          color: KairosPalette.primary),
+                                        color: KairosPalette.primary,
+                                      ),
                                     ),
                                   ),
                                   onSubmitted: (_) => _submitComment(),
@@ -547,16 +602,24 @@ class _PostCardState extends State<PostCard> {
                               ),
                               const SizedBox(width: 8),
                               IconButton(
-                                onPressed:
-                                    _submittingComment ? null : _submitComment,
+                                tooltip: _submittingComment
+                                    ? 'Enviando comentario'
+                                    : 'Enviar comentario',
+                                onPressed: _submittingComment
+                                    ? null
+                                    : _submitComment,
                                 icon: _submittingComment
                                     ? const SizedBox(
                                         width: 18,
                                         height: 18,
                                         child: CircularProgressIndicator(
-                                            strokeWidth: 2))
-                                    : const Icon(Icons.send_rounded,
-                                        color: KairosPalette.primary),
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.send_rounded,
+                                        color: KairosPalette.primary,
+                                      ),
                               ),
                             ],
                           ),
@@ -586,17 +649,19 @@ class _PostCardState extends State<PostCard> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 16,
-            backgroundImage:
-                avatar.isNotEmpty ? NetworkImage(avatar) : null,
-            child: avatar.isEmpty ? const Icon(Icons.person_rounded, size: 16) : null,
+          ExcludeSemantics(
+            child: CircleAvatar(
+              radius: 16,
+              backgroundImage: avatar.isNotEmpty ? NetworkImage(avatar) : null,
+              child: avatar.isEmpty
+                  ? const Icon(Icons.person_rounded, size: 16)
+                  : null,
+            ),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
@@ -607,14 +672,21 @@ class _PostCardState extends State<PostCard> {
                 children: [
                   Row(
                     children: [
-                      Text(name,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 13)),
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
                       const Spacer(),
-                      Text(time,
-                          style: const TextStyle(
-                              fontSize: 11,
-                              color: KairosPalette.secondary)),
+                      Text(
+                        time,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: KairosPalette.secondary,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 2),
@@ -648,7 +720,11 @@ class _PostMenu extends StatelessWidget {
       return const SizedBox(width: 40);
     }
     return PopupMenuButton<String>(
-      icon: const Icon(Icons.more_horiz_rounded, color: KairosPalette.secondary),
+      icon: const Icon(
+        Icons.more_horiz_rounded,
+        color: KairosPalette.secondary,
+      ),
+      tooltip: 'Más opciones para la publicación',
       onSelected: (value) {
         if (value == 'edit') onEdit();
         if (value == 'delete') onDelete();
@@ -659,7 +735,7 @@ class _PostMenu extends StatelessWidget {
             value: 'edit',
             child: Row(
               children: [
-                Icon(Icons.edit_rounded, size: 18),
+                ExcludeSemantics(child: Icon(Icons.edit_rounded, size: 18)),
                 SizedBox(width: 10),
                 Text('Editar'),
               ],
@@ -670,9 +746,15 @@ class _PostMenu extends StatelessWidget {
             value: 'delete',
             child: Row(
               children: [
-                Icon(Icons.delete_rounded, size: 18, color: Colors.redAccent),
+                ExcludeSemantics(
+                  child: Icon(
+                    Icons.delete_rounded,
+                    size: 18,
+                    color: AppColors.danger,
+                  ),
+                ),
                 SizedBox(width: 10),
-                Text('Eliminar', style: TextStyle(color: Colors.redAccent)),
+                Text('Eliminar', style: TextStyle(color: AppColors.danger)),
               ],
             ),
           ),
@@ -697,25 +779,42 @@ class _ActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 18, color: color),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style:
-                      TextStyle(color: color, fontWeight: FontWeight.w700),
+      child: Material(
+        type: MaterialType.transparency,
+        child: Semantics(
+          container: true,
+          button: true,
+          enabled: true,
+          label: label,
+          onTap: onTap,
+          child: ExcludeSemantics(
+            child: InkWell(
+              onTap: onTap,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 48),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(icon, size: 18, color: color),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: color,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),

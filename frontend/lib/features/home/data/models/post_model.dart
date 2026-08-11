@@ -10,6 +10,7 @@ class PostModel {
     required this.shares,
     required this.timestamp,
     this.imageUrl,
+    this.imageAltText,
     this.isEvent = false,
     this.eventDate,
   });
@@ -18,6 +19,9 @@ class PostModel {
   final UserProfile author;
   final String content;
   final String? imageUrl;
+
+  /// API-provided alternative text for the post image, when available.
+  final String? imageAltText;
   final int likes;
   final int comments;
   final int shares;
@@ -28,16 +32,16 @@ class PostModel {
   factory PostModel.fromJson(Map<String, dynamic> json) {
     final roleStr = (json['authorRole'] as String? ?? 'student').toLowerCase();
     final role = switch (roleStr) {
-      'staff'   => UserRole.staff,
+      'staff' => UserRole.staff,
       'company' => UserRole.company,
-      'alumni'  => UserRole.alumni,
-      _         => UserRole.student,
+      'alumni' => UserRole.alumni,
+      _ => UserRole.student,
     };
     final titleByRole = switch (roleStr) {
-      'staff'   => 'Staff del Liceo',
+      'staff' => 'Staff del Liceo',
       'company' => 'Empresa',
-      'alumni'  => 'Egresado',
-      _         => 'Estudiante',
+      'alumni' => 'Egresado',
+      _ => 'Estudiante',
     };
 
     final author = UserProfile(
@@ -64,6 +68,9 @@ class PostModel {
       shares: 0,
       timestamp: timestamp,
       imageUrl: json['imageUrl'] as String?,
+      imageAltText:
+          (json['imageAltText'] ?? json['imageAlt'] ?? json['imageDescription'])
+              as String?,
       isEvent: (json['postType'] as String? ?? '').toLowerCase() == 'event',
       eventDate: json['eventDate'] as String?,
     );
@@ -79,9 +86,23 @@ class PostModel {
       shares: shares,
       timestamp: timestamp,
       imageUrl: imageUrl,
+      imageAltText: imageAltText,
       isEvent: isEvent,
       eventDate: eventDate,
     );
+  }
+
+  /// Returns useful alt text even for legacy API responses without a field.
+  String get resolvedImageAltText {
+    final provided = imageAltText?.trim();
+    if (provided != null && provided.isNotEmpty) return provided;
+
+    final summary = content.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (summary.isEmpty) return 'Imagen de la publicación de ${author.name}';
+    final shortened = summary.length > 160
+        ? '${summary.substring(0, 157)}…'
+        : summary;
+    return 'Imagen de la publicación: $shortened';
   }
 
   static String _formatRelative(DateTime dt) {

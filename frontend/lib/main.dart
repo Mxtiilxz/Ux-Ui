@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/analytics/analytics.dart';
 import 'core/api/api_client.dart';
@@ -26,6 +28,7 @@ class KairosApp extends StatefulWidget {
 }
 
 class _KairosAppState extends State<KairosApp> {
+  late final SemanticsHandle _semanticsHandle;
   UserProfile? _currentUser;
   final UserRoleController _roleController = UserRoleController();
   int _selectedIndex = 0;
@@ -45,6 +48,10 @@ class _KairosAppState extends State<KairosApp> {
   @override
   void initState() {
     super.initState();
+    // Retain the handle for the app lifetime. If it is discarded immediately,
+    // Flutter Web can fall back to a pointer-only "Enable accessibility"
+    // affordance instead of exposing the initial semantics tree.
+    _semanticsHandle = SemanticsBinding.instance.ensureSemantics();
     _tryRestoreSession();
   }
 
@@ -56,10 +63,10 @@ class _KairosAppState extends State<KairosApp> {
       if (profile != null && mounted) {
         final roleStr = profile['role'] ?? 'student';
         final role = switch (roleStr) {
-          'staff'   => UserRole.staff,
+          'staff' => UserRole.staff,
           'company' => UserRole.company,
-          'alumni'  => UserRole.alumni,
-          _         => UserRole.student,
+          'alumni' => UserRole.alumni,
+          _ => UserRole.student,
         };
         final user = UserProfile(
           id: profile['id'] ?? '',
@@ -83,6 +90,7 @@ class _KairosAppState extends State<KairosApp> {
 
   @override
   void dispose() {
+    _semanticsHandle.dispose();
     _roleController.dispose();
     super.dispose();
   }
@@ -103,6 +111,16 @@ class _KairosAppState extends State<KairosApp> {
   }
 
   static const _tabNames = ['inicio', 'trabajos', 'red', 'chats', 'perfil'];
+  static const _tabTitles = ['Inicio', 'Trabajos', 'Red', 'Chats', 'Perfil'];
+
+  String get _pageTitle {
+    if (_restoringSession) return 'Kairos — Cargando';
+    if (_currentUser == null) return 'Kairos — Iniciar sesión';
+    final title = _selectedIndex >= 0 && _selectedIndex < _tabTitles.length
+        ? _tabTitles[_selectedIndex]
+        : 'Inicio';
+    return 'Kairos — $title';
+  }
 
   void _onSelectTab(int index) {
     if (index >= 0 && index < _tabNames.length) {
@@ -115,10 +133,18 @@ class _KairosAppState extends State<KairosApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Kairos',
+      onGenerateTitle: (_) => _pageTitle,
+      locale: const Locale('es', 'CL'),
+      supportedLocales: const [Locale('es', 'CL')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       home: _restoringSession
-          ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+          ? Semantics(
+              liveRegion: true,
+              label: 'Cargando sesión',
+              child: Scaffold(body: Center(child: CircularProgressIndicator())),
+            )
           : _currentUser == null
           ? LoginPage(onLoginSuccess: _onLoginSuccess)
           : AnimatedBuilder(

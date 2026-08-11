@@ -1,10 +1,31 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <script>
+    // Flutter adjusts the viewport during bootstrap. Restore browser zoom so
+    // users can magnify content without an application-specific control.
+    (function preserveAccessibleViewport() {
+      var content = 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes';
+      var restore = function () {
+        var viewport = document.querySelector('meta[name="viewport"]');
+        if (viewport && viewport.getAttribute('content') !== content) {
+          viewport.setAttribute('content', content);
+        }
+      };
+      new MutationObserver(restore).observe(document.head, {
+        attributes: true,
+        childList: true,
+        subtree: true,
+        attributeFilter: ['content']
+      });
+      window.addEventListener('load', restore);
+    })();
+  </script>
   <meta name="description" content="Kairos - red social para estudiantes tecnico-profesionales. Conecta alumnos con empresas y practicas.">
 
   <!-- iOS meta tags & icons -->

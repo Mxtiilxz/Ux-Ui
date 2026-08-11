@@ -19,13 +19,25 @@ class AppTheme {
     );
 
     final textTheme = GoogleFonts.manropeTextTheme(base.textTheme).copyWith(
-      headlineLarge:  const TextStyle(fontWeight: FontWeight.w800, color: KairosPalette.secondary),
-      headlineMedium: const TextStyle(fontWeight: FontWeight.w800, color: KairosPalette.secondary),
-      titleLarge:     const TextStyle(fontWeight: FontWeight.w700, color: KairosPalette.secondary),
-      titleMedium:    const TextStyle(fontWeight: FontWeight.w700, color: KairosPalette.secondary),
-      bodyLarge:      const TextStyle(color: KairosPalette.foreground),
-      bodyMedium:     const TextStyle(color: KairosPalette.foreground),
-      bodySmall:      const TextStyle(color: KairosPalette.secondary),
+      headlineLarge: const TextStyle(
+        fontWeight: FontWeight.w800,
+        color: KairosPalette.secondary,
+      ),
+      headlineMedium: const TextStyle(
+        fontWeight: FontWeight.w800,
+        color: KairosPalette.secondary,
+      ),
+      titleLarge: const TextStyle(
+        fontWeight: FontWeight.w700,
+        color: KairosPalette.secondary,
+      ),
+      titleMedium: const TextStyle(
+        fontWeight: FontWeight.w700,
+        color: KairosPalette.secondary,
+      ),
+      bodyLarge: const TextStyle(color: KairosPalette.foreground),
+      bodyMedium: const TextStyle(color: KairosPalette.foreground),
+      bodySmall: const TextStyle(color: KairosPalette.secondary),
     );
 
     return base.copyWith(
@@ -51,13 +63,19 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: KairosPalette.primary, width: 1.6),
+          borderSide: const BorderSide(
+            color: KairosPalette.primary,
+            width: 1.6,
+          ),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          minimumSize: const Size(48, 48),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           backgroundColor: KairosPalette.primary,
           foregroundColor: Colors.white,
         ),
@@ -66,6 +84,8 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         side: const BorderSide(color: KairosPalette.border),
         backgroundColor: KairosPalette.muted,
+        // Keep chip hit areas keyboard and touch friendly at larger text sizes.
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
       dividerTheme: const DividerThemeData(color: KairosPalette.border),
     );

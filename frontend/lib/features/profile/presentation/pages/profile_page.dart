@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/analytics/analytics.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/models/user_profile.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/kairos_palette.dart';
 import '../../../../core/utils/file_downloader.dart';
 import '../../../../core/widgets/k_card.dart';
@@ -20,6 +21,29 @@ class ProfilePage extends StatefulWidget {
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class QuickMatchVisibilitySwitch extends StatelessWidget {
+  const QuickMatchVisibilitySwitch({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Visibilidad en Quick Match',
+      child: Switch(
+        value: value,
+        activeThumbColor: KairosPalette.primary,
+        onChanged: onChanged,
+      ),
+    );
+  }
 }
 
 class _ProfilePageState extends State<ProfilePage> {
@@ -96,8 +120,10 @@ class _ProfilePageState extends State<ProfilePage> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('No se pudo actualizar tu competencia. Intenta de nuevo.'),
-            backgroundColor: Colors.redAccent,
+            content: Text(
+              'No se pudo actualizar tu competencia. Intenta de nuevo.',
+            ),
+            backgroundColor: AppColors.danger,
           ),
         );
       }
@@ -120,8 +146,10 @@ class _ProfilePageState extends State<ProfilePage> {
         setState(() => _quickMatchVisible = !value);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('No se pudo actualizar tu visibilidad en Quick Match.'),
-            backgroundColor: Colors.redAccent,
+            content: Text(
+              'No se pudo actualizar tu visibilidad en Quick Match.',
+            ),
+            backgroundColor: AppColors.danger,
           ),
         );
       }
@@ -165,11 +193,14 @@ class _ProfilePageState extends State<ProfilePage> {
       final now = DateTime.now();
       final bytes = await _api.downloadReport(month: now.month, year: now.year);
       Analytics.downloadReport();
-      downloadFile(bytes, 'kairos-reporte-${now.year}-${now.month.toString().padLeft(2, '0')}.pdf');
+      downloadFile(
+        bytes,
+        'kairos-reporte-${now.year}-${now.month.toString().padLeft(2, '0')}.pdf',
+      );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Reporte descargado.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Reporte descargado.')));
       }
     } catch (_) {
       if (mounted) {
@@ -188,12 +219,15 @@ class _ProfilePageState extends State<ProfilePage> {
       final bytes = await _api.downloadCurriculum();
       Analytics.downloadCv();
       final now = DateTime.now();
-      downloadFile(bytes, 'kairos-cv-${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}.pdf');
+      downloadFile(
+        bytes,
+        'kairos-cv-${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}.pdf',
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('CV descargado exitosamente.'),
-            backgroundColor: Colors.green,
+            backgroundColor: AppColors.success,
           ),
         );
       }
@@ -202,7 +236,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Error al generar el CV. Intenta de nuevo.'),
-            backgroundColor: Colors.redAccent,
+            backgroundColor: AppColors.danger,
           ),
         );
       }
@@ -288,27 +322,43 @@ class _ProfilePageState extends State<ProfilePage> {
                   offset: const Offset(0, -52),
                   child: Stack(
                     children: [
-                      CircleAvatar(
-                        radius: 52,
-                        backgroundColor: Colors.white,
+                      Semantics(
+                        image: true,
+                        label: avatarUrl.isEmpty
+                            ? 'Sin foto de perfil'
+                            : 'Foto de perfil de ${user.name}',
                         child: CircleAvatar(
-                          radius: 47,
-                          backgroundImage: avatarUrl.isNotEmpty
-                              ? NetworkImage(avatarUrl)
-                              : null,
-                          child: avatarUrl.isEmpty
-                              ? const Icon(Icons.person_rounded)
-                              : null,
+                          radius: 52,
+                          backgroundColor: Colors.white,
+                          child: CircleAvatar(
+                            radius: 47,
+                            backgroundImage: avatarUrl.isNotEmpty
+                                ? NetworkImage(avatarUrl)
+                                : null,
+                            child: avatarUrl.isEmpty
+                                ? const ExcludeSemantics(
+                                    child: Icon(Icons.person_rounded),
+                                  )
+                                : null,
+                          ),
                         ),
                       ),
                       Positioned(
                         bottom: 2,
                         right: 2,
-                        child: GestureDetector(
-                          onTap: _isUploadingAvatar
+                        child: IconButton(
+                          onPressed: _isUploadingAvatar
                               ? null
                               : _pickAndUploadAvatar,
-                          child: Container(
+                          tooltip: _isUploadingAvatar
+                              ? 'Subiendo foto de perfil'
+                              : 'Cambiar foto de perfil',
+                          constraints: const BoxConstraints.tightFor(
+                            width: 48,
+                            height: 48,
+                          ),
+                          padding: EdgeInsets.zero,
+                          icon: Container(
                             width: 30,
                             height: 30,
                             decoration: BoxDecoration(
@@ -383,8 +433,11 @@ class _ProfilePageState extends State<ProfilePage> {
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Row(
                       children: [
-                        const Icon(Icons.account_balance_rounded,
-                            size: 16, color: KairosPalette.primary),
+                        const Icon(
+                          Icons.account_balance_rounded,
+                          size: 16,
+                          color: KairosPalette.primary,
+                        ),
                         const SizedBox(width: 6),
                         Flexible(
                           child: Text(
@@ -541,8 +594,8 @@ class _ProfilePageState extends State<ProfilePage> {
   // ── Skills ───────────────────────────────────────────────────────────────────
 
   static const _categoryLabels = {
-    'Technical':  'Habilidades técnicas',
-    'Language':   'Idiomas',
+    'Technical': 'Habilidades técnicas',
+    'Language': 'Idiomas',
     'Experience': 'Experiencia previa',
   };
 
@@ -563,7 +616,10 @@ class _ProfilePageState extends State<ProfilePage> {
                 spacing: 8,
                 runSpacing: 8,
                 children: user.skills
-                    .map((skill) => Chip(label: Text(skill), side: BorderSide.none))
+                    .map(
+                      (skill) =>
+                          Chip(label: Text(skill), side: BorderSide.none),
+                    )
                     .toList(growable: false),
               ),
             ],
@@ -619,32 +675,44 @@ class _ProfilePageState extends State<ProfilePage> {
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
-                        children: items.map((skill) {
-                          final id = skill['id'] as int;
-                          final selected = _mySkillIds.contains(id);
-                          final toggling = _togglingSkillIds.contains(id);
-                          return FilterChip(
-                            label: Text(skill['name'] as String),
-                            selected: selected,
-                            showCheckmark: false,
-                            avatar: toggling
-                                ? const SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  )
-                                : null,
-                            selectedColor: KairosPalette.primary.withValues(alpha: 0.15),
-                            labelStyle: TextStyle(
-                              color: selected ? KairosPalette.primary : null,
-                              fontWeight: selected ? FontWeight.w700 : null,
-                            ),
-                            side: BorderSide(
-                              color: selected ? KairosPalette.primary : KairosPalette.border,
-                            ),
-                            onSelected: toggling ? null : (_) => _toggleSkill(id),
-                          );
-                        }).toList(growable: false),
+                        children: items
+                            .map((skill) {
+                              final id = skill['id'] as int;
+                              final selected = _mySkillIds.contains(id);
+                              final toggling = _togglingSkillIds.contains(id);
+                              return FilterChip(
+                                label: Text(skill['name'] as String),
+                                selected: selected,
+                                showCheckmark: false,
+                                avatar: toggling
+                                    ? const SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : null,
+                                selectedColor: KairosPalette.primary.withValues(
+                                  alpha: 0.15,
+                                ),
+                                labelStyle: TextStyle(
+                                  color: selected
+                                      ? KairosPalette.primary
+                                      : null,
+                                  fontWeight: selected ? FontWeight.w700 : null,
+                                ),
+                                side: BorderSide(
+                                  color: selected
+                                      ? KairosPalette.primary
+                                      : KairosPalette.border,
+                                ),
+                                onSelected: toggling
+                                    ? null
+                                    : (_) => _toggleSkill(id),
+                              );
+                            })
+                            .toList(growable: false),
                       ),
                     ],
                   ),
@@ -699,9 +767,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : Switch(
+                : QuickMatchVisibilitySwitch(
                     value: _quickMatchVisible,
-                    activeThumbColor: KairosPalette.primary,
                     onChanged: _toggleQuickMatchVisibility,
                   ),
           ],
@@ -858,6 +925,22 @@ class _ProfilePageState extends State<ProfilePage> {
                               p.$2,
                               width: double.infinity,
                               fit: BoxFit.cover,
+                              semanticLabel: 'Proyecto ${p.$1}: ${p.$3}',
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Semantics(
+                                    image: true,
+                                    label:
+                                        'Proyecto ${p.$1}: ${p.$3}. Imagen no disponible.',
+                                    child: const ColoredBox(
+                                      color: KairosPalette.muted,
+                                      child: Center(
+                                        child: Icon(
+                                          Icons.image_not_supported_outlined,
+                                          color: KairosPalette.secondary,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                             ),
                           ),
                         ),
@@ -935,7 +1018,9 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     )
                   : const Icon(Icons.badge_rounded, size: 18),
-              label: Text(_isDownloadingCv ? 'Generando CV...' : 'Generar y descargar CV'),
+              label: Text(
+                _isDownloadingCv ? 'Generando CV...' : 'Generar y descargar CV',
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -952,9 +1037,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ? const SizedBox(
                       width: 16,
                       height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                      ),
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.download_rounded, size: 18),
               label: const Text('Descargar reporte mensual'),

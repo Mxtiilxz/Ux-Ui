@@ -59,7 +59,10 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
     }
 
     // Detectar si la primera línea es encabezado
-    final firstCols = lines.first.split(',').map((c) => c.trim().toLowerCase()).toList();
+    final firstCols = lines.first
+        .split(',')
+        .map((c) => c.trim().toLowerCase())
+        .toList();
     final hasHeader = _expectedHeaders.any((h) => firstCols.contains(h));
     final dataLines = hasHeader ? lines.skip(1).toList() : lines;
 
@@ -67,14 +70,16 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
     for (final line in dataLines) {
       final cols = line.split(',').map((c) => c.trim()).toList();
       if (cols.length < 3) continue; // mínimo rut, nombre, email
-      rows.add(_CsvRow(
-        rut: cols.elementAtOrNull(0) ?? '',
-        nombreCompleto: cols.elementAtOrNull(1) ?? '',
-        email: cols.elementAtOrNull(2) ?? '',
-        curso: cols.elementAtOrNull(3) ?? '',
-        especialidad: cols.elementAtOrNull(4) ?? '',
-        edad: cols.elementAtOrNull(5) ?? '',
-      ));
+      rows.add(
+        _CsvRow(
+          rut: cols.elementAtOrNull(0) ?? '',
+          nombreCompleto: cols.elementAtOrNull(1) ?? '',
+          email: cols.elementAtOrNull(2) ?? '',
+          curso: cols.elementAtOrNull(3) ?? '',
+          especialidad: cols.elementAtOrNull(4) ?? '',
+          edad: cols.elementAtOrNull(5) ?? '',
+        ),
+      );
     }
 
     setState(() {
@@ -97,11 +102,14 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
 
     for (final row in _rows) {
       if (row.email.isEmpty || row.nombreCompleto.isEmpty) {
-        results.add(_ImportResult(
+        results.add(
+          _ImportResult(
             name: row.nombreCompleto,
             email: row.email,
             success: false,
-            message: 'Falta nombre o email'));
+            message: 'Falta nombre o email',
+          ),
+        );
         continue;
       }
 
@@ -123,21 +131,25 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
           institution: row.curso.isNotEmpty ? row.curso : null,
           role: _csvRole,
         );
-        results.add(_ImportResult(
-          name: row.nombreCompleto,
-          email: row.email,
-          success: true,
-          message: 'Cuenta creada — contraseña: $defaultPassword',
-        ));
+        results.add(
+          _ImportResult(
+            name: row.nombreCompleto,
+            email: row.email,
+            success: true,
+            message: 'Cuenta creada — contraseña: $defaultPassword',
+          ),
+        );
       } catch (e) {
-        results.add(_ImportResult(
-          name: row.nombreCompleto,
-          email: row.email,
-          success: false,
-          message: e.toString().contains('registrado')
-              ? 'El correo ya está registrado'
-              : 'Error al crear cuenta',
-        ));
+        results.add(
+          _ImportResult(
+            name: row.nombreCompleto,
+            email: row.email,
+            success: false,
+            message: e.toString().contains('registrado')
+                ? 'El correo ya está registrado'
+                : 'Error al crear cuenta',
+          ),
+        );
       }
     }
 
@@ -149,16 +161,19 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.redAccent));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: KairosPalette.danger),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Gestión de Usuarios',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Gestión de Usuarios',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: KairosPalette.primary,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -179,17 +194,24 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
                       color: KairosPalette.primary,
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: const Icon(Icons.upload_file_rounded,
-                        color: Colors.white, size: 26),
+                    child: const Icon(
+                      Icons.upload_file_rounded,
+                      color: Colors.white,
+                      size: 26,
+                    ),
                   ),
                   const SizedBox(width: 14),
                   const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Importar usuarios desde CSV',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w900, fontSize: 17)),
+                        Text(
+                          'Importar usuarios desde CSV',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 17,
+                          ),
+                        ),
                         SizedBox(height: 4),
                         Text(
                           'Carga masiva de estudiantes o staff desde un archivo CSV.',
@@ -208,9 +230,10 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Formato del CSV',
-                      style: TextStyle(
-                          fontWeight: FontWeight.w800, fontSize: 15)),
+                  const Text(
+                    'Formato del CSV',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                  ),
                   const SizedBox(height: 10),
                   const Text(
                     'El archivo puede tener o no encabezados. Las columnas deben estar en este orden:',
@@ -221,12 +244,16 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
                     spacing: 8,
                     runSpacing: 6,
                     children: _expectedHeaders
-                        .map((h) => Chip(
-                              label: Text(h,
-                                  style: const TextStyle(fontSize: 12)),
-                              backgroundColor: KairosPalette.muted,
-                              side: BorderSide.none,
-                            ))
+                        .map(
+                          (h) => Chip(
+                            label: Text(
+                              h,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            backgroundColor: KairosPalette.muted,
+                            side: BorderSide.none,
+                          ),
+                        )
                         .toList(),
                   ),
                   const SizedBox(height: 10),
@@ -240,9 +267,10 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
                       '12.345.678-9,Juan Pérez López,juan@liceo.cl,4°A,Mecatrónica,17\n'
                       '98.765.432-1,María Soto,maria@liceo.cl,3°B,Automatización,16',
                       style: TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 12,
-                          color: Colors.black87),
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                        color: Colors.black87,
+                      ),
                     ),
                   ),
                 ],
@@ -255,17 +283,21 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Tipo de usuario del CSV',
-                      style: TextStyle(
-                          fontWeight: FontWeight.w800, fontSize: 15)),
+                  const Text(
+                    'Tipo de usuario del CSV',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                  ),
                   const SizedBox(height: 12),
-                  Row(
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 8,
                     children: [
-                      _roleChip('student', 'Estudiante',
-                          Icons.school_rounded),
-                      const SizedBox(width: 10),
-                      _roleChip('staff', 'Staff / Docente',
-                          Icons.manage_accounts_rounded),
+                      _roleChip('student', 'Estudiante', Icons.school_rounded),
+                      _roleChip(
+                        'staff',
+                        'Staff / Docente',
+                        Icons.manage_accounts_rounded,
+                      ),
                     ],
                   ),
                 ],
@@ -285,7 +317,8 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
                   backgroundColor: KairosPalette.primary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ),
@@ -293,12 +326,18 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
             // Vista previa de filas
             if (_rows.isNotEmpty) ...[
               const SizedBox(height: 20),
-              Row(
+              Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  Text('Vista previa — ${_rows.length} registros',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w800, fontSize: 16)),
-                  const Spacer(),
+                  Text(
+                    'Vista previa — ${_rows.length} registros',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                    ),
+                  ),
                   if (!_hasImported)
                     ElevatedButton.icon(
                       onPressed: _isLoading ? null : _importAll,
@@ -307,16 +346,20 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
                               width: 16,
                               height: 16,
                               child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white))
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
                           : const Icon(Icons.cloud_upload_rounded),
-                      label: Text(_isLoading
-                          ? 'Importando...'
-                          : 'Importar todos'),
+                      label: Text(
+                        _isLoading ? 'Importando...' : 'Importar todos',
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: KairosPalette.accent,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                     ),
                 ],
@@ -327,7 +370,8 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
                   scrollDirection: Axis.horizontal,
                   child: DataTable(
                     headingRowColor: WidgetStateProperty.all(
-                        KairosPalette.muted),
+                      KairosPalette.muted,
+                    ),
                     columns: const [
                       DataColumn(label: Text('RUT')),
                       DataColumn(label: Text('Nombre')),
@@ -338,38 +382,49 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
                     ],
                     rows: _rows.map((r) {
                       final result = _hasImported
-                          ? _results.firstWhere((res) => res.email == r.email,
+                          ? _results.firstWhere(
+                              (res) => res.email == r.email,
                               orElse: () => _ImportResult(
-                                  name: r.nombreCompleto,
-                                  email: r.email,
-                                  success: false,
-                                  message: ''))
+                                name: r.nombreCompleto,
+                                email: r.email,
+                                success: false,
+                                message: '',
+                              ),
+                            )
                           : null;
                       return DataRow(
                         color: result == null
                             ? null
-                            : WidgetStateProperty.all(result.success
-                                ? Colors.green.shade50
-                                : Colors.red.shade50),
+                            : WidgetStateProperty.all(
+                                result.success
+                                    ? KairosPalette.success.withValues(
+                                        alpha: 0.12,
+                                      )
+                                    : KairosPalette.danger.withValues(
+                                        alpha: 0.12,
+                                      ),
+                              ),
                         cells: [
                           DataCell(Text(r.rut)),
-                          DataCell(Row(
-                            children: [
-                              Text(r.nombreCompleto),
-                              if (result != null) ...[
-                                const SizedBox(width: 6),
-                                Icon(
-                                  result.success
-                                      ? Icons.check_circle_rounded
-                                      : Icons.error_rounded,
-                                  size: 16,
-                                  color: result.success
-                                      ? Colors.green
-                                      : Colors.red,
-                                ),
+                          DataCell(
+                            Row(
+                              children: [
+                                Text(r.nombreCompleto),
+                                if (result != null) ...[
+                                  const SizedBox(width: 6),
+                                  Icon(
+                                    result.success
+                                        ? Icons.check_circle_rounded
+                                        : Icons.error_rounded,
+                                    size: 16,
+                                    color: result.success
+                                        ? KairosPalette.success
+                                        : KairosPalette.danger,
+                                  ),
+                                ],
                               ],
-                            ],
-                          )),
+                            ),
+                          ),
                           DataCell(Text(r.email)),
                           DataCell(Text(r.curso)),
                           DataCell(Text(r.especialidad)),
@@ -385,44 +440,53 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
             // Resultados de importación
             if (_hasImported) ...[
               const SizedBox(height: 16),
-              const Text('Resultados',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w800, fontSize: 16)),
+              const Text(
+                'Resultados',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+              ),
               const SizedBox(height: 10),
-              ..._results.map((r) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: KCard(
-                      child: Row(
-                        children: [
-                          Icon(
-                            r.success
-                                ? Icons.check_circle_rounded
-                                : Icons.error_rounded,
-                            color:
-                                r.success ? Colors.green : Colors.redAccent,
+              ..._results.map(
+                (r) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: KCard(
+                    child: Row(
+                      children: [
+                        Icon(
+                          r.success
+                              ? Icons.check_circle_rounded
+                              : Icons.error_rounded,
+                          color: r.success
+                              ? KairosPalette.success
+                              : KairosPalette.danger,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                r.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                r.message,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: r.success
+                                      ? KairosPalette.success
+                                      : KairosPalette.danger,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
-                              children: [
-                                Text(r.name,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.w600)),
-                                Text(r.message,
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: r.success
-                                            ? Colors.green.shade700
-                                            : Colors.red.shade700)),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  )),
+                  ),
+                ),
+              ),
             ],
           ],
         ),
@@ -432,39 +496,21 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
 
   Widget _roleChip(String value, String label, IconData icon) {
     final selected = _csvRole == value;
-    return GestureDetector(
-      onTap: () => setState(() => _csvRole = value),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: selected ? KairosPalette.primary : Colors.grey.shade300,
-            width: selected ? 2 : 1,
-          ),
-          color: selected
-              ? KairosPalette.primary.withOpacity(0.08)
-              : Colors.transparent,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon,
-                size: 18,
-                color: selected
-                    ? KairosPalette.primary
-                    : Colors.grey.shade600),
-            const SizedBox(width: 6),
-            Text(label,
-                style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: selected
-                        ? KairosPalette.primary
-                        : Colors.grey.shade700)),
-          ],
-        ),
+    return ChoiceChip(
+      avatar: Icon(icon, size: 18),
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => setState(() => _csvRole = value),
+      selectedColor: KairosPalette.primary.withValues(alpha: 0.14),
+      labelStyle: TextStyle(
+        fontWeight: FontWeight.w600,
+        color: selected ? KairosPalette.primary : KairosPalette.foreground,
       ),
+      side: BorderSide(
+        color: selected ? KairosPalette.primary : KairosPalette.border,
+        width: selected ? 2 : 1,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
     );
   }
 }

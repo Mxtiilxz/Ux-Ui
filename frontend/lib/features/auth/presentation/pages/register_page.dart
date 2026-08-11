@@ -26,14 +26,31 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _obscureConfirm = true;
   bool _isLoading = false;
   String _selectedRole = 'student';
+  final _roleFocusNodes = <String, FocusNode>{
+    'student': FocusNode(debugLabel: 'Register student role'),
+    'staff': FocusNode(debugLabel: 'Register staff role'),
+    'company': FocusNode(debugLabel: 'Register company role'),
+  };
 
   static const _roles = [
-    _RoleOption('student', 'Estudiante', Icons.school_rounded,
-        'Postula a prácticas y oportunidades laborales'),
-    _RoleOption('staff', 'Staff del Liceo', Icons.manage_accounts_rounded,
-        'Gestiona alumnos y publica eventos'),
-    _RoleOption('company', 'Empresa', Icons.business_rounded,
-        'Publica ofertas y conecta con talento técnico'),
+    _RoleOption(
+      'student',
+      'Estudiante',
+      Icons.school_rounded,
+      'Postula a prácticas y oportunidades laborales',
+    ),
+    _RoleOption(
+      'staff',
+      'Staff del Liceo',
+      Icons.manage_accounts_rounded,
+      'Gestiona alumnos y publica eventos',
+    ),
+    _RoleOption(
+      'company',
+      'Empresa',
+      Icons.business_rounded,
+      'Publica ofertas y conecta con talento técnico',
+    ),
   ];
 
   @override
@@ -44,6 +61,9 @@ class _RegisterPageState extends State<RegisterPage> {
     _passwordController.dispose();
     _confirmController.dispose();
     _institutionController.dispose();
+    for (final node in _roleFocusNodes.values) {
+      node.dispose();
+    }
     super.dispose();
   }
 
@@ -83,7 +103,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
       final token = loginResponse['token'] as String;
       final userId = (loginResponse['userId'] as int? ?? 0).toString();
-      final fullName = loginResponse['fullName'] as String? ?? _nameController.text.trim();
+      final fullName =
+          loginResponse['fullName'] as String? ?? _nameController.text.trim();
       final avatarUrl = loginResponse['profilePictureUrl'] as String? ?? '';
       final roleStr = loginResponse['role'] as String? ?? _selectedRole;
 
@@ -115,10 +136,17 @@ class _RegisterPageState extends State<RegisterPage> {
       setState(() => _isLoading = false);
       final data = e.response?.data;
       final message = data is Map
-          ? (data['detail'] ?? data['message'] ?? data['title'] ?? 'Error al registrar')
+          ? (data['detail'] ??
+                data['message'] ??
+                data['title'] ??
+                'Error al registrar')
           : 'Error al registrar (${e.response?.statusCode})';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: Colors.redAccent, duration: const Duration(seconds: 8)),
+        SnackBar(
+          content: Text(message),
+          backgroundColor: AppColors.danger,
+          duration: const Duration(seconds: 8),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
@@ -126,7 +154,7 @@ class _RegisterPageState extends State<RegisterPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error inesperado: $e'),
-          backgroundColor: Colors.redAccent,
+          backgroundColor: AppColors.danger,
           duration: const Duration(seconds: 8),
         ),
       );
@@ -134,17 +162,17 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   UserRole _mapRole(String role) => switch (role) {
-        'staff' => UserRole.staff,
-        'company' => UserRole.company,
-        'alumni' => UserRole.alumni,
-        _ => UserRole.student,
-      };
+    'staff' => UserRole.staff,
+    'company' => UserRole.company,
+    'alumni' => UserRole.alumni,
+    _ => UserRole.student,
+  };
 
   String _titleForRole(String role) => switch (role) {
-        'staff' => 'Staff del Liceo',
-        'company' => 'Representante de Empresa',
-        _ => 'Estudiante',
-      };
+    'staff' => 'Staff del Liceo',
+    'company' => 'Representante de Empresa',
+    _ => 'Estudiante',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -168,19 +196,29 @@ class _RegisterPageState extends State<RegisterPage> {
                         color: AppColors.primary,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.hub_rounded,
-                          color: Colors.white, size: 28),
+                      child: const Icon(
+                        Icons.hub_rounded,
+                        color: Colors.white,
+                        size: 28,
+                      ),
                     ),
                     const SizedBox(height: 10),
-                    const Text('Kairos',
-                        style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary)),
+                    const Text(
+                      'Kairos',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
                     const SizedBox(height: 4),
-                    const Text('Crear cuenta',
-                        style: TextStyle(
-                            fontSize: 13, color: AppColors.textSecondary)),
+                    const Text(
+                      'Crear cuenta',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 28),
@@ -192,27 +230,44 @@ class _RegisterPageState extends State<RegisterPage> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3))
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
                     ],
                   ),
                   padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Tipo de cuenta',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                              color: AppColors.textPrimary)),
+                      const Text(
+                        'Tipo de cuenta',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
                       const SizedBox(height: 12),
-                      ..._roles.map((r) => _RoleTile(
-                            option: r,
-                            selected: _selectedRole == r.value,
-                            onTap: () =>
-                                setState(() => _selectedRole = r.value),
-                          )),
+                      RadioGroup<String>(
+                        groupValue: _selectedRole,
+                        onChanged: (role) {
+                          if (role != null) {
+                            setState(() => _selectedRole = role);
+                          }
+                        },
+                        child: Column(
+                          children: _roles
+                              .map(
+                                (r) => _RoleTile(
+                                  option: r,
+                                  selected: _selectedRole == r.value,
+                                  focusNode: _roleFocusNodes[r.value]!,
+                                ),
+                              )
+                              .toList(growable: false),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -225,9 +280,10 @@ class _RegisterPageState extends State<RegisterPage> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3))
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
                     ],
                   ),
                   padding: const EdgeInsets.all(24),
@@ -285,6 +341,9 @@ class _RegisterPageState extends State<RegisterPage> {
                           icon: Icons.lock_outline,
                           obscureText: _obscurePassword,
                           suffixIcon: IconButton(
+                            tooltip: _obscurePassword
+                                ? 'Mostrar contraseña'
+                                : 'Ocultar contraseña',
                             icon: Icon(
                               _obscurePassword
                                   ? Icons.visibility_outlined
@@ -293,7 +352,8 @@ class _RegisterPageState extends State<RegisterPage> {
                               size: 20,
                             ),
                             onPressed: () => setState(
-                                () => _obscurePassword = !_obscurePassword),
+                              () => _obscurePassword = !_obscurePassword,
+                            ),
                           ),
                           validator: (v) {
                             if (v == null || v.isEmpty) {
@@ -311,6 +371,9 @@ class _RegisterPageState extends State<RegisterPage> {
                           icon: Icons.lock_outline,
                           obscureText: _obscureConfirm,
                           suffixIcon: IconButton(
+                            tooltip: _obscureConfirm
+                                ? 'Mostrar confirmación de contraseña'
+                                : 'Ocultar confirmación de contraseña',
                             icon: Icon(
                               _obscureConfirm
                                   ? Icons.visibility_outlined
@@ -319,7 +382,8 @@ class _RegisterPageState extends State<RegisterPage> {
                               size: 20,
                             ),
                             onPressed: () => setState(
-                                () => _obscureConfirm = !_obscureConfirm),
+                              () => _obscureConfirm = !_obscureConfirm,
+                            ),
                           ),
                           validator: (v) {
                             if (v != _passwordController.text) {
@@ -330,7 +394,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                         const SizedBox(height: 22),
                         SizedBox(
-                          height: 46,
+                          height: 48,
                           child: ElevatedButton(
                             onPressed: _isLoading ? null : _submit,
                             style: ElevatedButton.styleFrom(
@@ -338,18 +402,25 @@ class _RegisterPageState extends State<RegisterPage> {
                               foregroundColor: Colors.white,
                               elevation: 0,
                               shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10)),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
                             child: _isLoading
                                 ? const SizedBox(
                                     width: 20,
                                     height: 20,
                                     child: CircularProgressIndicator(
-                                        color: Colors.white, strokeWidth: 2))
-                                : const Text('Crear cuenta',
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Crear cuenta',
                                     style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600)),
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                           ),
                         ),
                       ],
@@ -357,19 +428,31 @@ class _RegisterPageState extends State<RegisterPage> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    const Text('¿Ya tienes cuenta? ',
+                    const Text(
+                      '¿Ya tienes cuenta? ',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(48, 48),
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                      ),
+                      child: const Text(
+                        'Inicia sesión',
                         style: TextStyle(
-                            color: AppColors.textSecondary, fontSize: 13)),
-                    GestureDetector(
-                      onTap: () => Navigator.of(context).pop(),
-                      child: const Text('Inicia sesión',
-                          style: TextStyle(
-                              color: AppColors.primary,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600)),
+                          color: AppColors.primary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -395,30 +478,28 @@ class _RegisterPageState extends State<RegisterPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textPrimary)),
-        const SizedBox(height: 6),
         TextFormField(
           controller: controller,
           obscureText: obscureText,
           keyboardType: keyboardType,
           validator: validator,
-          style:
-              const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+          style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
           decoration: InputDecoration(
             hintText: hint,
+            labelText: label,
+            floatingLabelBehavior: FloatingLabelBehavior.always,
             hintStyle: const TextStyle(
-                color: AppColors.textTertiary, fontSize: 14),
-            prefixIcon:
-                Icon(icon, size: 18, color: AppColors.textTertiary),
+              color: AppColors.textTertiary,
+              fontSize: 14,
+            ),
+            prefixIcon: Icon(icon, size: 18, color: AppColors.textTertiary),
             suffixIcon: suffixIcon,
             filled: true,
             fillColor: AppColors.background,
             contentPadding: const EdgeInsets.symmetric(
-                vertical: 12, horizontal: 16),
+              vertical: 12,
+              horizontal: 16,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(color: AppColors.divider),
@@ -429,17 +510,18 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide:
-                  const BorderSide(color: AppColors.primary, width: 1.5),
+              borderSide: const BorderSide(
+                color: AppColors.primary,
+                width: 1.5,
+              ),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Colors.redAccent),
+              borderSide: const BorderSide(color: AppColors.danger),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide:
-                  const BorderSide(color: Colors.redAccent, width: 1.5),
+              borderSide: const BorderSide(color: AppColors.danger, width: 1.5),
             ),
           ),
         ),
@@ -457,57 +539,62 @@ class _RoleOption {
 }
 
 class _RoleTile extends StatelessWidget {
-  const _RoleTile(
-      {required this.option, required this.selected, required this.onTap});
+  const _RoleTile({
+    required this.option,
+    required this.selected,
+    required this.focusNode,
+  });
   final _RoleOption option;
   final bool selected;
-  final VoidCallback onTap;
+  final FocusNode focusNode;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: selected
+            ? AppColors.primary.withOpacity(0.06)
+            : AppColors.background,
+        shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
+          side: BorderSide(
             color: selected ? AppColors.primary : AppColors.divider,
             width: selected ? 2 : 1,
           ),
-          color: selected
-              ? AppColors.primary.withOpacity(0.06)
-              : AppColors.background,
         ),
-        child: Row(
-          children: [
-            Icon(option.icon,
-                color: selected ? AppColors.primary : AppColors.textTertiary,
-                size: 22),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(option.label,
-                      style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          color: selected
-                              ? AppColors.primary
-                              : AppColors.textPrimary)),
-                  Text(option.description,
-                      style: const TextStyle(
-                          fontSize: 12, color: AppColors.textSecondary)),
-                ],
-              ),
+        child: RadioListTile<String>(
+          value: option.value,
+          selected: selected,
+          focusNode: focusNode,
+          activeColor: AppColors.primary,
+          controlAffinity: ListTileControlAffinity.trailing,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          secondary: ExcludeSemantics(
+            child: Icon(
+              option.icon,
+              color: selected ? AppColors.primary : AppColors.textTertiary,
+              size: 22,
             ),
-            if (selected)
-              const Icon(Icons.check_circle_rounded,
-                  color: AppColors.primary, size: 20),
-          ],
+          ),
+          title: Text(
+            option.label,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              color: selected ? AppColors.primary : AppColors.textPrimary,
+            ),
+          ),
+          subtitle: Text(
+            option.description,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
+          ),
         ),
       ),
     );

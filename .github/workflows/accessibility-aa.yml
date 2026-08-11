@@ -1,0 +1,49 @@
+name: Accessibility AA
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/accessibility-aa.yml'
+  push:
+    branches:
+      - main
+      - redesign
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/accessibility-aa.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  flutter-accessibility:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Verify accessibility test formatting
+        run: dart format --output=none --set-exit-if-changed test
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Run accessibility regression suite
+        run: flutter test
+
+      - name: Build release web artifact
+        run: flutter build web --release --dart-define=DEMO_MODE=true
