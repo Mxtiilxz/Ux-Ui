@@ -1,9 +1,9 @@
 # Kairos WCAG 2.2 Level AA accessibility audit
 
-Date: 2026-08-11  
-Branch: `accessibility`  
-Audited baseline: `origin/main` at `076956ad90e864ca36c7e377164183c3684f09c4`  
-Target: Flutter Web and shared Flutter mobile UI  
+Date: 2026-08-11
+Branch: `accessibility`
+Audited baseline: `origin/main` at `076956ad90e864ca36c7e377164183c3684f09c4`
+Target: Flutter Web and shared Flutter mobile UI
 Status: baseline audit completed before remediation
 
 ## Executive summary
@@ -48,52 +48,52 @@ Release evidence before remediation:
 
 ### Critical
 
-1. **The Flutter Web semantics tree is unavailable by default**  
+1. **The Flutter Web semantics tree is unavailable by default**
    WCAG 1.3.1, 4.1.2. The release initially exposes only the Flutter
    accessibility activation control. `main.dart` does not retain an
    `ensureSemantics()` handle. Screen-reader users cannot reach the actual
    application reliably.
 
 2. **Custom controls are pointer-oriented and do not consistently expose
-   native role, value, state, or keyboard behavior**  
+   native role, value, state, or keyboard behavior**
    WCAG 2.1.1, 2.4.7, 4.1.2. Examples include desktop navigation, login and
    registration role choices, staff role choices, post actions, image removal,
    and profile actions implemented with `InkWell` or `GestureDetector`.
 
-3. **Text and meaningful component colors fail minimum contrast**  
+3. **Text and meaningful component colors fail minimum contrast**
    WCAG 1.4.3, 1.4.11. The accent, muted foreground, and border tokens fail
    their intended foreground or component uses. Raw success, warning, and
    error colors also bypass a testable semantic palette.
 
 4. **Authentication and staff-management layouts can lose content under
-   resize or text magnification**  
+   resize or text magnification**
    WCAG 1.4.4, 1.4.10. Fixed rows, tightly constrained controls, and rigid
    action areas are not covered by a 320 px and 200% text-scale matrix.
 
 ### Major
 
-5. **Persistent labels and contextual icon-action names are incomplete**  
+5. **Persistent labels and contextual icon-action names are incomplete**
    WCAG 1.3.1, 2.4.6, 3.3.2, 4.1.2. Search, message, post, comment, and some
    authentication fields rely on placeholders. Several send, clear, upload,
    remove, edit, and visibility actions lack state-aware contextual names.
 
-6. **Language, zoom, and task-specific document metadata are incorrect**  
+6. **Language, zoom, and task-specific document metadata are incorrect**
    WCAG 1.4.4, 1.4.10, 2.4.2, 3.1.1. The HTML lacks a Spanish language
    declaration, Flutter reports `en-US`, the title is static, and runtime
    bootstrap disables user scaling.
 
-7. **Landmarks and a reliable bypass mechanism are missing**  
+7. **Landmarks and a reliable bypass mechanism are missing**
    WCAG 1.3.1, 2.4.1, 2.4.3, 2.4.6. Header, primary navigation, and main
    content are not exposed as named semantic regions. There is no keyboard
    action that moves focus past repeated navigation into the current screen.
 
-8. **Meaningful media does not have contextual alternatives**  
+8. **Meaningful media does not have contextual alternatives**
    WCAG 1.1.1. Post, job, and portfolio images are rendered without a data
    model for alternative text. Decorative avatars and ornaments are not
    consistently excluded from the semantics tree.
 
 9. **Loading, error, notification, and content-update states are not announced
-   consistently**  
+   consistently**
    WCAG 4.1.3. Progress indicators, SignalR banners, comment updates, chat
    changes, and several asynchronous error/success states lack deliberate live
    semantics.
@@ -101,11 +101,11 @@ Release evidence before remediation:
 ### Minor
 
 10. **Some interactive targets depend on padding or shrink-wrapped Material
-    behavior**  
+    behavior**
     WCAG 2.5.8 and platform guidance. Compact post actions, role tiles, and
     icon-only actions are not protected by automated target-size checks.
 
-11. **There is no accessibility regression suite or CI gate**  
+11. **There is no accessibility regression suite or CI gate**
     Quality risk across WCAG 1.1.1, 1.3.1, 1.4.3, 1.4.10, 2.1.1, 2.4.1,
     2.5.8, 3.1.1, and 4.1.2. The baseline has no Flutter semantics, keyboard,
     contrast-token, web-contract, or responsive accessibility tests.
