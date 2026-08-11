@@ -1,9 +1,9 @@
 # Kairos WCAG 2.2 Level AA remediation report
 
-Date: 2026-08-11  
-Branch: `accessibility`  
-Baseline: `origin/main` at `076956ad90e864ca36c7e377164183c3684f09c4`  
-Audit: [`WCAG_2_2_AA_AUDIT_2026-08-11.md`](WCAG_2_2_AA_AUDIT_2026-08-11.md)  
+Date: 2026-08-11
+Branch: `accessibility`
+Baseline: `origin/main` at `076956ad90e864ca36c7e377164183c3684f09c4`
+Audit: [`WCAG_2_2_AA_AUDIT_2026-08-11.md`](WCAG_2_2_AA_AUDIT_2026-08-11.md)
 Status: automated remediation complete; manual assistive-technology
 certification evidence remains pending
 
