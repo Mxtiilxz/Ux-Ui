@@ -1,0 +1,12 @@
+# Artefactos de compilación local. Si se copian al contenedor, el restore de
+# Linux puede tropezar con las rutas de Windows que quedaron en obj/.
+**/bin/
+**/obj/
+
+# Nada de esto hace falta dentro de la imagen.
+**/.vs/
+**/.vscode/
+**/*.user
+**/appsettings.Development.json
+**/wwwroot/uploads/
+README.md
