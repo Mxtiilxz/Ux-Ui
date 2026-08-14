@@ -76,7 +76,12 @@ class PostModel {
     );
   }
 
-  PostModel copyWith({int? likes, int? comments, String? content}) {
+  PostModel copyWith({
+    int? likes,
+    int? comments,
+    String? content,
+    String? imageAltText,
+  }) {
     return PostModel(
       id: id,
       author: author,
@@ -86,23 +91,23 @@ class PostModel {
       shares: shares,
       timestamp: timestamp,
       imageUrl: imageUrl,
-      imageAltText: imageAltText,
+      imageAltText: imageAltText ?? this.imageAltText,
       isEvent: isEvent,
       eventDate: eventDate,
     );
   }
 
-  /// Returns useful alt text even for legacy API responses without a field.
-  String get resolvedImageAltText {
+  /// Etiqueta que debe anunciar un lector de pantalla para la imagen, o `null`
+  /// si la imagen es decorativa y hay que excluirla del árbol de semántica.
+  ///
+  /// Deliberadamente no se rellena con el cuerpo de la publicación: ese texto
+  /// ya lo lee el lector justo encima, y repetirlo como descripción de la
+  /// imagen es ruido, no información (WCAG 1.1.1). Cuando el autor no describe
+  /// la imagen, lo correcto es callarla.
+  String? get imageSemanticLabel {
     final provided = imageAltText?.trim();
-    if (provided != null && provided.isNotEmpty) return provided;
-
-    final summary = content.trim().replaceAll(RegExp(r'\s+'), ' ');
-    if (summary.isEmpty) return 'Imagen de la publicación de ${author.name}';
-    final shortened = summary.length > 160
-        ? '${summary.substring(0, 157)}…'
-        : summary;
-    return 'Imagen de la publicación: $shortened';
+    if (provided == null || provided.isEmpty) return null;
+    return provided;
   }
 
   static String _formatRelative(DateTime dt) {

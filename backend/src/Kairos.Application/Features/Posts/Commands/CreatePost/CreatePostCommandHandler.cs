@@ -34,14 +34,24 @@ public class CreatePostCommandHandler(IApplicationDbContext db)
                 "Solo organizaciones (company) pueden publicar ofertas de trabajo.");
         }
 
+        // ── Texto alternativo de la imagen ─────────────────────────────────────
+        // Sin imagen no hay texto alternativo que guardar; y una descripción en
+        // blanco significa "imagen decorativa", que se persiste como null para
+        // que el cliente pueda ocultarla a los lectores de pantalla.
+        var altText = string.IsNullOrWhiteSpace(request.ImageUrl)
+            ? null
+            : request.ImageAltText?.Trim();
+        if (string.IsNullOrEmpty(altText)) altText = null;
+
         // ── Persist post ───────────────────────────────────────────────────────
         var post = new Post
         {
             AuthorId  = request.AuthorId,
             Content   = request.Content,
             Type      = postType,
-            ImageUrl  = request.ImageUrl,
-            EventDate = request.EventDate,
+            ImageUrl     = request.ImageUrl,
+            ImageAltText = altText,
+            EventDate    = request.EventDate,
         };
 
         db.Posts.Add(post);

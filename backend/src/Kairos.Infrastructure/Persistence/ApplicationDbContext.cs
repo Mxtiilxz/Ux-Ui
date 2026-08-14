@@ -92,6 +92,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
             e.Property(p => p.Content).HasMaxLength(2000).IsRequired();
             e.Property(p => p.ImageUrl).HasMaxLength(500);
+            e.Property(p => p.ImageAltText).HasMaxLength(300);
             e.Property(p => p.EventDate).HasMaxLength(50);
 
             // Convertir el enum PostType a string en la BD (más legible que un número)

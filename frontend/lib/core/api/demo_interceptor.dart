@@ -11,20 +11,23 @@ class DemoInterceptor extends Interceptor {
   final _demo = DemoBackend.instance;
 
   @override
-  void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
+  void onRequest(
+    RequestOptions options,
+    RequestInterceptorHandler handler,
+  ) async {
     try {
       final data = await _route(options);
-      handler.resolve(Response(
-        requestOptions: options,
-        statusCode: 200,
-        data: data,
-      ));
+      handler.resolve(
+        Response(requestOptions: options, statusCode: 200, data: data),
+      );
     } catch (error) {
-      handler.reject(DioException(
-        requestOptions: options,
-        error: error,
-        message: 'Modo demo: operación no disponible.',
-      ));
+      handler.reject(
+        DioException(
+          requestOptions: options,
+          error: error,
+          message: 'Modo demo: operación no disponible.',
+        ),
+      );
     }
   }
 
@@ -43,11 +46,11 @@ class DemoInterceptor extends Interceptor {
     int idAt(int index) => int.tryParse(segments[index]) ?? 0;
 
     return switch (method) {
-      'GET'    => await _get(segments, options, idAt),
-      'POST'   => await _post(segments, body, idAt),
-      'PUT'    => await _put(segments, body, idAt),
+      'GET' => await _get(segments, options, idAt),
+      'POST' => await _post(segments, body, idAt),
+      'PUT' => await _put(segments, body, idAt),
       'DELETE' => await _delete(segments, idAt),
-      _        => <String, dynamic>{},
+      _ => <String, dynamic>{},
     };
   }
 
@@ -86,7 +89,9 @@ class DemoInterceptor extends Interceptor {
     }
 
     // network
-    if (_is(s, ['network', 'suggestions'])) return _demo.getNetworkSuggestions();
+    if (_is(s, ['network', 'suggestions'])) {
+      return _demo.getNetworkSuggestions();
+    }
     if (_is(s, ['network', 'following'])) return _demo.getFollowing();
 
     // chat
@@ -112,6 +117,7 @@ class DemoInterceptor extends Interceptor {
         content: body['content'] as String? ?? '',
         postType: body['postType'] as String? ?? 'general',
         imageUrl: body['imageUrl'] as String?,
+        imageAltText: body['imageAltText'] as String?,
         eventDate: body['eventDate'] as String?,
       );
     }
@@ -166,7 +172,9 @@ class DemoInterceptor extends Interceptor {
     int Function(int) idAt,
   ) async {
     if (_is(s, ['skills', 'me', 'visibility'])) {
-      final visible = await _demo.setQuickMatchVisibility(body['visible'] as bool? ?? false);
+      final visible = await _demo.setQuickMatchVisibility(
+        body['visible'] as bool? ?? false,
+      );
       return {'visible': visible};
     }
     if (_is(s, ['skills', 'company', 'message'])) {
@@ -178,10 +186,10 @@ class DemoInterceptor extends Interceptor {
     }
     if (s.length == 2 && s[0] == 'jobs') {
       await _demo.updateJobPosting(idAt(1), {
-        if (body['title'] != null)       'title': body['title'],
+        if (body['title'] != null) 'title': body['title'],
         if (body['description'] != null) 'description': body['description'],
-        if (body['location'] != null)    'location': body['location'],
-        if (body['imageUrl'] != null)    'imageUrl': body['imageUrl'],
+        if (body['location'] != null) 'location': body['location'],
+        if (body['imageUrl'] != null) 'imageUrl': body['imageUrl'],
       });
       return null;
     }

@@ -8,4 +8,5 @@ public record CreatePostCommand(
     string  Content,
     string  PostType,     // "general" | "event" | "job"
     string? ImageUrl,
+    string? ImageAltText,
     string? EventDate) : IRequest<int>;

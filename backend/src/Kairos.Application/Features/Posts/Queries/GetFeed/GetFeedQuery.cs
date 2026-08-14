@@ -13,6 +13,7 @@ public record PostDto(
     string   Content,
     string   PostType,    // "General" | "Event" | "Job"
     string?  ImageUrl,
+    string?  ImageAltText,
     string?  EventDate,
     int      LikesCount,
     int      CommentsCount,

@@ -15,7 +15,11 @@ class DemoBackend {
   String _currentUserRole = 'student';
   String _currentUserName = 'Usuario Demo';
 
-  void setCurrentUser({required int id, required String role, required String name}) {
+  void setCurrentUser({
+    required int id,
+    required String role,
+    required String name,
+  }) {
     _currentUserId = id;
     _currentUserRole = role;
     _currentUserName = name;
@@ -62,21 +66,21 @@ class DemoBackend {
   // ════════════════════════════════════════════════════════════════════════
 
   static const List<Map<String, dynamic>> _skills = [
-    {'id': 1,  'name': 'PLC Siemens',                 'category': 'Technical'},
-    {'id': 2,  'name': 'Arduino',                     'category': 'Technical'},
-    {'id': 3,  'name': 'SolidWorks',                  'category': 'Technical'},
-    {'id': 4,  'name': 'AutoCAD',                     'category': 'Technical'},
-    {'id': 5,  'name': 'Python',                      'category': 'Technical'},
-    {'id': 6,  'name': 'C/C++',                       'category': 'Technical'},
-    {'id': 7,  'name': 'Redes',                       'category': 'Technical'},
-    {'id': 8,  'name': 'Modbus',                      'category': 'Technical'},
-    {'id': 9,  'name': 'Robótica industrial',         'category': 'Technical'},
-    {'id': 10, 'name': 'Diseño 3D',                   'category': 'Technical'},
-    {'id': 11, 'name': 'Inglés B1',                   'category': 'Language'},
-    {'id': 12, 'name': 'Inglés B2',                   'category': 'Language'},
-    {'id': 13, 'name': 'Inglés C1',                   'category': 'Language'},
-    {'id': 14, 'name': 'Práctica en automatización',  'category': 'Experience'},
-    {'id': 15, 'name': 'Práctica en TI',              'category': 'Experience'},
+    {'id': 1, 'name': 'PLC Siemens', 'category': 'Technical'},
+    {'id': 2, 'name': 'Arduino', 'category': 'Technical'},
+    {'id': 3, 'name': 'SolidWorks', 'category': 'Technical'},
+    {'id': 4, 'name': 'AutoCAD', 'category': 'Technical'},
+    {'id': 5, 'name': 'Python', 'category': 'Technical'},
+    {'id': 6, 'name': 'C/C++', 'category': 'Technical'},
+    {'id': 7, 'name': 'Redes', 'category': 'Technical'},
+    {'id': 8, 'name': 'Modbus', 'category': 'Technical'},
+    {'id': 9, 'name': 'Robótica industrial', 'category': 'Technical'},
+    {'id': 10, 'name': 'Diseño 3D', 'category': 'Technical'},
+    {'id': 11, 'name': 'Inglés B1', 'category': 'Language'},
+    {'id': 12, 'name': 'Inglés B2', 'category': 'Language'},
+    {'id': 13, 'name': 'Inglés C1', 'category': 'Language'},
+    {'id': 14, 'name': 'Práctica en automatización', 'category': 'Experience'},
+    {'id': 15, 'name': 'Práctica en TI', 'category': 'Experience'},
     {'id': 16, 'name': 'Proyecto personal publicado', 'category': 'Experience'},
   ];
 
@@ -88,52 +92,85 @@ class DemoBackend {
 
   static const List<Map<String, dynamic>> _people = [
     {
-      'id': 101, 'fullName': 'Camila Vidal Astorga', 'role': 'student',
-      'title': 'Estudiante · Mecatrónica', 'institution': _liceo,
-      'bio': 'Cuarto medio en Mecatrónica. Me interesa la automatización industrial.',
-      'skillIds': [1, 2, 3, 12, 14], 'followers': 24,
+      'id': 101,
+      'fullName': 'Camila Vidal Astorga',
+      'role': 'student',
+      'title': 'Estudiante · Mecatrónica',
+      'institution': _liceo,
+      'bio':
+          'Cuarto medio en Mecatrónica. Me interesa la automatización industrial.',
+      'skillIds': [1, 2, 3, 12, 14],
+      'followers': 24,
     },
     {
-      'id': 102, 'fullName': 'Joaquín Torres Peña', 'role': 'student',
-      'title': 'Estudiante · Programación', 'institution': _liceo,
+      'id': 102,
+      'fullName': 'Joaquín Torres Peña',
+      'role': 'student',
+      'title': 'Estudiante · Programación',
+      'institution': _liceo,
       'bio': 'Programación y control de microcontroladores.',
-      'skillIds': [1, 2, 5, 11], 'followers': 18,
+      'skillIds': [1, 2, 5, 11],
+      'followers': 18,
     },
     {
-      'id': 103, 'fullName': 'Fernanda Rojas Muñoz', 'role': 'student',
-      'title': 'Estudiante · Informática', 'institution': _liceo,
+      'id': 103,
+      'fullName': 'Fernanda Rojas Muñoz',
+      'role': 'student',
+      'title': 'Estudiante · Informática',
+      'institution': _liceo,
       'bio': 'Desarrollo de software y soporte de infraestructura.',
-      'skillIds': [4, 5, 6, 13, 15], 'followers': 31,
+      'skillIds': [4, 5, 6, 13, 15],
+      'followers': 31,
     },
     {
-      'id': 104, 'fullName': 'Matías Herrera Lagos', 'role': 'student',
-      'title': 'Estudiante · Telecomunicaciones', 'institution': _liceo,
+      'id': 104,
+      'fullName': 'Matías Herrera Lagos',
+      'role': 'student',
+      'title': 'Estudiante · Telecomunicaciones',
+      'institution': _liceo,
       'bio': 'Redes industriales y protocolos de comunicación.',
-      'skillIds': [1, 7, 8, 11], 'followers': 12,
+      'skillIds': [1, 7, 8, 11],
+      'followers': 12,
     },
     {
-      'id': 105, 'fullName': 'Valentina Soto Cárdenas', 'role': 'student',
-      'title': 'Estudiante · Diseño Industrial', 'institution': _liceo,
+      'id': 105,
+      'fullName': 'Valentina Soto Cárdenas',
+      'role': 'student',
+      'title': 'Estudiante · Diseño Industrial',
+      'institution': _liceo,
       'bio': 'Modelado 3D y prototipado rápido.',
-      'skillIds': [3, 4, 10, 12, 16], 'followers': 27,
+      'skillIds': [3, 4, 10, 12, 16],
+      'followers': 27,
     },
     {
-      'id': 106, 'fullName': 'Ignacio Fuentes Bravo', 'role': 'student',
-      'title': 'Estudiante · Mecatrónica', 'institution': _liceo,
+      'id': 106,
+      'fullName': 'Ignacio Fuentes Bravo',
+      'role': 'student',
+      'title': 'Estudiante · Mecatrónica',
+      'institution': _liceo,
       'bio': 'Robótica y sistemas embebidos.',
-      'skillIds': [2, 6, 9, 16], 'followers': 15,
+      'skillIds': [2, 6, 9, 16],
+      'followers': 15,
     },
     {
-      'id': 201, 'fullName': 'Automatización Industrial S.A.', 'role': 'company',
-      'title': 'Empresa', 'institution': 'Santiago, Chile',
+      'id': 201,
+      'fullName': 'Automatización Industrial S.A.',
+      'role': 'company',
+      'title': 'Empresa',
+      'institution': 'Santiago, Chile',
       'bio': 'Soluciones de automatización para la industria nacional.',
-      'skillIds': <int>[], 'followers': 140,
+      'skillIds': <int>[],
+      'followers': 140,
     },
     {
-      'id': 202, 'fullName': 'TechSolutions Chile SpA', 'role': 'company',
-      'title': 'Empresa', 'institution': 'Viña del Mar, Chile',
+      'id': 202,
+      'fullName': 'TechSolutions Chile SpA',
+      'role': 'company',
+      'title': 'Empresa',
+      'institution': 'Viña del Mar, Chile',
       'bio': 'Software y sistemas embebidos para minería y energía.',
-      'skillIds': <int>[], 'followers': 96,
+      'skillIds': <int>[],
+      'followers': 96,
     },
   ];
 
@@ -152,159 +189,179 @@ class DemoBackend {
       DateTime.now().toUtc().subtract(ago).toIso8601String();
 
   List<Map<String, dynamic>> _initialPosts() => [
-        {
-          'id': 1,
-          'authorId': 101,
-          'authorName': 'Camila Vidal Astorga',
-          'authorRole': 'student',
-          'authorProfilePictureUrl': null,
-          'content': '¡Terminé mi proyecto de brazo robótico controlado por Arduino! '
-              'Fue un desafío aprender a coordinar los servomotores, pero quedó funcionando. '
-              'Gracias a todos los que me apoyaron.',
-          'postType': 'general',
-          'imageUrl': null,
-          'eventDate': null,
-          'likesCount': 24,
-          'commentsCount': 2,
-          'createdAt': _iso(const Duration(hours: 5)),
-        },
-        {
-          'id': 2,
-          'authorId': 201,
-          'authorName': 'Automatización Industrial S.A.',
-          'authorRole': 'company',
-          'authorProfilePictureUrl': null,
-          'content': 'Abrimos dos cupos de práctica profesional para estudiantes de '
-              'Mecatrónica. Si te apasiona la automatización industrial, revisa la '
-              'oferta en la pestaña Trabajos.',
-          'postType': 'general',
-          'imageUrl': null,
-          'eventDate': null,
-          'likesCount': 41,
-          'commentsCount': 1,
-          'createdAt': _iso(const Duration(hours: 12)),
-        },
-        {
-          'id': 3,
-          'authorId': 202,
-          'authorName': 'TechSolutions Chile SpA',
-          'authorRole': 'company',
-          'authorProfilePictureUrl': null,
-          'content': 'Charla abierta: "Cómo preparar tu primera entrevista técnica". '
-              'Inscripciones abiertas para estudiantes de 3° y 4° medio.',
-          'postType': 'event',
-          'imageUrl': null,
-          'eventDate': DateTime.now().add(const Duration(days: 9)).toIso8601String().substring(0, 10),
-          'likesCount': 33,
-          'commentsCount': 0,
-          'createdAt': _iso(const Duration(days: 1, hours: 3)),
-        },
-        {
-          'id': 4,
-          'authorId': 105,
-          'authorName': 'Valentina Soto Cárdenas',
-          'authorRole': 'student',
-          'authorProfilePictureUrl': null,
-          'content': 'Subí a mi perfil el modelado 3D de la pieza que diseñamos en el '
-              'taller. Cualquier feedback es bienvenido.',
-          'postType': 'general',
-          'imageUrl': null,
-          'eventDate': null,
-          'likesCount': 17,
-          'commentsCount': 0,
-          'createdAt': _iso(const Duration(days: 2)),
-        },
-      ];
+    {
+      'id': 1,
+      'authorId': 101,
+      'authorName': 'Camila Vidal Astorga',
+      'authorRole': 'student',
+      'authorProfilePictureUrl': null,
+      'content':
+          '¡Terminé mi proyecto de brazo robótico controlado por Arduino! '
+          'Fue un desafío aprender a coordinar los servomotores, pero quedó funcionando. '
+          'Gracias a todos los que me apoyaron.',
+      'postType': 'general',
+      'imageUrl': null,
+      'eventDate': null,
+      'likesCount': 24,
+      'commentsCount': 2,
+      'createdAt': _iso(const Duration(hours: 5)),
+    },
+    {
+      'id': 2,
+      'authorId': 201,
+      'authorName': 'Automatización Industrial S.A.',
+      'authorRole': 'company',
+      'authorProfilePictureUrl': null,
+      'content':
+          'Abrimos dos cupos de práctica profesional para estudiantes de '
+          'Mecatrónica. Si te apasiona la automatización industrial, revisa la '
+          'oferta en la pestaña Trabajos.',
+      'postType': 'general',
+      'imageUrl': null,
+      'eventDate': null,
+      'likesCount': 41,
+      'commentsCount': 1,
+      'createdAt': _iso(const Duration(hours: 12)),
+    },
+    {
+      'id': 3,
+      'authorId': 202,
+      'authorName': 'TechSolutions Chile SpA',
+      'authorRole': 'company',
+      'authorProfilePictureUrl': null,
+      'content':
+          'Charla abierta: "Cómo preparar tu primera entrevista técnica". '
+          'Inscripciones abiertas para estudiantes de 3° y 4° medio.',
+      'postType': 'event',
+      'imageUrl': null,
+      'eventDate': DateTime.now()
+          .add(const Duration(days: 9))
+          .toIso8601String()
+          .substring(0, 10),
+      'likesCount': 33,
+      'commentsCount': 0,
+      'createdAt': _iso(const Duration(days: 1, hours: 3)),
+    },
+    {
+      'id': 4,
+      'authorId': 105,
+      'authorName': 'Valentina Soto Cárdenas',
+      'authorRole': 'student',
+      'authorProfilePictureUrl': null,
+      'content':
+          'Subí a mi perfil el modelado 3D de la pieza que diseñamos en el '
+          'taller. Cualquier feedback es bienvenido.',
+      'postType': 'general',
+      'imageUrl': null,
+      'eventDate': null,
+      'likesCount': 17,
+      'commentsCount': 0,
+      'createdAt': _iso(const Duration(days: 2)),
+    },
+  ];
 
   List<Map<String, dynamic>> _initialJobs() => [
-        {
-          'id': 1,
-          'title': 'Técnico en Automatización Industrial',
-          'description': 'Buscamos egresado o estudiante de último año en Mecatrónica. '
-              'Trabajarás en automatización de líneas de producción con PLCs Siemens.',
-          'location': 'Pudahuel, Santiago',
-          'imageUrl': null,
-          'status': 'Open',
-          'createdAt': _iso(const Duration(days: 7)),
-          'expiresAt': DateTime.now().add(const Duration(days: 23)).toIso8601String(),
-          'companyId': 201,
-          'companyName': 'Automatización Industrial S.A.',
-          'companyAvatarUrl': null,
-          'applicationCount': 3,
-        },
-        {
-          'id': 2,
-          'title': 'Práctica Profesional — Programación PLC',
-          'description': 'Práctica de 6 meses para estudiantes de 4° año. Aprenderás a '
-              'programar PLCs en lenguaje Ladder y a configurar HMI industriales.',
-          'location': 'Maipú, Santiago',
-          'imageUrl': null,
-          'status': 'Open',
-          'createdAt': _iso(const Duration(days: 3)),
-          'expiresAt': DateTime.now().add(const Duration(days: 27)).toIso8601String(),
-          'companyId': 201,
-          'companyName': 'Automatización Industrial S.A.',
-          'companyAvatarUrl': null,
-          'applicationCount': 1,
-        },
-        {
-          'id': 3,
-          'title': 'Desarrollador de Sistemas Embebidos',
-          'description': 'Buscamos técnico con conocimientos en C/C++ para '
-              'microcontroladores y comunicación industrial (Modbus, CAN).',
-          'location': 'Antofagasta / Remoto',
-          'imageUrl': null,
-          'status': 'Open',
-          'createdAt': _iso(const Duration(days: 5)),
-          'expiresAt': DateTime.now().add(const Duration(days: 25)).toIso8601String(),
-          'companyId': 202,
-          'companyName': 'TechSolutions Chile SpA',
-          'companyAvatarUrl': null,
-          'applicationCount': 0,
-        },
-        {
-          'id': 4,
-          'title': 'Práctica — Soporte IT e Infraestructura',
-          'description': 'Práctica de 4 meses. Apoyarás al equipo en mantención de '
-              'redes, servidores Linux y monitoreo de sistemas.',
-          'location': 'Viña del Mar',
-          'imageUrl': null,
-          'status': 'Open',
-          'createdAt': _iso(const Duration(days: 1)),
-          'expiresAt': DateTime.now().add(const Duration(days: 29)).toIso8601String(),
-          'companyId': 202,
-          'companyName': 'TechSolutions Chile SpA',
-          'companyAvatarUrl': null,
-          'applicationCount': 2,
-        },
-      ];
+    {
+      'id': 1,
+      'title': 'Técnico en Automatización Industrial',
+      'description':
+          'Buscamos egresado o estudiante de último año en Mecatrónica. '
+          'Trabajarás en automatización de líneas de producción con PLCs Siemens.',
+      'location': 'Pudahuel, Santiago',
+      'imageUrl': null,
+      'status': 'Open',
+      'createdAt': _iso(const Duration(days: 7)),
+      'expiresAt': DateTime.now()
+          .add(const Duration(days: 23))
+          .toIso8601String(),
+      'companyId': 201,
+      'companyName': 'Automatización Industrial S.A.',
+      'companyAvatarUrl': null,
+      'applicationCount': 3,
+    },
+    {
+      'id': 2,
+      'title': 'Práctica Profesional — Programación PLC',
+      'description':
+          'Práctica de 6 meses para estudiantes de 4° año. Aprenderás a '
+          'programar PLCs en lenguaje Ladder y a configurar HMI industriales.',
+      'location': 'Maipú, Santiago',
+      'imageUrl': null,
+      'status': 'Open',
+      'createdAt': _iso(const Duration(days: 3)),
+      'expiresAt': DateTime.now()
+          .add(const Duration(days: 27))
+          .toIso8601String(),
+      'companyId': 201,
+      'companyName': 'Automatización Industrial S.A.',
+      'companyAvatarUrl': null,
+      'applicationCount': 1,
+    },
+    {
+      'id': 3,
+      'title': 'Desarrollador de Sistemas Embebidos',
+      'description':
+          'Buscamos técnico con conocimientos en C/C++ para '
+          'microcontroladores y comunicación industrial (Modbus, CAN).',
+      'location': 'Antofagasta / Remoto',
+      'imageUrl': null,
+      'status': 'Open',
+      'createdAt': _iso(const Duration(days: 5)),
+      'expiresAt': DateTime.now()
+          .add(const Duration(days: 25))
+          .toIso8601String(),
+      'companyId': 202,
+      'companyName': 'TechSolutions Chile SpA',
+      'companyAvatarUrl': null,
+      'applicationCount': 0,
+    },
+    {
+      'id': 4,
+      'title': 'Práctica — Soporte IT e Infraestructura',
+      'description':
+          'Práctica de 4 meses. Apoyarás al equipo en mantención de '
+          'redes, servidores Linux y monitoreo de sistemas.',
+      'location': 'Viña del Mar',
+      'imageUrl': null,
+      'status': 'Open',
+      'createdAt': _iso(const Duration(days: 1)),
+      'expiresAt': DateTime.now()
+          .add(const Duration(days: 29))
+          .toIso8601String(),
+      'companyId': 202,
+      'companyName': 'TechSolutions Chile SpA',
+      'companyAvatarUrl': null,
+      'applicationCount': 2,
+    },
+  ];
 
   List<Map<String, dynamic>> _initialConversations() => [
-        {
-          'otherUserId': 101,
-          'otherUserName': 'Camila Vidal Astorga',
-          'otherUserRole': 'student',
-          'otherUserTitle': 'Estudiante · Mecatrónica',
-          'otherUserAvatarUrl': '',
-          'lastMessage': '¡Gracias! Me interesa mucho la oferta.',
-          'lastMessageAt': _iso(const Duration(hours: 2)),
-          'hasUnread': true,
-        },
-        {
-          'otherUserId': 104,
-          'otherUserName': 'Matías Herrera Lagos',
-          'otherUserRole': 'student',
-          'otherUserTitle': 'Estudiante · Telecomunicaciones',
-          'otherUserAvatarUrl': '',
-          'lastMessage': 'Buenas, ¿la práctica es presencial?',
-          'lastMessageAt': _iso(const Duration(days: 1)),
-          'hasUnread': false,
-        },
-      ];
+    {
+      'otherUserId': 101,
+      'otherUserName': 'Camila Vidal Astorga',
+      'otherUserRole': 'student',
+      'otherUserTitle': 'Estudiante · Mecatrónica',
+      'otherUserAvatarUrl': '',
+      'lastMessage': '¡Gracias! Me interesa mucho la oferta.',
+      'lastMessageAt': _iso(const Duration(hours: 2)),
+      'hasUnread': true,
+    },
+    {
+      'otherUserId': 104,
+      'otherUserName': 'Matías Herrera Lagos',
+      'otherUserRole': 'student',
+      'otherUserTitle': 'Estudiante · Telecomunicaciones',
+      'otherUserAvatarUrl': '',
+      'lastMessage': 'Buenas, ¿la práctica es presencial?',
+      'lastMessageAt': _iso(const Duration(days: 1)),
+      'hasUnread': false,
+    },
+  ];
 
   late final List<Map<String, dynamic>> _posts = _initialPosts();
   late final List<Map<String, dynamic>> _jobs = _initialJobs();
-  late final List<Map<String, dynamic>> _conversations = _initialConversations();
+  late final List<Map<String, dynamic>> _conversations =
+      _initialConversations();
 
   final Set<int> _likedPostIds = {};
   final Map<int, List<Map<String, dynamic>>> _commentsByPost = {};
@@ -324,9 +381,9 @@ class DemoBackend {
   String? _messageTemplate;
 
   Future<Map<String, dynamic>> getCompanyMessageTemplate() => _delayed({
-        'template': _messageTemplate ?? defaultMessageTemplate,
-        'isDefault': _messageTemplate == null,
-      });
+    'template': _messageTemplate ?? defaultMessageTemplate,
+    'isDefault': _messageTemplate == null,
+  });
 
   Future<Map<String, dynamic>> setCompanyMessageTemplate(String template) {
     final trimmed = template.trim();
@@ -360,15 +417,16 @@ class DemoBackend {
   // ════════════════════════════════════════════════════════════════════════
 
   Future<Map<String, dynamic>> getFeed() => _delayed({
-        'items': List<Map<String, dynamic>>.from(_posts),
-        'totalCount': _posts.length,
-        'hasNextPage': false,
-      });
+    'items': List<Map<String, dynamic>>.from(_posts),
+    'totalCount': _posts.length,
+    'hasNextPage': false,
+  });
 
   Future<int> createPost({
     required String content,
     String postType = 'general',
     String? imageUrl,
+    String? imageAltText,
     String? eventDate,
   }) {
     final id = _newId();
@@ -381,6 +439,7 @@ class DemoBackend {
       'content': content,
       'postType': postType,
       'imageUrl': imageUrl,
+      'imageAltText': imageAltText,
       'eventDate': eventDate,
       'likesCount': 0,
       'commentsCount': 0,
@@ -469,10 +528,10 @@ class DemoBackend {
   // ════════════════════════════════════════════════════════════════════════
 
   Future<Map<String, dynamic>> getJobs() => _delayed({
-        'items': List<Map<String, dynamic>>.from(_jobs),
-        'totalCount': _jobs.length,
-        'hasNextPage': false,
-      });
+    'items': List<Map<String, dynamic>>.from(_jobs),
+    'totalCount': _jobs.length,
+    'hasNextPage': false,
+  });
 
   Future<int> createJobPosting({
     required String title,
@@ -489,7 +548,9 @@ class DemoBackend {
       'imageUrl': imageUrl,
       'status': 'Open',
       'createdAt': DateTime.now().toUtc().toIso8601String(),
-      'expiresAt': DateTime.now().add(const Duration(days: 30)).toIso8601String(),
+      'expiresAt': DateTime.now()
+          .add(const Duration(days: 30))
+          .toIso8601String(),
       'companyId': _currentUserId,
       'companyName': _currentUserName,
       'companyAvatarUrl': null,
@@ -511,29 +572,36 @@ class DemoBackend {
     final mine = _jobs.where((j) => j['companyId'] == _currentUserId).toList();
     // En demo la empresa siempre ve las ofertas sembradas para que la vista
     // de "mis ofertas y postulantes" no aparezca vacía.
-    return _delayed(mine.isEmpty ? List<Map<String, dynamic>>.from(_jobs) : mine);
+    return _delayed(
+      mine.isEmpty ? List<Map<String, dynamic>>.from(_jobs) : mine,
+    );
   }
 
   Future<List<Map<String, dynamic>>> getJobApplications(int jobId) {
     final applicants = [101, 104, 102];
     final job = _jobs.firstWhere((j) => j['id'] == jobId, orElse: () => {});
-    final count = (job['applicationCount'] as int? ?? 0).clamp(0, applicants.length);
-    return _delayed(List.generate(count, (i) {
-      final person = _personById(applicants[i])!;
-      return {
-        'id': 700 + i,
-        'createdAt': _iso(Duration(days: i + 1)),
-        'cvUrl': null,
-        'status': 'Pending',
-        'applicant': {
-          'id': person['id'],
-          'fullName': person['fullName'],
-          'email': 'demo${person['id']}@kairos.cl',
-          'institution': person['institution'],
-          'profilePictureUrl': null,
-        },
-      };
-    }));
+    final count = (job['applicationCount'] as int? ?? 0).clamp(
+      0,
+      applicants.length,
+    );
+    return _delayed(
+      List.generate(count, (i) {
+        final person = _personById(applicants[i])!;
+        return {
+          'id': 700 + i,
+          'createdAt': _iso(Duration(days: i + 1)),
+          'cvUrl': null,
+          'status': 'Pending',
+          'applicant': {
+            'id': person['id'],
+            'fullName': person['fullName'],
+            'email': 'demo${person['id']}@kairos.cl',
+            'institution': person['institution'],
+            'profilePictureUrl': null,
+          },
+        };
+      }),
+    );
   }
 
   Future<void> updateJobPosting(int jobId, Map<String, dynamic> changes) {
@@ -603,7 +671,9 @@ class DemoBackend {
     }
 
     results.sort((a, b) {
-      final byCount = (b['matchCount'] as int).compareTo(a['matchCount'] as int);
+      final byCount = (b['matchCount'] as int).compareTo(
+        a['matchCount'] as int,
+      );
       return byCount != 0
           ? byCount
           : (a['fullName'] as String).compareTo(b['fullName'] as String);
@@ -616,34 +686,38 @@ class DemoBackend {
   // ════════════════════════════════════════════════════════════════════════
 
   Future<List<Map<String, dynamic>>> getNetworkSuggestions() => _delayed(
-        _people
-            .where((p) => p['id'] != _currentUserId)
-            .map((p) => {
-                  'id': p['id'],
-                  'fullName': p['fullName'],
-                  'role': p['role'],
-                  'title': p['title'],
-                  'avatarUrl': '',
-                  'bio': p['bio'],
-                  'location': p['institution'],
-                  'followersCount': p['followers'],
-                  'isFollowing': _followingIds.contains(p['id']),
-                })
-            .toList(),
-      );
+    _people
+        .where((p) => p['id'] != _currentUserId)
+        .map(
+          (p) => {
+            'id': p['id'],
+            'fullName': p['fullName'],
+            'role': p['role'],
+            'title': p['title'],
+            'avatarUrl': '',
+            'bio': p['bio'],
+            'location': p['institution'],
+            'followersCount': p['followers'],
+            'isFollowing': _followingIds.contains(p['id']),
+          },
+        )
+        .toList(),
+  );
 
   Future<List<Map<String, dynamic>>> getFollowing() => _delayed(
-        _people
-            .where((p) => _followingIds.contains(p['id']))
-            .map((p) => {
-                  'id': p['id'],
-                  'fullName': p['fullName'],
-                  'role': p['role'],
-                  'title': p['title'],
-                  'avatarUrl': '',
-                })
-            .toList(),
-      );
+    _people
+        .where((p) => _followingIds.contains(p['id']))
+        .map(
+          (p) => {
+            'id': p['id'],
+            'fullName': p['fullName'],
+            'role': p['role'],
+            'title': p['title'],
+            'avatarUrl': '',
+          },
+        )
+        .toList(),
+  );
 
   Future<void> followUser(int userId) {
     _followingIds.add(userId);
@@ -668,7 +742,8 @@ class DemoBackend {
         {
           'id': 801,
           'senderId': 201,
-          'content': 'Hola Camila, vimos tu perfil y nos interesan tus competencias.',
+          'content':
+              'Hola Camila, vimos tu perfil y nos interesan tus competencias.',
           'createdAt': _iso(const Duration(hours: 3)),
         },
         {
@@ -704,7 +779,9 @@ class DemoBackend {
     };
     _messagesByUser.putIfAbsent(receiverId, () => []).add(message);
 
-    final existing = _conversations.where((c) => c['otherUserId'] == receiverId).toList();
+    final existing = _conversations
+        .where((c) => c['otherUserId'] == receiverId)
+        .toList();
     if (existing.isEmpty) {
       final person = _personById(receiverId);
       _conversations.insert(0, {
@@ -719,7 +796,9 @@ class DemoBackend {
       });
     } else {
       existing.first['lastMessage'] = content;
-      existing.first['lastMessageAt'] = DateTime.now().toUtc().toIso8601String();
+      existing.first['lastMessageAt'] = DateTime.now()
+          .toUtc()
+          .toIso8601String();
     }
     return _delayed(message, 150);
   }
@@ -736,7 +815,9 @@ class DemoBackend {
       'Documento de demostracion - Kairos',
       DateTime.now().toString().substring(0, 16),
     ];
-    final content = StringBuffer('BT /F1 16 Tf 60 760 Td (${_escape(lines[0])}) Tj ET\n');
+    final content = StringBuffer(
+      'BT /F1 16 Tf 60 760 Td (${_escape(lines[0])}) Tj ET\n',
+    );
     var y = 730;
     for (final line in lines.skip(1)) {
       content.write('BT /F1 11 Tf 60 $y Td (${_escape(line)}) Tj ET\n');
@@ -764,18 +845,31 @@ class DemoBackend {
     for (final offset in offsets) {
       buffer.write('${offset.toString().padLeft(10, '0')} 00000 n \n');
     }
-    buffer.write('trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\n'
-        'startxref\n$xref\n%%EOF');
+    buffer.write(
+      'trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\n'
+      'startxref\n$xref\n%%EOF',
+    );
 
     return _delayed(latin1.encode(buffer.toString()), 500);
   }
 
   static String _escape(String value) {
     final ascii = value
-        .replaceAll('á', 'a').replaceAll('é', 'e').replaceAll('í', 'i')
-        .replaceAll('ó', 'o').replaceAll('ú', 'u').replaceAll('ñ', 'n')
-        .replaceAll('Á', 'A').replaceAll('É', 'E').replaceAll('Í', 'I')
-        .replaceAll('Ó', 'O').replaceAll('Ú', 'U').replaceAll('Ñ', 'N');
-    return ascii.replaceAll('\\', r'\\').replaceAll('(', r'\(').replaceAll(')', r'\)');
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ñ', 'n')
+        .replaceAll('Á', 'A')
+        .replaceAll('É', 'E')
+        .replaceAll('Í', 'I')
+        .replaceAll('Ó', 'O')
+        .replaceAll('Ú', 'U')
+        .replaceAll('Ñ', 'N');
+    return ascii
+        .replaceAll('\\', r'\\')
+        .replaceAll('(', r'\(')
+        .replaceAll(')', r'\)');
   }
 }

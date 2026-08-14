@@ -13,6 +13,10 @@ public class CreatePostCommandValidator : AbstractValidator<CreatePostCommand>
             .NotEmpty().WithMessage("El contenido no puede estar vacío.")
             .MaximumLength(2000).WithMessage("El contenido no puede superar los 2000 caracteres.");
 
+        RuleFor(x => x.ImageAltText)
+            .MaximumLength(300)
+            .WithMessage("La descripción de la imagen no puede superar los 300 caracteres.");
+
         RuleFor(x => x.PostType)
             .Must(t => ValidTypes.Contains(t))
             .WithMessage("El tipo debe ser 'general', 'event' o 'job'.");

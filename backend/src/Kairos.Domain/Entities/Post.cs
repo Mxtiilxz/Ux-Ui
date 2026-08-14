@@ -13,6 +13,11 @@ public class Post
     public string   Content         { get; set; } = string.Empty;
     public PostType Type            { get; set; } = PostType.General;
     public string?  ImageUrl        { get; set; }
+    // Texto alternativo de la imagen, escrito por quien publica. Null cuando la
+    // publicación no lleva imagen o cuando el autor la marcó como decorativa:
+    // el cliente debe ocultar esas imágenes a los lectores de pantalla en vez
+    // de inventar una descripción a partir del cuerpo del post.
+    public string?  ImageAltText    { get; set; }
     public string?  EventDate       { get; set; }
     // LikesCount y CommentsCount son contadores desnormalizados:
     // se guardan directamente en el post para evitar COUNT(*) en cada query del feed.

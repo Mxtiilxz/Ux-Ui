@@ -12,43 +12,49 @@ import 'demo_interceptor.dart';
 export '../config.dart' show kDemoMode;
 
 class ApiClient {
-  static const _baseUrl     = kApiUrl;
-  static const _tokenKey    = 'auth_token';
-  static const _profileKey  = 'auth_profile';
+  static const _baseUrl = kApiUrl;
+  static const _tokenKey = 'auth_token';
+  static const _profileKey = 'auth_profile';
 
   late final Dio _dio;
   final _storage = const FlutterSecureStorage();
 
   ApiClient() {
-    _dio = Dio(BaseOptions(
-      baseUrl: _baseUrl,
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 30),
-      contentType: 'application/json',
-    ));
+    _dio = Dio(
+      BaseOptions(
+        baseUrl: _baseUrl,
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 30),
+        contentType: 'application/json',
+      ),
+    );
 
     if (kDemoMode) _dio.interceptors.add(DemoInterceptor());
 
-    _dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) async {
-        try {
-          final token = await _storage.read(key: _tokenKey)
-              .timeout(const Duration(seconds: 3));
-          if (token != null) {
-            options.headers['Authorization'] = 'Bearer $token';
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          try {
+            final token = await _storage
+                .read(key: _tokenKey)
+                .timeout(const Duration(seconds: 3));
+            if (token != null) {
+              options.headers['Authorization'] = 'Bearer $token';
+            }
+          } catch (_) {
+            // flutter_secure_storage puede fallar en web — continuar sin token
           }
-        } catch (_) {
-          // flutter_secure_storage puede fallar en web — continuar sin token
-        }
-        return handler.next(options);
-      },
-      onError: (error, handler) => handler.next(error),
-    ));
+          return handler.next(options);
+        },
+        onError: (error, handler) => handler.next(error),
+      ),
+    );
   }
 
   Future<void> saveToken(String token) async {
     try {
-      await _storage.write(key: _tokenKey, value: token)
+      await _storage
+          .write(key: _tokenKey, value: token)
           .timeout(const Duration(seconds: 3));
     } catch (_) {}
   }
@@ -57,25 +63,34 @@ class ApiClient {
     try {
       final encoded = profile.entries
           .where((e) => e.value != null)
-          .map((e) => '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value!)}')
+          .map(
+            (e) =>
+                '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value!)}',
+          )
           .join('&');
-      await _storage.write(key: _profileKey, value: encoded)
+      await _storage
+          .write(key: _profileKey, value: encoded)
           .timeout(const Duration(seconds: 3));
     } catch (_) {}
   }
 
   Future<Map<String, String>?> loadProfile() async {
     try {
-      final raw = await _storage.read(key: _profileKey)
+      final raw = await _storage
+          .read(key: _profileKey)
           .timeout(const Duration(seconds: 3));
       if (raw == null || raw.isEmpty) return null;
-      return Map.fromEntries(raw.split('&').map((kv) {
-        final parts = kv.split('=');
-        return MapEntry(
-          Uri.decodeComponent(parts[0]),
-          parts.length > 1 ? Uri.decodeComponent(parts.sublist(1).join('=')) : '',
-        );
-      }));
+      return Map.fromEntries(
+        raw.split('&').map((kv) {
+          final parts = kv.split('=');
+          return MapEntry(
+            Uri.decodeComponent(parts[0]),
+            parts.length > 1
+                ? Uri.decodeComponent(parts.sublist(1).join('='))
+                : '',
+          );
+        }),
+      );
     } catch (_) {
       return null;
     }
@@ -92,7 +107,8 @@ class ApiClient {
 
   Future<String?> getToken() async {
     try {
-      return await _storage.read(key: _tokenKey)
+      return await _storage
+          .read(key: _tokenKey)
           .timeout(const Duration(seconds: 3));
     } catch (_) {
       return null;
@@ -102,10 +118,10 @@ class ApiClient {
   // ── Auth ────────────────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> login(String email, String password) async {
-    final response = await _dio.post('/auth/login', data: {
-      'email': email,
-      'password': password,
-    });
+    final response = await _dio.post(
+      '/auth/login',
+      data: {'email': email, 'password': password},
+    );
     return response.data as Map<String, dynamic>;
   }
 
@@ -124,24 +140,30 @@ class ApiClient {
     String? institution,
     String role = 'student',
   }) async {
-    final response = await _dio.post('/auth/register', data: {
-      'username': username,
-      'email': email,
-      'password': password,
-      'fullName': fullName,
-      'institution': institution,
-      'role': role,
-    });
+    final response = await _dio.post(
+      '/auth/register',
+      data: {
+        'username': username,
+        'email': email,
+        'password': password,
+        'fullName': fullName,
+        'institution': institution,
+        'role': role,
+      },
+    );
     return response.data as Map<String, dynamic>;
   }
 
   // ── Feed / Posts ─────────────────────────────────────────────────────────────
 
-  Future<Map<String, dynamic>> getFeed({int page = 1, int pageSize = 20}) async {
-    final response = await _dio.get('/posts/feed', queryParameters: {
-      'page': page,
-      'pageSize': pageSize,
-    });
+  Future<Map<String, dynamic>> getFeed({
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final response = await _dio.get(
+      '/posts/feed',
+      queryParameters: {'page': page, 'pageSize': pageSize},
+    );
     return response.data as Map<String, dynamic>;
   }
 
@@ -149,14 +171,19 @@ class ApiClient {
     required String content,
     String postType = 'general',
     String? imageUrl,
+    String? imageAltText,
     String? eventDate,
   }) async {
-    final response = await _dio.post('/posts', data: {
-      'content': content,
-      'postType': postType,
-      if (imageUrl != null) 'imageUrl': imageUrl,
-      if (eventDate != null) 'eventDate': eventDate,
-    });
+    final response = await _dio.post(
+      '/posts',
+      data: {
+        'content': content,
+        'postType': postType,
+        if (imageUrl != null) 'imageUrl': imageUrl,
+        if (imageAltText != null) 'imageAltText': imageAltText,
+        if (eventDate != null) 'eventDate': eventDate,
+      },
+    );
     return response.data as int;
   }
 
@@ -166,8 +193,11 @@ class ApiClient {
     return response.data as Map<String, dynamic>;
   }
 
-  Future<List<dynamic>> getComments(int postId,
-      {int page = 1, int pageSize = 20}) async {
+  Future<List<dynamic>> getComments(
+    int postId, {
+    int page = 1,
+    int pageSize = 20,
+  }) async {
     final response = await _dio.get(
       '/posts/$postId/comments',
       queryParameters: {'page': page, 'pageSize': pageSize},
@@ -176,9 +206,10 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> addComment(int postId, String content) async {
-    final response = await _dio.post('/posts/$postId/comments', data: {
-      'content': content,
-    });
+    final response = await _dio.post(
+      '/posts/$postId/comments',
+      data: {'content': content},
+    );
     return response.data as Map<String, dynamic>;
   }
 
@@ -198,12 +229,15 @@ class ApiClient {
     int page = 1,
     int pageSize = 20,
   }) async {
-    final response = await _dio.get('/jobs', queryParameters: {
-      if (search != null && search.isNotEmpty) 'search': search,
-      'status': status,
-      'page': page,
-      'pageSize': pageSize,
-    });
+    final response = await _dio.get(
+      '/jobs',
+      queryParameters: {
+        if (search != null && search.isNotEmpty) 'search': search,
+        'status': status,
+        'page': page,
+        'pageSize': pageSize,
+      },
+    );
     return response.data as Map<String, dynamic>;
   }
 
@@ -214,20 +248,24 @@ class ApiClient {
     String? imageUrl,
     DateTime? expiresAt,
   }) async {
-    final response = await _dio.post('/jobs', data: {
-      'title': title,
-      'description': description,
-      if (location != null) 'location': location,
-      if (imageUrl != null) 'imageUrl': imageUrl,
-      if (expiresAt != null) 'expiresAt': expiresAt.toIso8601String(),
-    });
+    final response = await _dio.post(
+      '/jobs',
+      data: {
+        'title': title,
+        'description': description,
+        if (location != null) 'location': location,
+        if (imageUrl != null) 'imageUrl': imageUrl,
+        if (expiresAt != null) 'expiresAt': expiresAt.toIso8601String(),
+      },
+    );
     return response.data as int;
   }
 
   Future<int> applyToJob(int jobId, {String? cvUrl}) async {
-    final response = await _dio.post('/jobs/$jobId/apply', data: {
-      if (cvUrl != null) 'cvUrl': cvUrl,
-    });
+    final response = await _dio.post(
+      '/jobs/$jobId/apply',
+      data: {if (cvUrl != null) 'cvUrl': cvUrl},
+    );
     return response.data as int;
   }
 
@@ -238,17 +276,21 @@ class ApiClient {
     return (response.data as List<dynamic>).cast<Map<String, dynamic>>();
   }
 
-  Future<List<Map<String, dynamic>>> searchCandidates(List<int> skillIds) async {
-    final response = await _dio.get('/skills/candidates', queryParameters: {
-      'skillIds': skillIds.join(','),
-    });
+  Future<List<Map<String, dynamic>>> searchCandidates(
+    List<int> skillIds,
+  ) async {
+    final response = await _dio.get(
+      '/skills/candidates',
+      queryParameters: {'skillIds': skillIds.join(',')},
+    );
     return (response.data as List<dynamic>).cast<Map<String, dynamic>>();
   }
 
   Future<bool> setQuickMatchVisibility(bool visible) async {
-    final response = await _dio.put('/skills/me/visibility', data: {
-      'visible': visible,
-    });
+    final response = await _dio.put(
+      '/skills/me/visibility',
+      data: {'visible': visible},
+    );
     return response.data['visible'] as bool;
   }
 
@@ -275,21 +317,26 @@ class ApiClient {
   /// Company-only: update the Quick Match contact message template.
   /// Passing an empty string resets it to the system default.
   /// Returns `{ template: String, isDefault: bool }`.
-  Future<Map<String, dynamic>> setCompanyMessageTemplate(String template) async {
-    final response = await _dio.put('/skills/company/message', data: {
-      'template': template,
-    });
+  Future<Map<String, dynamic>> setCompanyMessageTemplate(
+    String template,
+  ) async {
+    final response = await _dio.put(
+      '/skills/company/message',
+      data: {'template': template},
+    );
     return response.data as Map<String, dynamic>;
   }
 
   // ── Network ──────────────────────────────────────────────────────────────────
 
-  Future<List<dynamic>> getNetworkSuggestions(
-      {int page = 1, int pageSize = 20}) async {
-    final response = await _dio.get('/network/suggestions', queryParameters: {
-      'page': page,
-      'pageSize': pageSize,
-    });
+  Future<List<dynamic>> getNetworkSuggestions({
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final response = await _dio.get(
+      '/network/suggestions',
+      queryParameters: {'page': page, 'pageSize': pageSize},
+    );
     return response.data as List<dynamic>;
   }
 
@@ -313,8 +360,11 @@ class ApiClient {
     return response.data as List<dynamic>;
   }
 
-  Future<List<dynamic>> getMessages(int otherUserId,
-      {int page = 1, int pageSize = 40}) async {
+  Future<List<dynamic>> getMessages(
+    int otherUserId, {
+    int page = 1,
+    int pageSize = 40,
+  }) async {
     final response = await _dio.get(
       '/chat/messages/$otherUserId',
       queryParameters: {'page': page, 'pageSize': pageSize},
@@ -323,19 +373,27 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> sendMessage(
-      int receiverId, String content) async {
-    final response = await _dio
-        .post('/chat/messages/$receiverId', data: {'content': content});
+    int receiverId,
+    String content,
+  ) async {
+    final response = await _dio.post(
+      '/chat/messages/$receiverId',
+      data: {'content': content},
+    );
     return response.data as Map<String, dynamic>;
   }
 
   // ── Storage ─────────────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> uploadFile(
-      String filePath, String contentType) async {
+    String filePath,
+    String contentType,
+  ) async {
     final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(filePath,
-          filename: filePath.split('/').last),
+      'file': await MultipartFile.fromFile(
+        filePath,
+        filename: filePath.split('/').last,
+      ),
     });
     final response = await _dio.post(
       '/storage/upload',
@@ -348,13 +406,15 @@ class ApiClient {
   /// Upload an image from XFile (works on web and mobile).
   Future<Map<String, dynamic>> uploadImage(XFile image) async {
     final bytes = await image.readAsBytes();
-    final filename = image.name.isNotEmpty ? image.name : image.path.split('/').last;
+    final filename = image.name.isNotEmpty
+        ? image.name
+        : image.path.split('/').last;
     final ext = filename.split('.').last.toLowerCase();
     final subtype = switch (ext) {
-      'png'  => 'png',
+      'png' => 'png',
       'webp' => 'webp',
-      'gif'  => 'gif',
-      _      => 'jpeg',
+      'gif' => 'gif',
+      _ => 'jpeg',
     };
 
     // En modo demo no hay servidor de archivos: la imagen se incrusta como
@@ -452,12 +512,15 @@ class ApiClient {
     String? location,
     String? imageUrl,
   }) async {
-    await _dio.put('/jobs/$jobId', data: {
-      'title': title,
-      'description': description,
-      if (location != null && location.isNotEmpty) 'location': location,
-      if (imageUrl != null) 'imageUrl': imageUrl,
-    });
+    await _dio.put(
+      '/jobs/$jobId',
+      data: {
+        'title': title,
+        'description': description,
+        if (location != null && location.isNotEmpty) 'location': location,
+        if (imageUrl != null) 'imageUrl': imageUrl,
+      },
+    );
   }
 
   Future<void> deleteJobPosting(int jobId) async {

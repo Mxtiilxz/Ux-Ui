@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../core/analytics/analytics.dart';
 import '../../core/api/api_client.dart';
 import '../../features/home/data/models/post_model.dart';
+import '../services/social_hub_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/kairos_palette.dart';
 import 'k_card.dart';
@@ -72,6 +73,11 @@ class _PostCardState extends State<PostCard> {
         final result = await _api.toggleLike(postId);
         if (mounted) {
           setState(() => _likes = result['likesCount'] as int? ?? _likes);
+        }
+        // Solo al dar el "me gusta", y nunca sobre la publicación propia.
+        final authorId = widget.post.author.id;
+        if (_liked && authorId.isNotEmpty && authorId != widget.currentUserId) {
+          await SocialHubService.current?.notifyLike(authorId, postId);
         }
       }
     } catch (_) {
@@ -446,18 +452,13 @@ class _PostCardState extends State<PostCard> {
                   if (imageUrl != null && imageUrl.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 14),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: AspectRatio(
-                          aspectRatio: mediaAspectRatio,
-                          child: Image.network(
-                            imageUrl,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                            alignment: Alignment.topCenter,
-                            semanticLabel: post.resolvedImageAltText,
-                          ),
-                        ),
+                      child: _PostImage(
+                        url: imageUrl,
+                        aspectRatio: mediaAspectRatio,
+                        // null = el autor no describió la imagen, así que se
+                        // trata como decorativa en vez de repetir el texto de
+                        // la publicación (ver PostModel.imageSemanticLabel).
+                        altText: post.imageSemanticLabel,
                       ),
                     ),
                   const SizedBox(height: 10),
@@ -819,5 +820,41 @@ class _ActionButton extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Imagen de una publicación. Si el autor escribió una descripción se anuncia
+/// como imagen con esa etiqueta; si no, se saca del árbol de semántica para que
+/// el lector de pantalla no anuncie una imagen anónima ni repita el texto del
+/// post (WCAG 1.1.1).
+class _PostImage extends StatelessWidget {
+  const _PostImage({
+    required this.url,
+    required this.aspectRatio,
+    required this.altText,
+  });
+
+  final String url;
+  final double aspectRatio;
+  final String? altText;
+
+  @override
+  Widget build(BuildContext context) {
+    final image = ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: AspectRatio(
+        aspectRatio: aspectRatio,
+        child: Image.network(
+          url,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          alignment: Alignment.topCenter,
+          semanticLabel: altText,
+        ),
+      ),
+    );
+
+    if (altText == null) return ExcludeSemantics(child: image);
+    return image;
   }
 }

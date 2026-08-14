@@ -29,6 +29,7 @@ public class GetFeedQueryHandler(IApplicationDbContext db)
                 p.Content,
                 p.Type.ToString(),
                 p.ImageUrl,
+                p.ImageAltText,
                 p.EventDate,
                 p.LikesCount,
                 p.CommentsCount,

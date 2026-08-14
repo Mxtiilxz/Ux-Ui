@@ -181,11 +181,14 @@ void main() {
       timestamp: 'Ahora',
     );
 
+    // Sin descripción del autor la imagen es decorativa: el lector de pantalla
+    // no debe repetir el cuerpo del post como texto alternativo.
+    expect(post.imageSemanticLabel, isNull);
     expect(
-      post.resolvedImageAltText,
-      startsWith(
-        'Imagen de la publicación: Proyecto de automatización para el taller.',
-      ),
+      post
+          .copyWith(imageAltText: '  Brazo robótico soldando una pieza  ')
+          .imageSemanticLabel,
+      'Brazo robótico soldando una pieza',
     );
 
     await tester.pumpWidget(
@@ -199,6 +202,7 @@ void main() {
       ),
     );
 
+    expect(find.byType(PostCard), findsOneWidget);
     expect(find.bySemanticsLabel('Me gusta'), findsOneWidget);
     expect(find.bySemanticsLabel('Comentar'), findsOneWidget);
     expect(find.bySemanticsLabel('Compartir'), findsOneWidget);
@@ -207,6 +211,71 @@ void main() {
       find.widgetWithText(TextButton, 'Ver más'),
     );
     expect(expandTarget.height, greaterThanOrEqualTo(48));
+    semantics.dispose();
+  });
+
+  testWidgets('la imagen de una publicación solo se anuncia si tiene alt', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+
+    PostModel postWith({String? alt}) => PostModel(
+      id: '1',
+      author: const UserProfile(
+        id: '2',
+        name: 'Diego Soto',
+        role: UserRole.student,
+        title: 'Estudiante',
+        avatarUrl: '',
+        skills: [],
+        bio: '',
+        location: '',
+        connections: 0,
+      ),
+      content: 'Prototipo terminado.',
+      imageUrl: 'https://example.invalid/foto.jpg',
+      imageAltText: alt,
+      likes: 0,
+      comments: 0,
+      shares: 0,
+      timestamp: 'Ahora',
+    );
+
+    Future<void> pump(PostModel post) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: PostCard(post: post, currentUserId: '2'),
+            ),
+          ),
+        ),
+      );
+      // En un test no hay red: Image.network falla y eso no es lo que se está
+      // midiendo acá, así que se descarta el error de carga.
+      tester.takeException();
+    }
+
+    // Sin descripción: la imagen queda fuera del árbol de semántica en vez de
+    // heredar el cuerpo de la publicación como texto alternativo.
+    await pump(postWith());
+    expect(find.bySemanticsLabel('Prototipo terminado.'), findsOneWidget);
+    expect(find.byType(Image), findsWidgets);
+    expect(
+      tester
+          .widgetList<ExcludeSemantics>(find.byType(ExcludeSemantics))
+          .where((w) => w.excluding),
+      isNotEmpty,
+    );
+
+    // Con descripción: se anuncia exactamente lo que escribió el autor.
+    await pump(postWith(alt: 'Brazo robótico soldando una pieza'));
+    expect(
+      find.bySemanticsLabel('Brazo robótico soldando una pieza'),
+      findsOneWidget,
+    );
+
     semantics.dispose();
   });
 }

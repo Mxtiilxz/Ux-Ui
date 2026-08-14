@@ -6,7 +6,6 @@ import '../../../../core/analytics/analytics.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/data/mock_data.dart';
 import '../../../../core/models/user_profile.dart';
-import '../../../../core/services/social_hub_service.dart';
 import '../../../../core/theme/kairos_palette.dart';
 import '../../../../core/widgets/k_card.dart';
 import '../../../../core/widgets/post_card.dart';
@@ -28,6 +27,10 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final TextEditingController _postController = TextEditingController();
   final FocusNode _postFocusNode = FocusNode();
+  // Descripción de la imagen adjunta. Va vacío por defecto: si el autor no la
+  // escribe, la imagen se publica como decorativa en vez de heredar el texto
+  // del post como texto alternativo.
+  final TextEditingController _imageAltController = TextEditingController();
 
   final _api = ApiClient();
   final _picker = ImagePicker();
@@ -39,8 +42,6 @@ class _HomePageState extends State<HomePage> {
   bool _uploadingImage = false;
   String? _uploadedImageUrl;
 
-  SocialHubService? hub;
-
   @override
   void initState() {
     super.initState();
@@ -51,7 +52,8 @@ class _HomePageState extends State<HomePage> {
   void dispose() {
     _postFocusNode.dispose();
     _postController.dispose();
-    hub?.dispose();
+    _imageAltController.dispose();
+
     super.dispose();
   }
 
@@ -84,12 +86,14 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _selectedImage = image;
       _uploadedImageUrl = null;
+      _imageAltController.clear();
       _uploadingImage = true;
     });
     try {
       final result = await _api.uploadImage(image);
-      if (mounted)
+      if (mounted) {
         setState(() => _uploadedImageUrl = result['cdnUrl'] as String?);
+      }
     } catch (_) {
       if (mounted) {
         setState(() => _selectedImage = null);
@@ -105,6 +109,14 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  /// Descripción de la imagen, o null si el autor la dejó en blanco. Null se
+  /// publica como imagen decorativa; nunca se sustituye por el texto del post.
+  String? _imageAltText() {
+    if (_uploadedImageUrl == null) return null;
+    final alt = _imageAltController.text.trim();
+    return alt.isEmpty ? null : alt;
+  }
+
   Future<void> _publishPost() async {
     final text = _postController.text.trim();
     if (text.isEmpty && _uploadedImageUrl == null) return;
@@ -115,6 +127,7 @@ class _HomePageState extends State<HomePage> {
         content: text,
         postType: 'general',
         imageUrl: _uploadedImageUrl,
+        imageAltText: _imageAltText(),
       );
       Analytics.postCreate('general');
       _postController.clear();
@@ -122,6 +135,7 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         _selectedImage = null;
         _uploadedImageUrl = null;
+        _imageAltController.clear();
       });
       await _loadFeed();
     } catch (_) {
@@ -176,6 +190,7 @@ class _HomePageState extends State<HomePage> {
         content: text,
         postType: 'event',
         imageUrl: _uploadedImageUrl,
+        imageAltText: _imageAltText(),
         eventDate: eventDate,
       );
       Analytics.postCreate('event');
@@ -184,6 +199,7 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         _selectedImage = null;
         _uploadedImageUrl = null;
+        _imageAltController.clear();
       });
       await _loadFeed();
     } catch (_) {
@@ -549,6 +565,7 @@ class _HomePageState extends State<HomePage> {
                           onPressed: () => setState(() {
                             _selectedImage = null;
                             _uploadedImageUrl = null;
+                            _imageAltController.clear();
                           }),
                           icon: const Icon(
                             Icons.close,
@@ -559,6 +576,23 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _imageAltController,
+                  maxLength: 300,
+                  textInputAction: TextInputAction.done,
+                  decoration: const InputDecoration(
+                    labelText: 'Describe la imagen',
+                    hintText:
+                        'Ej: taller de mecánica con tres alumnos soldando',
+                    helperText:
+                        'Se lee en voz alta a quien no puede ver la imagen. '
+                        'Déjalo vacío si la imagen es solo decorativa.',
+                    helperMaxLines: 2,
+                    counterText: '',
+                    prefixIcon: Icon(Icons.description_outlined),
+                  ),
                 ),
               ],
               const SizedBox(height: 12),

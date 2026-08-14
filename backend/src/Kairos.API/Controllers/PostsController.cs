@@ -50,7 +50,7 @@ public class PostsController(IMediator mediator) : ControllerBase
 
         var command = new CreatePostCommand(
             authorId, authorRole, request.Content,
-            request.PostType, request.ImageUrl, request.EventDate);
+            request.PostType, request.ImageUrl, request.ImageAltText, request.EventDate);
 
         var postId = await mediator.Send(command, ct);
         return CreatedAtAction(nameof(GetFeed), new { id = postId }, postId);
@@ -116,9 +116,10 @@ public class PostsController(IMediator mediator) : ControllerBase
 
 public record CreatePostRequest(
     string  Content,
-    string  PostType  = "general",
-    string? ImageUrl  = null,
-    string? EventDate = null);
+    string  PostType     = "general",
+    string? ImageUrl     = null,
+    string? ImageAltText = null,
+    string? EventDate    = null);
 
 public record AddCommentRequest(string Content);
 public record UpdatePostRequest(string Content);
