@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/analytics/analytics.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/models/user_profile.dart';
+import '../../../../core/services/social_hub_service.dart';
 import '../../../../core/theme/kairos_palette.dart';
 import '../../../../core/widgets/k_card.dart';
 
@@ -97,6 +98,7 @@ class _NetworkPageState extends State<NetworkPage> {
       } else {
         await _api.followUser(userId);
         Analytics.follow(true);
+        await SocialHubService.current?.notifyFollow(user.id);
       }
     } catch (_) {
       // Revert on failure

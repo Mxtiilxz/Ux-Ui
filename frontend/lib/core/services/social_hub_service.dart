@@ -8,6 +8,13 @@ typedef VoidCallback = void Function();
 class SocialHubService {
   static const _hubUrl = kSocialHubUrl;
 
+  /// Hub de la sesión actual, o null si no hay sesión (o si estamos en demo).
+  ///
+  /// Lo publica `main.dart` al iniciar sesión. Existe para que widgets sueltos
+  /// como PostCard puedan avisar de un "me gusta" sin recibir el hub por
+  /// parámetro a través de media docena de constructores.
+  static SocialHubService? current;
+
   late final HubConnection _connection;
 
   // Stream controllers so UI can listen reactively
@@ -29,9 +36,11 @@ class SocialHubService {
             accessTokenFactory: () async => jwtToken,
           ),
         )
-        .withAutomaticReconnect(retryDelays: [
-          2000, 5000, 10000, 30000 // exponential-like retry policy (ms)
-        ])
+        .withAutomaticReconnect(
+          retryDelays: [
+            2000, 5000, 10000, 30000, // exponential-like retry policy (ms)
+          ],
+        )
         .build();
 
     _registerHandlers();
@@ -84,6 +93,27 @@ class SocialHubService {
 
   Future<void> sendTyping(int postId) async {
     await _connection.invoke('SendTyping', args: [postId]);
+  }
+
+  /// Avisa al autor de una publicación de que alguien le dio "me gusta".
+  /// El nombre lo resuelve el servidor desde el token.
+  Future<void> notifyLike(String targetUserId, int postId) =>
+      _notify('NotifyLike', [targetUserId, postId]);
+
+  /// Avisa a una persona de que empezaron a seguirla.
+  Future<void> notifyFollow(String targetUserId) =>
+      _notify('NotifyFollow', [targetUserId]);
+
+  /// Las notificaciones son accesorias: si el hub está caído, la acción REST
+  /// ya se guardó y no hay nada que reintentar ni que mostrar al usuario.
+  Future<void> _notify(String method, List<Object> args) async {
+    if (kDemoMode) return;
+    if (_connection.state != HubConnectionState.Connected) return;
+    try {
+      await _connection.invoke(method, args: args);
+    } catch (_) {
+      // Silencio deliberado: ver comentario de arriba.
+    }
   }
 
   void dispose() {

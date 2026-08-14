@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -6,6 +8,7 @@ import 'core/analytics/analytics.dart';
 import 'core/api/api_client.dart';
 import 'core/api/demo_backend.dart';
 import 'core/models/user_profile.dart';
+import 'core/services/social_hub_service.dart';
 import 'core/state/user_role_controller.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/app_shell.dart';
@@ -34,6 +37,14 @@ class _KairosAppState extends State<KairosApp> {
   int _selectedIndex = 0;
   bool _restoringSession = true;
   String? _initialChatContactId;
+
+  // Notificaciones sociales en vivo. El shell las publica en una región
+  // `liveRegion`, así que un lector de pantalla las anuncia sin robar el foco
+  // (WCAG 4.1.3). Se limpian solas para no dejar el mensaje colgado.
+  SocialHubService? _socialHub;
+  final List<StreamSubscription<Map<String, dynamic>>> _hubSubscriptions = [];
+  Timer? _liveNotificationTimer;
+  String? _liveNotification;
 
   void _openChatWith(String userId) {
     setState(() {
@@ -83,6 +94,7 @@ class _KairosAppState extends State<KairosApp> {
         );
         _roleController.setRole(role);
         setState(() => _currentUser = user);
+        await _connectSocialHub();
       }
     }
     if (mounted) setState(() => _restoringSession = false);
@@ -90,9 +102,67 @@ class _KairosAppState extends State<KairosApp> {
 
   @override
   void dispose() {
+    _liveNotificationTimer?.cancel();
+    _disconnectSocialHub();
     _semanticsHandle.dispose();
     _roleController.dispose();
     super.dispose();
+  }
+
+  // ── Notificaciones sociales en vivo ────────────────────────────────────────
+
+  /// Conecta el hub social de la sesión actual. En modo demo `connect()` no
+  /// hace nada, así que la suscripción queda inerte en vez de fallar.
+  Future<void> _connectSocialHub() async {
+    if (kDemoMode || _socialHub != null) return;
+    final token = await ApiClient().getToken();
+    if (token == null || !mounted) return;
+
+    final hub = SocialHubService(token);
+    _socialHub = hub;
+    SocialHubService.current = hub;
+    _hubSubscriptions.addAll([
+      hub.onLike.listen((event) {
+        final who = event['likedByName'] as String? ?? 'Alguien';
+        _announce('$who indicó que le gusta tu publicación.');
+      }),
+      hub.onFollow.listen((event) {
+        final who = event['followerName'] as String? ?? 'Alguien';
+        _announce('$who empezó a seguirte.');
+      }),
+      hub.onComment.listen((_) {
+        _announce('Hay un comentario nuevo en la publicación que sigues.');
+      }),
+    ]);
+
+    try {
+      await hub.connect();
+    } catch (_) {
+      // Sin tiempo real la app sigue siendo usable: el feed se refresca al
+      // recargar. No se muestra error porque no hay nada que el usuario pueda
+      // hacer al respecto.
+    }
+  }
+
+  void _disconnectSocialHub() {
+    for (final subscription in _hubSubscriptions) {
+      subscription.cancel();
+    }
+    _hubSubscriptions.clear();
+    _socialHub?.dispose();
+    if (identical(SocialHubService.current, _socialHub)) {
+      SocialHubService.current = null;
+    }
+    _socialHub = null;
+  }
+
+  void _announce(String message) {
+    if (!mounted) return;
+    setState(() => _liveNotification = message);
+    _liveNotificationTimer?.cancel();
+    _liveNotificationTimer = Timer(const Duration(seconds: 8), () {
+      if (mounted) setState(() => _liveNotification = null);
+    });
   }
 
   void _onLoginSuccess(UserProfile user) {
@@ -101,13 +171,19 @@ class _KairosAppState extends State<KairosApp> {
       _currentUser = user;
       _selectedIndex = 0;
     });
+    _connectSocialHub();
   }
 
   Future<void> _onLogout() async {
     Analytics.logout();
+    _liveNotificationTimer?.cancel();
+    _disconnectSocialHub();
     await ApiClient().clearToken();
     if (kDemoMode) DemoBackend.instance.reset();
-    setState(() => _currentUser = null);
+    setState(() {
+      _currentUser = null;
+      _liveNotification = null;
+    });
   }
 
   static const _tabNames = ['inicio', 'trabajos', 'red', 'chats', 'perfil'];
@@ -156,6 +232,7 @@ class _KairosAppState extends State<KairosApp> {
                   currentUser: _currentUser!,
                   roleController: _roleController,
                   onLogout: _onLogout,
+                  liveNotification: _liveNotification,
                   child: _buildScreen(),
                 );
               },

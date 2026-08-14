@@ -47,25 +47,33 @@ public class SocialHub : Hub
     // ── Notifications ──────────────────────────────────────────────────────────
 
     /// <summary>Push a like notification to the post author.</summary>
-    public async Task NotifyLike(string targetUserId, int postId, string likedByName)
+    /// <remarks>
+    /// El nombre de quien reacciona sale del token, no del cliente: si viniera
+    /// como argumento, cualquiera podría notificar en nombre de otra persona.
+    /// </remarks>
+    public async Task NotifyLike(string targetUserId, int postId)
     {
         await Clients.User(targetUserId).SendAsync("ReceiveLike", new
         {
             postId,
-            likedByName,
+            likedByName = ActorName(),
             timestamp = DateTime.UtcNow,
         });
     }
 
     /// <summary>Push a follow notification to the followed user.</summary>
-    public async Task NotifyFollow(string targetUserId, string followerName)
+    public async Task NotifyFollow(string targetUserId)
     {
         await Clients.User(targetUserId).SendAsync("ReceiveFollow", new
         {
-            followerName,
+            followerName = ActorName(),
             timestamp = DateTime.UtcNow,
         });
     }
+
+    /// <summary>Nombre visible de quien invoca, tomado del claim del JWT.</summary>
+    private string ActorName()
+        => Context.User?.FindFirst("fullName")?.Value ?? "Alguien";
 
     // ── Comment sections ───────────────────────────────────────────────────────
 
