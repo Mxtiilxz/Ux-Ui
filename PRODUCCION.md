@@ -13,12 +13,14 @@ cambió, qué queda por hacer en las consolas web y cómo desplegar.
 |---|---|
 | Proveedor EF Core: MySQL → PostgreSQL | `Kairos.Infrastructure.csproj`, `DependencyInjection.cs`, `ApplicationDbContextFactory.cs` |
 | Migración inicial nativa de Postgres (11 tablas) | `Migrations/*_InitPostgres.cs` |
+| Texto alternativo de las imágenes de publicaciones | `Migrations/*_AddPostImageAltText.cs` |
 | Almacenamiento de archivos en Supabase Storage | `Services/SupabaseStorageService.cs` |
 | Secretos fuera de `appsettings.json` | `appsettings.json`, `Program.cs` |
 | Seeder del primer usuario `staff` | `Persistence/ProductionSeeder.cs` |
 | Endpoint `GET /health` sin autenticación | `Program.cs` |
 | CORS incluye el dominio de Netlify en uso | `Program.cs` |
 | URLs de API y hubs derivadas de un solo indicador | `frontend/lib/core/config.dart` |
+| Notificaciones sociales en vivo conectadas de punta a punta | `frontend/lib/main.dart`, `SocialHub.cs` |
 
 ### Pendiente
 
@@ -49,6 +51,18 @@ datos y los archivos, pero la API necesita su propio host. Opciones gratuitas:
 
 ## 3. Configurar Supabase
 
+De principio a fin son seis pasos. Los tres primeros se hacen en la consola de Supabase, el
+cuarto desde tu equipo, y los dos últimos en el host de la API:
+
+1. Crear el proyecto y guardar la contraseña de la base de datos (3.1).
+2. Copiar la cadena de conexión en formato **.NET**, con el **Session pooler** (3.1).
+3. Crear el bucket público `kairos-media` y copiar la Project URL y la clave
+   `service_role` (3.2).
+4. Aplicar las migraciones y comprobar que aparecen las 12 tablas (3.1, pasos 3 y 4).
+5. Cargar las variables de entorno en el host de la API (sección 4).
+6. Arrancar una vez con las variables `SEED_STAFF_*` para crear la cuenta de
+   administración, y borrarlas después (sección 4).
+
 ### 3.1 Base de datos
 
 1. Crear un proyecto en [supabase.com](https://supabase.com). Anotar la contraseña de la
@@ -63,15 +77,32 @@ datos y los archivos, pero la API necesita su propio host. Opciones gratuitas:
    > Usar el **Session pooler** (puerto 5432), no el Transaction pooler (6543): este último
    > no admite sentencias preparadas y EF Core las usa.
 
-3. Aplicar la migración desde tu equipo:
+3. Aplicar las migraciones desde tu equipo. Son dos: la inicial crea las 11 tablas y la
+   segunda agrega la columna del texto alternativo de las imágenes.
 
 ```bash
-cd backend
-KAIROS_DESIGN_TIME_CONNECTION="LA_CADENA_DE_ARRIBA" dotnet ef database update --project src/Kairos.Infrastructure --startup-project src/Kairos.API
+cd backend && KAIROS_DESIGN_TIME_CONNECTION="LA_CADENA_DE_ARRIBA" dotnet ef database update --project src/Kairos.Infrastructure --startup-project src/Kairos.API
 ```
 
    La API también aplica las migraciones sola al arrancar, así que este paso es opcional;
    sirve para confirmar que la conexión funciona antes de desplegar.
+
+4. Confirmar que el esquema quedó bien. En el **SQL Editor** de Supabase:
+
+```sql
+SELECT table_name FROM information_schema.tables
+WHERE table_schema = 'public' ORDER BY table_name;
+```
+
+   Deben aparecer 12 filas: `__EFMigrationsHistory` más las 11 tablas de la aplicación
+   (`comments`, `follows`, `job_applications`, `job_postings`, `likes`, `messages`, `posts`,
+   `skills`, `user_activities`, `user_skills`, `users`).
+
+   Si prefieres revisar el SQL antes de tocar la base, esto lo imprime sin ejecutarlo:
+
+```bash
+cd backend && dotnet ef migrations script --idempotent --project src/Kairos.Infrastructure --startup-project src/Kairos.API
+```
 
 ### 3.2 Almacenamiento de imágenes
 
@@ -147,8 +178,30 @@ netlify deploy --prod --dir=build/web
 Un solo indicador basta: `config.dart` deriva de él la URL de la API y las de ambos hubs.
 `API_URL`, `HUB_URL` y `SOCIAL_HUB_URL` siguen existiendo para sobrescribirlas por separado.
 
-Luego, verificar el recorrido completo: registro → aprobación por el staff → login →
-publicar → comentar → dar me gusta → **recargar y comprobar que todo persiste**.
+### Comprobar que los datos persisten de verdad
+
+Este es el recorrido que confirma que la base está bien integrada. Recargar la página
+después de cada bloque: si algo se pierde al recargar, no se guardó en Postgres.
+
+1. **Registro y aprobación** — registrar una cuenta de estudiante, entrar con el staff
+   creado por `ProductionSeeder`, aprobarla, y luego iniciar sesión con ella.
+2. **Publicación con imagen** — publicar con una imagen y escribir su descripción en el
+   campo "Describe la imagen". Confirmar en Supabase:
+
+   ```sql
+   SELECT "Id", "ImageUrl", "ImageAltText" FROM posts ORDER BY "CreatedAt" DESC LIMIT 5;
+   ```
+
+   `ImageUrl` debe apuntar a `.../storage/v1/object/public/kairos-media/...` y abrir en el
+   navegador. `ImageAltText` debe traer lo que escribiste (o `NULL` si lo dejaste vacío,
+   que es lo correcto para una imagen decorativa).
+3. **Interacciones** — dar me gusta, comentar, seguir a alguien y postular a una oferta.
+   Recargar y verificar que los contadores se mantienen.
+4. **Tiempo real** — con dos navegadores y dos cuentas: dar me gusta a una publicación de
+   la otra cuenta. En la ventana del autor debe aparecer el aviso en la barra superior.
+   Si no aparece, revisar que el WebSocket a `/hubs/social` no esté bloqueado por el host.
+5. **Sesión** — cerrar el navegador, volver a abrir la app y comprobar que la sesión sigue
+   iniciada.
 
 ---
 
@@ -185,12 +238,25 @@ absorber el tiempo de despertar, pero no puede despausar el proyecto.
 
 ---
 
-## 8. Verificación pendiente
+## 8. Qué está verificado y qué no
 
-La migración genera SQL válido y la solución compila sin advertencias, pero **no se pudo
-aplicar contra un Postgres real** en el entorno donde se hicieron estos cambios (no había
-Docker ni una instancia local). El primer `dotnet ef database update` contra Supabase es el
-que confirma que el esquema se crea completo.
+Verificado en el repositorio:
 
-Igualmente sin verificar por depender de credenciales: la subida de archivos a Supabase
-Storage y el arranque de `ProductionSeeder`.
+| Comprobación | Resultado |
+|---|---|
+| `dotnet build` de la solución | 0 advertencias, 0 errores |
+| `dotnet ef migrations script --idempotent` | SQL de PostgreSQL válido, 11 `CREATE TABLE` + la columna nueva |
+| `flutter test` | 23 de 23 |
+| `flutter analyze --no-fatal-infos` | Sin errores ni advertencias |
+| `flutter build web --release` (producción y demo) | Ambas compilan |
+
+**Sin verificar, porque depende de tus credenciales:**
+
+- La migración **no se ha aplicado todavía contra un Postgres real**. El primer
+  `dotnet ef database update` contra Supabase es el que lo confirma.
+- La subida de archivos a Supabase Storage.
+- El arranque de `ProductionSeeder`.
+- Las notificaciones en vivo por WebSocket contra un host real.
+
+La sección 5 tiene el recorrido exacto para comprobar los cuatro puntos cuando el proyecto
+esté creado.

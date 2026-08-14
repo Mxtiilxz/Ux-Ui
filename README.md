@@ -15,7 +15,8 @@ Red social para estudiantes técnico-profesionales de liceos técnicos. Conecta 
 
 | Archivo | Contenido |
 |---|---|
-| [PRODUCCION.md](PRODUCCION.md) | Plan de despliegue: hosting, secretos, brechas pendientes |
+| [PRODUCCION.md](PRODUCCION.md) | Integración con Supabase paso a paso, despliegue, secretos y brechas pendientes |
+| [docs/accessibility/](docs/accessibility/) | Auditoría WCAG 2.2 AA y reporte de remediación |
 | [DEMO.md](DEMO.md) | Modo demo sin backend y eventos de Google Analytics |
 | [backend/README.md](backend/README.md) | Arquitectura, endpoints, rate limiting, cómo levantar la API |
 | [frontend/README.md](frontend/README.md) | Estructura Flutter, tema, flags de compilación |
@@ -220,8 +221,11 @@ Para generar en cambio la build de demostración sin backend, agregar
 ## Funcionalidades implementadas
 
 - Registro e inicio de sesión con JWT (estudiante, staff, empresa)
-- Feed social con publicaciones, likes y comentarios en tiempo real (SignalR)
-- Subida de imágenes para posts y publicaciones de empleo
+- Feed social con publicaciones, likes y comentarios en tiempo real (SignalR), con aviso
+  en vivo al autor cuando alguien reacciona o lo empieza a seguir
+- Subida de imágenes para posts y publicaciones de empleo, con texto alternativo escrito
+  por el autor; si lo deja vacío la imagen se publica como decorativa
+- Interfaz auditada contra WCAG 2.2 nivel AA (ver [docs/accessibility/](docs/accessibility/))
 - Gestión de ofertas laborales: crear, editar, eliminar y ver postulantes
 - Postulación a ofertas de empleo
 - **Quick Match**: los estudiantes registran sus competencias (técnicas,

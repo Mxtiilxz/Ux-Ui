@@ -73,6 +73,34 @@ limited to the initial semantics tree and document metadata; authenticated
 shell focus behavior is supported by the passing Flutter keyboard/semantics
 tests, not claimed as a physical browser-keyboard result.
 
+## Correcciones posteriores a la revisión de la rama
+
+Una revisión del contenido de la rama encontró cuatro remediaciones que estaban declaradas
+como hechas pero que en producción no hacían nada. Se corrigieron:
+
+| Hallazgo | Corrección |
+|---|---|
+| `AppShell.liveNotification` solo lo usaba el test: `main.dart`, su único call site, nunca lo pasaba. Además el `SocialHub` entero estaba muerto en el cliente — nadie invocaba `NotifyLike` ni `NotifyFollow`. | `main.dart` conecta el hub social al iniciar sesión y publica los avisos en la región viva del shell. `PostCard` y `NetworkPage` emiten los eventos al dar me gusta y al seguir. El nombre de quien actúa lo resuelve el servidor desde el claim `fullName` del JWT, no el cliente. |
+| `PostModel` leía `imageAltText` de la API, pero el backend no tenía ese campo: siempre caía al respaldo. | La entidad `Post` guarda `ImageAltText` (migración `AddPostImageAltText`), el comando y el DTO del feed lo transportan, y el compositor pide la descripción al publicar una imagen. |
+| El respaldo usaba los primeros 160 caracteres del cuerpo de la publicación como texto alternativo, así que un lector de pantalla leía lo mismo dos veces. | Se eliminó. `PostModel.imageSemanticLabel` devuelve `null` cuando el autor no describió la imagen, y `PostCard` la excluye del árbol de semántica en vez de inventarle una descripción (WCAG 1.1.1). |
+| El workflow de CI se disparaba en `push` a `redesign`, una rama ya borrada, y solo verificaba el formato de `test/`. La única build de release era la de demo, donde `kDemoMode` es constante y el compilador elimina las rutas que hablan con el backend real. | Ramas corregidas, formato verificado sobre `lib` y `test`, y dos builds de release: producción y demo. |
+
+Se retiró además `Persistence/Configurations/` (tres clases `IEntityTypeConfiguration` que
+nunca se aplicaban porque falta `ApplyConfigurationsFromAssembly`): editarlas no tenía
+efecto y divergían del esquema real definido en `OnModelCreating`.
+
+La suite pasa de 22 a **23 tests**. El nuevo comprueba que la imagen de una publicación se
+anuncia solo cuando tiene descripción del autor.
+
+### Límite conocido del gate de guías
+
+`meetsGuideline(androidTapTargetGuideline / iOSTapTargetGuideline /
+labeledTapTargetGuideline)` corre sobre un fixture sintético, no sobre una pantalla de
+producción. Se intentó moverlo a `LoginPage` con el tema real y no es posible hoy:
+`AppTheme.light` construye su tipografía con google_fonts, que sin red lanza una excepción
+asíncrona que el framework de tests no permite descartar. Las pantallas reales sí están
+cubiertas por los tests de semántica y de reflow.
+
 ## Remaining certification work
 
 This branch is an automated WCAG 2.2 AA candidate, not an independent
