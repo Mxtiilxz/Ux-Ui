@@ -113,6 +113,14 @@ void main() {
     );
   }
 
+  // Alcance de este test: comprueba que los controles Material que usa Kairos
+  // cumplen tamaño mínimo y etiquetado con el tema por defecto. No recorre
+  // pantallas de producción — eso lo cubren los tests de semántica sobre
+  // LoginPage, RegisterPage, PostCard, AppShell y StaffManagementPage.
+  //
+  // Correrlo sobre una pantalla real con `AppTheme.light` no es posible hoy:
+  // google_fonts intenta descargar Manrope, falla sin red y lanza una excepción
+  // asíncrona que el framework de tests no permite descartar.
   testWidgets(
     'representative controls meet Flutter target and naming guidelines',
     (tester) async {

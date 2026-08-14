@@ -29,6 +29,7 @@ class ChatMessage {
   final String text;
   final String timestamp;
   final bool isMine;
+
   /// The user ID of the sender. Used to determine isMine when received from hub.
   final String senderId;
 }

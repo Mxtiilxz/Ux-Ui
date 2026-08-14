@@ -2,9 +2,9 @@ enum OpportunityType { practice, job }
 
 extension OpportunityTypeLabel on OpportunityType {
   String get label => switch (this) {
-        OpportunityType.practice => 'Practica',
-        OpportunityType.job      => 'Trabajo',
-      };
+    OpportunityType.practice => 'Practica',
+    OpportunityType.job => 'Trabajo',
+  };
 }
 
 class JobModel {

@@ -8,7 +8,7 @@ on:
   push:
     branches:
       - main
-      - redesign
+      - accessibility
     paths:
       - 'frontend/**'
       - '.github/workflows/accessibility-aa.yml'
@@ -36,8 +36,8 @@ jobs:
       - name: Resolve dependencies
         run: flutter pub get
 
-      - name: Verify accessibility test formatting
-        run: dart format --output=none --set-exit-if-changed test
+      - name: Verify formatting
+        run: dart format --output=none --set-exit-if-changed lib test
 
       - name: Analyze
         run: flutter analyze --no-fatal-infos
@@ -45,5 +45,11 @@ jobs:
       - name: Run accessibility regression suite
         run: flutter test
 
-      - name: Build release web artifact
+      # kDemoMode es una constante de compilación: con DEMO_MODE=true el
+      # compilador elimina las rutas que hablan con el backend real, así que
+      # esa build sola no probaría el código que corre en producción.
+      - name: Build release web artifact (producción)
+        run: flutter build web --release --dart-define=BACKEND_URL=https://example.invalid
+
+      - name: Build release web artifact (demo)
         run: flutter build web --release --dart-define=DEMO_MODE=true

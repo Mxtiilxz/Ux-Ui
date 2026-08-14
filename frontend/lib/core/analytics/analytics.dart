@@ -1,4 +1,5 @@
-import 'analytics_sink_stub.dart' if (dart.library.html) 'analytics_sink_web.dart';
+import 'analytics_sink_stub.dart'
+    if (dart.library.html) 'analytics_sink_web.dart';
 
 /// Punto único de registro de interacciones para Google Analytics.
 ///
@@ -15,13 +16,13 @@ class Analytics {
   // ── Sesión y navegación ────────────────────────────────────────────────────
 
   /// Perfil con el que el tester decide recorrer la plataforma.
-  static void login(String role) => _send('login', {'method': 'demo', 'rol': role});
+  static void login(String role) =>
+      _send('login', {'method': 'demo', 'rol': role});
 
   static void logout() => _send('logout');
 
   /// Cambio de pestaña en la barra principal.
-  static void tabView(String tab) =>
-      _send('ver_pestana', {'pestana': tab});
+  static void tabView(String tab) => _send('ver_pestana', {'pestana': tab});
 
   // ── Feed ───────────────────────────────────────────────────────────────────
 
@@ -46,11 +47,10 @@ class Analytics {
 
   // ── Quick Match ────────────────────────────────────────────────────────────
 
-  static void quickMatchSkillToggle(String skill, bool selected) =>
-      _send('quickmatch_filtro', {
-        'competencia': skill,
-        'accion': selected ? 'agregar' : 'quitar',
-      });
+  static void quickMatchSkillToggle(String skill, bool selected) => _send(
+    'quickmatch_filtro',
+    {'competencia': skill, 'accion': selected ? 'agregar' : 'quitar'},
+  );
 
   static void quickMatchSearch(int skillCount, int resultCount) =>
       _send('quickmatch_buscar', {
@@ -62,18 +62,17 @@ class Analytics {
       _send('quickmatch_contactar', {'coincidencia': matchPercentage});
 
   /// La empresa guarda su mensaje de contacto (personalizado o restablecido).
-  static void quickMatchTemplateEdit(bool isDefault) =>
-      _send('quickmatch_mensaje', {
-        'accion': isDefault ? 'restablecer' : 'personalizar',
-      });
+  static void quickMatchTemplateEdit(bool isDefault) => _send(
+    'quickmatch_mensaje',
+    {'accion': isDefault ? 'restablecer' : 'personalizar'},
+  );
 
   // ── Perfil y competencias ──────────────────────────────────────────────────
 
-  static void skillToggle(String skill, bool added) =>
-      _send('competencia_perfil', {
-        'competencia': skill,
-        'accion': added ? 'agregar' : 'quitar',
-      });
+  static void skillToggle(String skill, bool added) => _send(
+    'competencia_perfil',
+    {'competencia': skill, 'accion': added ? 'agregar' : 'quitar'},
+  );
 
   static void quickMatchVisibility(bool visible) =>
       _send('quickmatch_visibilidad', {'visible': visible});

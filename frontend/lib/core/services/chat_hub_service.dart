@@ -18,8 +18,7 @@ class ChatHubService {
 
   HubConnection? _connection;
 
-  final _messageController =
-      StreamController<_IncomingMessage>.broadcast();
+  final _messageController = StreamController<_IncomingMessage>.broadcast();
   final _typingController = StreamController<String>.broadcast();
 
   /// Fires whenever a "ReceiveMessage" event arrives from the hub.
@@ -28,8 +27,7 @@ class ChatHubService {
   /// Fires whenever a "UserTyping" event arrives (yields the sender's ID).
   Stream<String> get onTyping => _typingController.stream;
 
-  bool get isConnected =>
-      _connection?.state == HubConnectionState.Connected;
+  bool get isConnected => _connection?.state == HubConnectionState.Connected;
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
 
@@ -68,11 +66,13 @@ class ChatHubService {
   void _onReceiveMessage(List<Object?>? args) {
     if (args == null || args.isEmpty) return;
     final map = args[0] as Map<String, dynamic>? ?? {};
-    _messageController.add(_IncomingMessage(
-      senderId: map['senderId'] as String? ?? '',
-      content: map['content'] as String? ?? '',
-      timestamp: map['timestamp'] as String? ?? '',
-    ));
+    _messageController.add(
+      _IncomingMessage(
+        senderId: map['senderId'] as String? ?? '',
+        content: map['content'] as String? ?? '',
+        timestamp: map['timestamp'] as String? ?? '',
+      ),
+    );
   }
 
   void _onUserTyping(List<Object?>? args) {
