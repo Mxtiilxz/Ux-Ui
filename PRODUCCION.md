@@ -265,10 +265,14 @@ Verificado en el repositorio:
 | `flutter analyze --no-fatal-infos` | Sin errores ni advertencias |
 | `flutter build web --release` (producción y demo) | Ambas compilan |
 
+Verificado contra la base real:
+
+| Comprobación | Resultado |
+|---|---|
+| `dotnet ef database update` contra Supabase | Las dos migraciones aplicadas sin error |
+
 **Sin verificar, porque depende de tus credenciales:**
 
-- La migración **no se ha aplicado todavía contra un Postgres real**. El primer
-  `dotnet ef database update` contra Supabase es el que lo confirma.
 - La subida de archivos a Supabase Storage.
 - El arranque de `ProductionSeeder`.
 - Las notificaciones en vivo por WebSocket contra un host real.

@@ -256,9 +256,6 @@ Para generar en cambio la build de demostración sin backend, agregar
   comentarios, seguimientos, postulaciones y logins no registran actividad.
 - El CV generado es un registro de actividad, no un currículum con secciones de
   educación y experiencia.
-- **La migración a PostgreSQL no se ha aplicado todavía contra una base real.** Genera SQL
-  válido y la solución compila, pero el primer `dotnet ef database update` contra Supabase
-  es el que lo confirma.
 - **Supabase pausa los proyectos gratuitos tras 7 días de inactividad** y hay que
   despausarlos a mano desde el panel.
 
