@@ -43,9 +43,13 @@ datos y los archivos, pero la API necesita su propio host. Opciones gratuitas:
 
 | Host | Nota |
 |---|---|
-| **Koyeb** | 1 servicio gratis, no duerme. Recomendado. |
-| Render | Gratis, pero duerme a los 15 min y el arranque en frío tarda ~50 s |
-| Fly.io | Docker nativo, requiere tarjeta aunque no cobre |
+| **Render** | Gratis y sin tarjeta, 750 h/mes. Duerme a los 15 min sin tráfico y el arranque en frío tarda 30–60 s. **Recomendado**: es el único de los tres con plan gratuito real hoy |
+| Koyeb | ❌ Ya no sirve. Mistral la compró en febrero de 2026 y **cerró el plan gratuito a las cuentas nuevas**; las existentes lo conservan |
+| Fly.io | ❌ Eliminó su plan gratuito y exige tarjeta |
+
+> Ojo con la suma de dos capas que se duermen: Render se apaga a los 15 minutos y Supabase
+> pausa el proyecto tras 7 días. El primer acceso después de un fin de semana puede tardar
+> un minuto largo, y tras una semana entera hay que despausar Supabase a mano antes.
 
 ---
 
@@ -170,15 +174,31 @@ existe no hace nada. **Después del primer arranque, borrar las tres variables d
 Si no se definen y no existe ningún staff, la API arranca igual pero deja una advertencia
 en el log.
 
-### Desplegar en Koyeb
+### Desplegar en Render
 
-1. Conectar el repositorio de GitHub.
-2. Koyeb detecta `backend/Dockerfile`.
-3. Puerto: `8080` (el que expone el Dockerfile).
-4. Health check: `GET /health`.
-5. Cargar las variables de entorno.
+**New → Web Service → Connect a repository.** El repositorio es privado; Render accede por
+la app de GitHub sin hacerlo público.
 
-Verificar: `https://TU-API/health` debe devolver `{"status":"ok"}`.
+| Campo | Valor | Por qué |
+|---|---|---|
+| Branch | la rama que quieras publicar | Render redespliega en cada push a esa rama |
+| Language | `Docker` | Se detecta solo al ver el Dockerfile |
+| Root Directory | `backend` | El Dockerfile hace `COPY Kairos.sln .` y ese archivo vive en `backend/`, no en la raíz. Con la raíz por defecto la build falla en la primera instrucción |
+| Dockerfile Path | `./Dockerfile` | Relativo al Root Directory |
+| Instance Type | `Free` | 750 h/mes, sin tarjeta |
+| Health Check Path | `/health` | No toca la base de datos, así que un problema de BD no provoca reinicios en bucle |
+
+A las variables de entorno de la tabla anterior hay que sumarle una más, propia de Render:
+
+| Variable | Valor |
+|---|---|
+| `PORT` | `8080` |
+
+Render enruta al puerto que indique `PORT` (por defecto 10000), y el Dockerfile fija
+`ASPNETCORE_URLS=http://+:8080`. Sin esa variable el servicio arranca pero queda
+inalcanzable, que es el fallo más difícil de diagnosticar de toda esta configuración.
+
+Verificar: `https://TU-API.onrender.com/health` debe devolver `{"status":"ok"}`.
 
 ---
 

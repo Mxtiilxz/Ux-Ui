@@ -198,9 +198,11 @@ Crear el proyecto, copiar la cadena de conexión y crear un bucket público
 ### Backend → cualquier host con Docker
 
 `backend/Dockerfile` está listo y expone el puerto `8080`. Supabase no ejecuta
-contenedores .NET, así que la API necesita su propio host: Koyeb, Render o Fly.io
-tienen plan gratuito. Configurar las variables de entorno listadas arriba y apuntar
-el health check a `GET /health`.
+contenedores .NET, así que la API necesita su propio host. **Render** es hoy el único
+con plan gratuito real y sin tarjeta (Koyeb lo cerró a cuentas nuevas tras la compra
+por Mistral; Fly.io lo eliminó). Configurar `backend` como Root Directory, las
+variables de entorno listadas arriba más `PORT=8080`, y el health check en
+`GET /health`. Detalle completo en [PRODUCCION.md](PRODUCCION.md).
 
 ### Frontend → Netlify
 
