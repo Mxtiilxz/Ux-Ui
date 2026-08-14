@@ -67,12 +67,27 @@ cuarto desde tu equipo, y los dos últimos en el host de la API:
 
 1. Crear un proyecto en [supabase.com](https://supabase.com). Anotar la contraseña de la
    base de datos que se define al crearlo — no se puede volver a ver.
-2. En **Project Settings → Database → Connection string**, copiar la cadena en formato
-   **.NET / ADO**. Queda parecida a:
+2. En **Connect → .NET**, Supabase no entrega la cadena suelta: la muestra dentro de un
+   `appsettings.json` de ejemplo y sugiere instalar
+   `Microsoft.Extensions.Configuration.Json`. De esos tres pasos, aquí solo sirve el valor
+   de `DefaultConnection`:
 
    ```
-   Host=aws-0-us-east-1.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.abcdefgh;Password=TU_PASSWORD;SSL Mode=Require;Trust Server Certificate=true
+   Host=aws-0-REGION.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.REFERENCIA;Password=TU_PASSWORD;SSL Mode=Require;Trust Server Certificate=true
    ```
+
+   > 🔒 **No copiar el `appsettings.json` que ofrece la consola.** Ese archivo está
+   > versionado en git y por eso mismo ya hay una contraseña filtrada en el historial de
+   > este repositorio. La cadena va como variable de entorno, nunca en un archivo del repo.
+
+   Tres detalles de la cadena:
+
+   - Supabase **omite `Port=` del string** aunque lo liste aparte en los parámetros de
+     conexión. Agregarlo a mano.
+   - El paquete `Microsoft.Extensions.Configuration.Json` **no hace falta**: ASP.NET Core
+     ya lo trae.
+   - Si la contraseña contiene `;` o `=`, encerrar el valor entre comillas dobles dentro de
+     la cadena: `Password="mi;clave"`.
 
    > Usar el **Session pooler** (puerto 5432), no el Transaction pooler (6543): este último
    > no admite sentencias preparadas y EF Core las usa.
