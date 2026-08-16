@@ -9,8 +9,8 @@ durante la sesión del navegador.
 ## 1. Configurar Google Analytics
 
 **Ya está configurado.** El sitio publicado en
-[kairoswebapp.netlify.app](https://kairoswebapp.netlify.app) mide contra la propiedad
-"Kairos" con el ID `G-XDGCXT8NRL`, definido en `web/index.html`:
+[kairos-legacydemo.netlify.app](https://kairos-legacydemo.netlify.app) mide contra la
+propiedad "Kairos" con el ID `G-XDGCXT8NRL`, definido en `web/index.html`:
 
 ```js
 var KAIROS_GA_ID = 'G-XDGCXT8NRL';
@@ -35,12 +35,18 @@ para probar sin ensuciar las estadísticas.
 ### Netlify (gratis, sin instalar nada)
 
 1. Entra a [app.netlify.com](https://app.netlify.com) con tu cuenta.
-2. Abre el sitio existente (`kairoswebapp`) → pestaña **Deploys**.
+2. Abre el sitio de la demo (`kairos-legacydemo`) → pestaña **Deploys**.
 3. Arrastra la carpeta `frontend/build/web` completa sobre la zona de
    "Drag and drop your site output folder here".
 
 Al desplegar sobre el sitio existente, la URL no cambia y Analytics sigue
 midiendo sin reconfigurar nada.
+
+> ⚠️ **No confundir los dos sitios.** `kairoswebapp` es la aplicación real, conectada
+> a la base de datos; `kairos-legacydemo` es esta demo en memoria. Subir aquí una build
+> de producción, o al revés, es fácil de hacer y difícil de notar: ambas se ven igual
+> hasta que alguien intenta iniciar sesión. La demo se compila **siempre** con
+> `--dart-define=DEMO_MODE=true`.
 
 ### Alternativa: servirlo desde un computador
 

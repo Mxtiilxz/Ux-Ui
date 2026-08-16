@@ -2,12 +2,17 @@
 
 Red social para estudiantes técnico-profesionales de liceos técnicos. Conecta alumnos con empresas, prácticas profesionales y la comunidad de su área.
 
-**Demo pública:** [https://kairoswebapp.netlify.app](https://kairoswebapp.netlify.app) — build compilada con
-`DEMO_MODE=true`, funciona sin backend y con datos en memoria. Ver [DEMO.md](DEMO.md).
+## Entornos publicados
 
-> ⚠️ **No hay despliegue de producción activo.** El frontend publicado corre en modo demo.
-> El código ya está migrado a PostgreSQL y Supabase Storage; falta crear el proyecto en
-> Supabase y desplegar la API. Los pasos están en [PRODUCCION.md](PRODUCCION.md).
+| Entorno | URL | Qué es |
+|---|---|---|
+| **Producción** | [kairoswebapp.netlify.app](https://kairoswebapp.netlify.app) | La aplicación real: cuentas, base de datos PostgreSQL en Supabase y archivos en Supabase Storage |
+| API | [ux-ui-b1s1.onrender.com](https://ux-ui-b1s1.onrender.com/health) | Backend en Render. `GET /health` responde `{"status":"ok"}` |
+| Demo | [kairos-legacydemo.netlify.app](https://kairos-legacydemo.netlify.app) | Build con `DEMO_MODE=true`: sin backend, datos en memoria que se borran al recargar. Para estudios de usabilidad — ver [DEMO.md](DEMO.md) |
+
+> ⏱️ Ambos servicios usan planes gratuitos que se duermen. Render apaga la API tras 15
+> minutos sin tráfico y la primera petición tarda unos 50 segundos en despertarla. Supabase
+> pausa el proyecto tras 7 días de inactividad y hay que reactivarlo a mano desde su panel.
 
 ---
 
@@ -37,7 +42,7 @@ Red social para estudiantes técnico-profesionales de liceos técnicos. Conecta 
 | Autenticación | JWT Bearer HS256 |
 | Rate limiting | ASP.NET Core Rate Limiter |
 | Analítica | Google Analytics 4 (gtag.js) |
-| Deploy backend | Pendiente — ver [PRODUCCION.md](PRODUCCION.md) |
+| Deploy backend | Render (contenedor Docker) |
 | Deploy frontend | Netlify |
 
 ---

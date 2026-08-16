@@ -285,17 +285,25 @@ Verificado en el repositorio:
 | `flutter analyze --no-fatal-infos` | Sin errores ni advertencias |
 | `flutter build web --release` (producción y demo) | Ambas compilan |
 
-Verificado contra la base real:
+Verificado contra la infraestructura real, recorriendo la aplicación publicada:
 
 | Comprobación | Resultado |
 |---|---|
 | `dotnet ef database update` contra Supabase | Las dos migraciones aplicadas sin error |
+| `GET /health` en Render | `200 {"status":"ok"}` — arranque en frío ~9 s, luego 0,2 s |
+| Conexión API ↔ PostgreSQL | Implícita: `Program.cs` migra antes de atender peticiones, así que arrancar ya la prueba |
+| CORS Netlify → Render | Preflight `204` con `access-control-allow-origin` correcto |
+| `ProductionSeeder` | Cuenta staff creada y con sesión iniciada |
+| Registro, aprobación y login de un alumno | Persisten tras cerrar sesión y recargar |
+| Subida de imágenes a Supabase Storage | La imagen de una publicación se muestra tras publicarla |
+| Notificaciones en vivo (SignalR) | El "me gusta" de una sesión llega a la otra |
+| Reflujo al 200 % de zoom | Sin pérdida de contenido |
 
-**Sin verificar, porque depende de tus credenciales:**
+**Lo que sigue sin verificar** no depende ya de la infraestructura:
 
-- La subida de archivos a Supabase Storage.
-- El arranque de `ProductionSeeder`.
-- Las notificaciones en vivo por WebSocket contra un host real.
-
-La sección 5 tiene el recorrido exacto para comprobar los cuatro puntos cuando el proyecto
-esté creado.
+- La generación del CV en PDF y del reporte mensual contra el contenedor de producción.
+  QuestPDF necesita las librerías nativas de SkiaSharp, que el `Dockerfile` instala, pero
+  eso no se ha ejercitado todavía.
+- La certificación manual de accesibilidad con lectores de pantalla reales (NVDA,
+  VoiceOver, TalkBack), detallada en
+  [`docs/accessibility/`](docs/accessibility/WCAG_2_2_AA_IMPLEMENTATION_2026-08-11.md).
