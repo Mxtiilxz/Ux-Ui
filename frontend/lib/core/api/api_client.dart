@@ -307,6 +307,31 @@ class ApiClient {
     await _dio.delete('/skills/me/$skillId');
   }
 
+  /// Solo staff: catálogo con el número de alumnos que tiene cada competencia.
+  Future<List<Map<String, dynamic>>> getSkillCatalog() async {
+    final response = await _dio.get('/skills/catalog');
+    return (response.data as List<dynamic>).cast<Map<String, dynamic>>();
+  }
+
+  /// Solo staff: agrega una competencia al catálogo.
+  /// `category` es 'Technical', 'Language' o 'Experience'.
+  Future<Map<String, dynamic>> createSkill({
+    required String name,
+    required String category,
+  }) async {
+    final response = await _dio.post(
+      '/skills',
+      data: {'name': name, 'category': category},
+    );
+    return (response.data as Map).cast<String, dynamic>();
+  }
+
+  /// Solo staff: quita una competencia del catálogo. Falla con 409 si algún
+  /// alumno la tiene registrada.
+  Future<void> deleteSkill(int skillId) async {
+    await _dio.delete('/skills/$skillId');
+  }
+
   /// Company-only: get the current Quick Match contact message template.
   /// Returns `{ template: String, isDefault: bool }`.
   Future<Map<String, dynamic>> getCompanyMessageTemplate() async {

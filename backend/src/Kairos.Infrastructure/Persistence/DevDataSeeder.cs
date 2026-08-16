@@ -174,29 +174,10 @@ public static class DevDataSeeder
         }
 
         // ── Catálogo de competencias (Quick Match) ──────────────────────────────
-        var hasSkills = await db.Skills.AnyAsync();
-        if (!hasSkills)
-        {
-            db.Skills.AddRange(
-                new Skill { Name = "PLC Siemens",             Category = SkillCategory.Technical },
-                new Skill { Name = "Arduino",                 Category = SkillCategory.Technical },
-                new Skill { Name = "SolidWorks",               Category = SkillCategory.Technical },
-                new Skill { Name = "AutoCAD",                  Category = SkillCategory.Technical },
-                new Skill { Name = "Python",                   Category = SkillCategory.Technical },
-                new Skill { Name = "C/C++",                    Category = SkillCategory.Technical },
-                new Skill { Name = "Redes",                    Category = SkillCategory.Technical },
-                new Skill { Name = "Modbus",                   Category = SkillCategory.Technical },
-                new Skill { Name = "Robótica industrial",      Category = SkillCategory.Technical },
-                new Skill { Name = "Diseño 3D",                Category = SkillCategory.Technical },
-                new Skill { Name = "Inglés B1",                Category = SkillCategory.Language },
-                new Skill { Name = "Inglés B2",                Category = SkillCategory.Language },
-                new Skill { Name = "Inglés C1",                Category = SkillCategory.Language },
-                new Skill { Name = "Práctica en automatización", Category = SkillCategory.Experience },
-                new Skill { Name = "Práctica en TI",            Category = SkillCategory.Experience },
-                new Skill { Name = "Proyecto personal publicado", Category = SkillCategory.Experience }
-            );
-            await db.SaveChangesAsync();
-        }
+        // Mismo catálogo que en producción: si las dos listas divirgieran, una
+        // demo con competencias que la instalación real no tiene sería
+        // engañosa. Ver SkillCatalog.
+        await SkillCatalog.SeedAsync(db);
 
         // ── Competencias del estudiante de demo + visibilidad en Quick Match ────
         if (studentId.HasValue)

@@ -82,6 +82,21 @@ class DemoBackend {
     {'id': 14, 'name': 'Práctica en automatización', 'category': 'Experience'},
     {'id': 15, 'name': 'Práctica en TI', 'category': 'Experience'},
     {'id': 16, 'name': 'Proyecto personal publicado', 'category': 'Experience'},
+    // Competencias agregadas después. Van al final para no mover los IDs 1-16,
+    // que los candidatos de esta misma demo referencian más abajo.
+    {'id': 17, 'name': 'Soldadura al arco', 'category': 'Technical'},
+    {'id': 18, 'name': 'Instalaciones eléctricas', 'category': 'Technical'},
+    {'id': 19, 'name': 'Mantenimiento mecánico', 'category': 'Technical'},
+    {'id': 20, 'name': 'Torno y fresado CNC', 'category': 'Technical'},
+    {'id': 21, 'name': 'Neumática e hidráulica', 'category': 'Technical'},
+    {'id': 22, 'name': 'Lectura de planos', 'category': 'Technical'},
+    {'id': 23, 'name': 'Prevención de riesgos', 'category': 'Technical'},
+    {'id': 24, 'name': 'Práctica en mantenimiento', 'category': 'Experience'},
+    {
+      'id': 25,
+      'name': 'Licencia de conducir clase B',
+      'category': 'Experience',
+    },
   ];
 
   // ════════════════════════════════════════════════════════════════════════

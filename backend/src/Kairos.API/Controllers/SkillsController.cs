@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using Kairos.Application.Common.Interfaces;
 using Kairos.Application.Features.Matching.Commands.AddUserSkill;
+using Kairos.Application.Features.Matching.Commands.CreateSkill;
+using Kairos.Application.Features.Matching.Commands.DeleteSkill;
 using Kairos.Application.Features.Matching.Commands.RemoveUserSkill;
 using Kairos.Application.Features.Matching.Commands.SetQuickMatchTemplate;
 using Kairos.Application.Features.Matching.Commands.SetQuickMatchVisibility;
@@ -38,6 +40,49 @@ public class SkillsController(IMediator mediator, IApplicationDbContext db) : Co
             .ToListAsync(ct);
 
         return Ok(skills);
+    }
+
+    /// <summary>
+    /// Catálogo con el número de alumnos que tiene cada competencia (solo staff).
+    /// El recuento es lo que permite al liceo ver qué competencias sobran y cuáles
+    /// faltan, en vez de administrar la lista a ciegas.
+    /// </summary>
+    [HttpGet("catalog")]
+    public async Task<IActionResult> GetCatalog(CancellationToken ct)
+    {
+        if (GetRole() != "staff") return Forbid();
+
+        var catalog = await db.Skills
+            .OrderBy(s => s.Category)
+            .ThenBy(s => s.Name)
+            .Select(s => new SkillCatalogItem(
+                s.Id,
+                s.Name,
+                s.Category.ToString(),
+                s.UserSkills.Count))
+            .ToListAsync(ct);
+
+        return Ok(catalog);
+    }
+
+    /// <summary>Agrega una competencia al catálogo (solo staff).</summary>
+    [HttpPost]
+    public async Task<IActionResult> CreateSkill([FromBody] CreateSkillRequest request, CancellationToken ct)
+    {
+        if (GetRole() != "staff") return Forbid();
+
+        var created = await mediator.Send(new CreateSkillCommand(request.Name, request.Category), ct);
+        return CreatedAtAction(nameof(GetSkills), new { id = created.Id }, created);
+    }
+
+    /// <summary>Quita una competencia del catálogo, si ningún alumno la tiene (solo staff).</summary>
+    [HttpDelete("{skillId:int}")]
+    public async Task<IActionResult> DeleteSkill(int skillId, CancellationToken ct)
+    {
+        if (GetRole() != "staff") return Forbid();
+
+        await mediator.Send(new DeleteSkillCommand(skillId), ct);
+        return NoContent();
     }
 
     /// <summary>Quick Match: candidatos rankeados por coincidencia de competencias (solo empresas).</summary>
@@ -113,3 +158,4 @@ public class SkillsController(IMediator mediator, IApplicationDbContext db) : Co
 
 public record SetVisibilityRequest(bool Visible);
 public record SetCompanyMessageRequest(string? Template);
+public record CreateSkillRequest(string Name, string Category);

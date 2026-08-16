@@ -11,6 +11,7 @@ import '../../../../core/widgets/k_card.dart';
 import '../../../../core/widgets/post_card.dart';
 import '../../../home/data/models/post_model.dart';
 import '../../../staff/presentation/pages/registration_requests_page.dart';
+import '../../../staff/presentation/pages/skill_catalog_page.dart';
 import '../../../staff/presentation/pages/staff_management_page.dart';
 import '../../../staff/presentation/pages/user_management_page.dart';
 
@@ -416,6 +417,19 @@ class _HomePageState extends State<HomePage> {
                         ),
                         icon: const Icon(Icons.upload_file_rounded, size: 18),
                         label: const Text('Importar CSV'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: KairosPalette.primary,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const SkillCatalogPage(),
+                          ),
+                        ),
+                        icon: const Icon(Icons.checklist_rounded, size: 18),
+                        label: const Text('Competencias'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: KairosPalette.primary,
                           foregroundColor: Colors.white,

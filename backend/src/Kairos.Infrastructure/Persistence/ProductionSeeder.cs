@@ -8,7 +8,8 @@ using Microsoft.Extensions.Logging;
 namespace Kairos.Infrastructure.Persistence;
 
 /// <summary>
-/// Crea el primer usuario <c>staff</c> en un despliegue nuevo.
+/// Prepara un despliegue nuevo: siembra el catálogo de competencias y crea el
+/// primer usuario <c>staff</c>.
 ///
 /// Sin esto la plataforma queda bloqueada: <c>RegisterCommandHandler</c> crea a
 /// todos los usuarios en estado <c>pending</c> y solo un <c>staff</c> puede
@@ -31,6 +32,10 @@ public static class ProductionSeeder
         var logger = scope.ServiceProvider
             .GetRequiredService<ILoggerFactory>()
             .CreateLogger(typeof(ProductionSeeder));
+
+        // El catálogo de competencias no depende de ninguna credencial: sin él,
+        // Quick Match no funciona aunque el resto de la plataforma esté sana.
+        await SkillCatalog.SeedAsync(db);
 
         var email    = configuration[EmailKey];
         var password = configuration[PasswordKey];
