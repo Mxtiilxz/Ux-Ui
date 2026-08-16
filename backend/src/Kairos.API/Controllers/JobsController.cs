@@ -154,6 +154,48 @@ public class JobsController(IMediator mediator, IApplicationDbContext db) : Cont
         return NoContent();
     }
 
+    // ── Ofertas guardadas ────────────────────────────────────────────────────
+    // Antes el marcador de "guardar" vivía en la memoria del widget y se perdía
+    // al recargar, así que filtrar por guardadas no podía funcionar.
+
+    /// <summary>Ids de las ofertas que el usuario guardó.</summary>
+    [HttpGet("saved")]
+    public async Task<IActionResult> GetSavedJobs(CancellationToken ct)
+    {
+        var userId = GetUserId();
+        var ids = await db.SavedJobs
+            .Where(sj => sj.UserId == userId)
+            .OrderByDescending(sj => sj.SavedAt)
+            .Select(sj => sj.JobId)
+            .ToListAsync(ct);
+
+        return Ok(ids);
+    }
+
+    /// <summary>Guarda o quita una oferta de la lista. Devuelve el estado nuevo.</summary>
+    [HttpPost("{jobId:int}/save")]
+    public async Task<IActionResult> ToggleSavedJob(int jobId, CancellationToken ct)
+    {
+        var userId = GetUserId();
+
+        if (!await db.JobPostings.AnyAsync(j => j.Id == jobId, ct))
+            return NotFound();
+
+        var existing = await db.SavedJobs
+            .FirstOrDefaultAsync(sj => sj.UserId == userId && sj.JobId == jobId, ct);
+
+        if (existing is null)
+        {
+            db.SavedJobs.Add(new SavedJob { UserId = userId, JobId = jobId });
+            await db.SaveChangesAsync(ct);
+            return Ok(new { saved = true });
+        }
+
+        db.SavedJobs.Remove(existing);
+        await db.SaveChangesAsync(ct);
+        return Ok(new { saved = false });
+    }
+
     [HttpPost("{jobId:int}/apply")]
     public async Task<IActionResult> ApplyToJob(
         int jobId,

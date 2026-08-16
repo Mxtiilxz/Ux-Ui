@@ -63,12 +63,29 @@ class _ProfilePageState extends State<ProfilePage> {
   final Set<int> _togglingSkillIds = {};
   bool _loadingSkills = true;
 
+  /// Perfil y métricas reales traídos de `/users/me`. Antes la pantalla solo
+  /// conocía lo que vino en la respuesta del login, así que las conexiones
+  /// salían siempre en cero y las visitas y publicaciones eran literales.
+  Map<String, dynamic>? _profile;
+
   @override
   void initState() {
     super.initState();
     _quickMatchVisible = widget.currentUser.quickMatchVisible;
+    _loadProfile();
     if (widget.activeRole == UserRole.student) _loadSkills();
   }
+
+  Future<void> _loadProfile() async {
+    try {
+      final profile = await _api.getMyProfile();
+      if (mounted) setState(() => _profile = profile);
+    } catch (_) {
+      // Sin métricas la pantalla sigue mostrando los datos de la sesión.
+    }
+  }
+
+  int _metric(String key) => _profile?[key] as int? ?? 0;
 
   Future<void> _loadSkills() async {
     try {
@@ -400,12 +417,12 @@ class _ProfilePageState extends State<ProfilePage> {
                     const SizedBox(width: 10),
                     compactActions
                         ? IconButton.filled(
-                            onPressed: () {},
+                            onPressed: _showEditProfileDialog,
                             tooltip: 'Editar perfil',
                             icon: const Icon(Icons.edit_rounded, size: 18),
                           )
                         : ElevatedButton.icon(
-                            onPressed: () {},
+                            onPressed: _showEditProfileDialog,
                             icon: const Icon(Icons.edit_rounded, size: 16),
                             label: const Text('Editar perfil'),
                           ),
@@ -471,9 +488,13 @@ class _ProfilePageState extends State<ProfilePage> {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    _counter('${user.connections}', 'Conexiones'),
-                    _counter('23', 'Visitas perfil'),
-                    _counter('8', 'Publicaciones'),
+                    // "Visitas perfil" mostraba un 23 fijo y "Publicaciones" un
+                    // 8: ninguno de los dos consultaba nada. Las visitas no se
+                    // registran en ninguna parte, así que esa tarjeta se
+                    // reemplaza por un dato que sí existe.
+                    _counter('${_metric('followerCount')}', 'Seguidores'),
+                    _counter('${_metric('followingCount')}', 'Siguiendo'),
+                    _counter('${_metric('postCount')}', 'Publicaciones'),
                   ],
                 ),
               ],
@@ -573,21 +594,61 @@ class _ProfilePageState extends State<ProfilePage> {
   // ── About ────────────────────────────────────────────────────────────────────
 
   Widget _buildAbout(UserProfile user) {
+    // La descripción guardada manda sobre la de la sesión, que puede estar
+    // desactualizada si el usuario acaba de editar su perfil.
+    final bio = (_profile?['bio'] as String?)?.trim() ?? user.bio.trim();
+    final isCompany = widget.activeRole == UserRole.company;
+
     return SizedBox(
       width: double.infinity,
       child: KCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Acerca de mi',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+            Text(
+              isCompany ? 'Sobre la empresa' : 'Acerca de mí',
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 10),
-            Text(user.bio, style: const TextStyle(height: 1.45)),
+            if (bio.isEmpty)
+              // Una tarjeta vacía no dice si falta contenido o si algo falló.
+              _emptySection(
+                message: isCompany
+                    ? 'Todavía no has descrito a qué se dedica tu empresa.'
+                    : 'Todavía no has escrito nada sobre ti.',
+                actionLabel: 'Agregar descripción',
+                onPressed: _showEditProfileDialog,
+              )
+            else
+              Text(bio, style: const TextStyle(height: 1.45)),
           ],
         ),
       ),
+    );
+  }
+
+  /// Estado vacío de una sección del perfil: explica que falta contenido y
+  /// ofrece el camino para agregarlo, en vez de dejar la tarjeta en blanco.
+  Widget _emptySection({
+    required String message,
+    required String actionLabel,
+    required VoidCallback onPressed,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          message,
+          style: const TextStyle(color: KairosPalette.mutedForeground),
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: onPressed,
+          icon: const Icon(Icons.add_rounded, size: 18),
+          label: Text(actionLabel),
+          style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
+        ),
+      ],
     );
   }
 
@@ -1058,6 +1119,139 @@ class _ProfilePageState extends State<ProfilePage> {
         const SizedBox(width: 4),
         Text(value, style: const TextStyle(color: KairosPalette.secondary)),
       ],
+    );
+  }
+
+  /// Formulario de edición del perfil propio.
+  ///
+  /// Solo expone lo que el usuario puede cambiar de sí mismo. El correo, el
+  /// nombre de usuario y el rol quedan fuera a propósito: son la identidad de
+  /// la cuenta y su cambio corresponde al liceo.
+  void _showEditProfileDialog() {
+    final formKey = GlobalKey<FormState>();
+    final nameCtrl = TextEditingController(
+      text: _profile?['fullName'] as String? ?? widget.currentUser.name,
+    );
+    final bioCtrl = TextEditingController(
+      text: _profile?['bio'] as String? ?? '',
+    );
+    final institutionCtrl = TextEditingController(
+      text: _profile?['institution'] as String? ?? '',
+    );
+    var saving = false;
+
+    final isCompany = widget.activeRole == UserRole.company;
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setInner) => AlertDialog(
+          title: const Text(
+            'Editar perfil',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+          content: SizedBox(
+            width: 440,
+            child: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: nameCtrl,
+                      maxLength: 120,
+                      decoration: InputDecoration(
+                        labelText: isCompany
+                            ? 'Nombre de la empresa *'
+                            : 'Nombre completo *',
+                        counterText: '',
+                      ),
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'El nombre no puede quedar vacío'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: institutionCtrl,
+                      maxLength: 200,
+                      decoration: InputDecoration(
+                        labelText: isCompany ? 'Ubicación' : 'Curso o liceo',
+                        counterText: '',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: bioCtrl,
+                      maxLength: 500,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        labelText: isCompany ? 'Sobre la empresa' : 'Sobre mí',
+                        hintText: isCompany
+                            ? 'A qué se dedica, qué perfiles busca...'
+                            : 'Qué estudias, qué te interesa, en qué has trabajado...',
+                        alignLabelWithHint: true,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: saving ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(minimumSize: const Size(48, 48)),
+              onPressed: saving
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setInner(() => saving = true);
+                      try {
+                        final updated = await _api.updateMyProfile(
+                          fullName: nameCtrl.text.trim(),
+                          bio: bioCtrl.text.trim(),
+                          institution: institutionCtrl.text.trim(),
+                          profilePictureUrl:
+                              _uploadedAvatarUrl ??
+                              _profile?['profilePictureUrl'] as String?,
+                        );
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (!mounted) return;
+                        setState(() {
+                          _profile = {...?_profile, ...updated};
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Perfil actualizado.'),
+                            backgroundColor: KairosPalette.success,
+                          ),
+                        );
+                      } catch (_) {
+                        setInner(() => saving = false);
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('No se pudo guardar el perfil.'),
+                            backgroundColor: KairosPalette.danger,
+                          ),
+                        );
+                      }
+                    },
+              child: saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Guardar'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

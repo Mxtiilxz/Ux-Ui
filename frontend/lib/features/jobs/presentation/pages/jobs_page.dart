@@ -32,6 +32,10 @@ class JobsPage extends StatefulWidget {
 class _JobsPageState extends State<JobsPage> {
   final TextEditingController _searchController = TextEditingController();
   final Set<String> _savedJobs = <String>{};
+
+  /// Cuando está activo, la lista muestra solo las ofertas guardadas. Sin esto,
+  /// guardar una oferta no servía para nada: no había forma de volver a ellas.
+  bool _onlySaved = false;
   OpportunityType? _selectedType;
   String? _selectedSpecialization;
 
@@ -78,6 +82,7 @@ class _JobsPageState extends State<JobsPage> {
       _loadMessageTemplate();
     } else {
       _loadJobs();
+      _loadSavedJobs();
     }
   }
 
@@ -121,6 +126,63 @@ class _JobsPageState extends State<JobsPage> {
       }
     } finally {
       if (mounted) setState(() => _generatingCv = false);
+    }
+  }
+
+  Future<void> _loadSavedJobs() async {
+    try {
+      final ids = await _api.getSavedJobs();
+      if (!mounted) return;
+      setState(() {
+        _savedJobs
+          ..clear()
+          ..addAll(ids.map((id) => id.toString()));
+      });
+    } catch (_) {
+      // Sin guardadas la pestaña sigue siendo usable; no vale interrumpir.
+    }
+  }
+
+  /// Guarda o quita la oferta en el servidor. Se actualiza la interfaz primero
+  /// para que el marcador responda al instante, y se revierte si falla.
+  Future<void> _toggleSaved(JobModel job) async {
+    final jobId = int.tryParse(job.id);
+    if (jobId == null) return;
+
+    final wasSaved = _savedJobs.contains(job.id);
+    setState(() {
+      if (wasSaved) {
+        _savedJobs.remove(job.id);
+      } else {
+        _savedJobs.add(job.id);
+      }
+    });
+
+    try {
+      final nowSaved = await _api.toggleSavedJob(jobId);
+      if (!mounted) return;
+      setState(() {
+        if (nowSaved) {
+          _savedJobs.add(job.id);
+        } else {
+          _savedJobs.remove(job.id);
+        }
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        if (wasSaved) {
+          _savedJobs.add(job.id);
+        } else {
+          _savedJobs.remove(job.id);
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo guardar la oferta.'),
+          backgroundColor: KairosPalette.danger,
+        ),
+      );
     }
   }
 
@@ -516,6 +578,19 @@ class _JobsPageState extends State<JobsPage> {
                   children: [
                     _specializationChip('Todas', null),
                     ..._specializations.map((s) => _specializationChip(s, s)),
+                    // Sin este filtro, guardar una oferta no servía de nada:
+                    // no había forma de volver a las guardadas.
+                    FilterChip(
+                      avatar: Icon(
+                        _onlySaved
+                            ? Icons.bookmark_rounded
+                            : Icons.bookmark_border_rounded,
+                        size: 18,
+                      ),
+                      label: Text('Guardadas (${_savedJobs.length})'),
+                      selected: _onlySaved,
+                      onSelected: (value) => setState(() => _onlySaved = value),
+                    ),
                   ],
                 ),
               ],
@@ -596,6 +671,8 @@ class _JobsPageState extends State<JobsPage> {
                   child: Text(
                     _apiJobs.isEmpty
                         ? 'Todavía no hay ofertas publicadas.'
+                        : _onlySaved && _savedJobs.isEmpty
+                        ? 'No has guardado ninguna oferta todavía.'
                         : 'No hay resultados con esos filtros.',
                   ),
                 ),
@@ -624,7 +701,11 @@ class _JobsPageState extends State<JobsPage> {
     final matchesSpecialization =
         _selectedSpecialization == null ||
         job.specializations.contains(_selectedSpecialization);
-    return matchesSearch && matchesType && matchesSpecialization;
+    final matchesSaved = !_onlySaved || _savedJobs.contains(job.id);
+    return matchesSearch &&
+        matchesType &&
+        matchesSpecialization &&
+        matchesSaved;
   }
 
   Widget _jobTile(JobModel job, {required bool mobile}) {
@@ -740,7 +821,7 @@ class _JobsPageState extends State<JobsPage> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () {},
+                    onPressed: () => _showJobDetails(job),
                     style: actionButtonStyle,
                     child: const Text('Ver detalles'),
                   ),
@@ -751,13 +832,7 @@ class _JobsPageState extends State<JobsPage> {
                   height: 48,
                   child: IconButton(
                     tooltip: saved ? 'Quitar de guardadas' : 'Guardar',
-                    onPressed: () => setState(() {
-                      if (saved) {
-                        _savedJobs.remove(job.id);
-                      } else {
-                        _savedJobs.add(job.id);
-                      }
-                    }),
+                    onPressed: () => _toggleSaved(job),
                     icon: Icon(
                       saved
                           ? Icons.bookmark_rounded
@@ -864,7 +939,7 @@ class _JobsPageState extends State<JobsPage> {
                         ),
                         const SizedBox(height: 8),
                         OutlinedButton(
-                          onPressed: () {},
+                          onPressed: () => _showJobDetails(job),
                           style: actionButtonStyle,
                           child: const Text('Ver detalles'),
                         ),
@@ -873,13 +948,7 @@ class _JobsPageState extends State<JobsPage> {
                     const SizedBox(width: 4),
                     IconButton(
                       tooltip: saved ? 'Quitar de guardadas' : 'Guardar',
-                      onPressed: () => setState(() {
-                        if (saved) {
-                          _savedJobs.remove(job.id);
-                        } else {
-                          _savedJobs.add(job.id);
-                        }
-                      }),
+                      onPressed: () => _toggleSaved(job),
                       icon: Icon(
                         saved
                             ? Icons.bookmark_rounded
@@ -891,6 +960,112 @@ class _JobsPageState extends State<JobsPage> {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  /// Detalle completo de una oferta. El botón "Ver detalles" existía desde el
+  /// prototipo pero no hacía nada: la tarjeta recorta la descripción, así que
+  /// no había forma de leer los requisitos completos antes de postular.
+  void _showJobDetails(JobModel job) {
+    final applied = _appliedJobs.contains(job.id);
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          job.title,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        content: SizedBox(
+          width: 480,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  job.company,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: KairosPalette.primary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 6,
+                  children: [
+                    _metaChip(Icons.place_rounded, job.location),
+                    if (job.postedDate.isNotEmpty)
+                      _metaChip(Icons.schedule_rounded, job.postedDate),
+                  ],
+                ),
+                if (job.imageUrl != null && job.imageUrl!.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      job.imageUrl!,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      semanticLabel: 'Imagen de la oferta ${job.title}',
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 14),
+                const Text(
+                  'Descripción',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(job.description),
+                const SizedBox(height: 14),
+                const Text(
+                  'Competencias que se buscan',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 6),
+                if (job.skills.isEmpty)
+                  const Text(
+                    'La empresa no indicó competencias para esta oferta.',
+                    style: TextStyle(color: KairosPalette.mutedForeground),
+                  )
+                else
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: job.skills
+                        .map(
+                          (skill) => Chip(
+                            label: Text(skill),
+                            side: BorderSide.none,
+                            backgroundColor: KairosPalette.muted,
+                          ),
+                        )
+                        .toList(growable: false),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cerrar'),
+          ),
+          if (widget.role != UserRole.company)
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(minimumSize: const Size(48, 48)),
+              onPressed: applied
+                  ? null
+                  : () {
+                      Navigator.pop(ctx);
+                      _applyToJob(job);
+                    },
+              child: Text(applied ? 'Ya postulaste' : 'Postular'),
+            ),
         ],
       ),
     );

@@ -67,6 +67,7 @@ class DemoInterceptor extends Interceptor {
 
     // jobs
     if (_is(s, ['jobs'])) return _demo.getJobs();
+    if (_is(s, ['jobs', 'saved'])) return _demo.getSavedJobs();
     if (_is(s, ['jobs', 'my-postings'])) return _demo.getMyJobPostings();
     if (s.length == 3 && s[0] == 'jobs' && s[2] == 'applications') {
       return _demo.getJobApplications(idAt(1));
@@ -87,6 +88,9 @@ class DemoInterceptor extends Interceptor {
           .toList();
       return _demo.searchCandidates(ids);
     }
+
+    // perfil propio
+    if (_is(s, ['users', 'me'])) return _demo.getMyProfile();
 
     // estadísticas de comunidad
     if (_is(s, ['stats', 'community'])) return _demo.getCommunityStats();
@@ -138,7 +142,11 @@ class DemoInterceptor extends Interceptor {
         description: body['description'] as String? ?? '',
         location: body['location'] as String?,
         imageUrl: body['imageUrl'] as String?,
+        skillIds: (body['skillIds'] as List<dynamic>? ?? []).cast<int>(),
       );
+    }
+    if (s.length == 3 && s[0] == 'jobs' && s[2] == 'save') {
+      return _demo.toggleSavedJob(idAt(1));
     }
     if (s.length == 3 && s[0] == 'jobs' && s[2] == 'apply') {
       return _demo.applyToJob(idAt(1));
@@ -174,6 +182,7 @@ class DemoInterceptor extends Interceptor {
     Map<String, dynamic> body,
     int Function(int) idAt,
   ) async {
+    if (_is(s, ['users', 'me'])) return _demo.updateMyProfile(body);
     if (_is(s, ['skills', 'me', 'visibility'])) {
       final visible = await _demo.setQuickMatchVisibility(
         body['visible'] as bool? ?? false,

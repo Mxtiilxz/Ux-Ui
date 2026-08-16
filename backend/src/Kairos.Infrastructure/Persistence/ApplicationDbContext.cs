@@ -26,6 +26,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<Skill>          Skills          { get; set; }
     public DbSet<UserSkill>      UserSkills      { get; set; }
     public DbSet<JobPostingSkill> JobPostingSkills { get; set; }
+    public DbSet<SavedJob>       SavedJobs        { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -310,6 +311,29 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
             // Índice para el recuento de demanda: "cuántas ofertas piden la competencia X"
             e.HasIndex(js => js.SkillId);
+        });
+
+        // ════════════════════════════════════════════════════
+        //  SAVED JOB  (ofertas guardadas por el alumno)
+        // ════════════════════════════════════════════════════
+        modelBuilder.Entity<SavedJob>(e =>
+        {
+            e.ToTable("saved_jobs");
+
+            e.HasKey(sj => new { sj.UserId, sj.JobId });
+
+            e.HasOne(sj => sj.User)
+             .WithMany()
+             .HasForeignKey(sj => sj.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(sj => sj.Job)
+             .WithMany()
+             .HasForeignKey(sj => sj.JobId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            // Índice para "mis guardadas, la más reciente primero"
+            e.HasIndex(sj => new { sj.UserId, sj.SavedAt });
         });
     }
 }

@@ -266,6 +266,18 @@ class ApiClient {
     return response.data as int;
   }
 
+  /// Ids de las ofertas que el usuario guardó para revisar después.
+  Future<List<int>> getSavedJobs() async {
+    final response = await _dio.get('/jobs/saved');
+    return (response.data as List<dynamic>).cast<int>();
+  }
+
+  /// Guarda o quita una oferta de la lista. Devuelve el estado resultante.
+  Future<bool> toggleSavedJob(int jobId) async {
+    final response = await _dio.post('/jobs/$jobId/save');
+    return (response.data as Map)['saved'] as bool? ?? false;
+  }
+
   Future<int> applyToJob(int jobId, {String? cvUrl}) async {
     final response = await _dio.post(
       '/jobs/$jobId/apply',
@@ -310,6 +322,33 @@ class ApiClient {
 
   Future<void> removeMySkill(int skillId) async {
     await _dio.delete('/skills/me/$skillId');
+  }
+
+  /// Perfil propio con sus métricas reales (publicaciones, seguidores,
+  /// seguidos, competencias). Antes la app solo conocía lo que vino en la
+  /// respuesta del login.
+  Future<Map<String, dynamic>> getMyProfile() async {
+    final response = await _dio.get('/users/me');
+    return (response.data as Map).cast<String, dynamic>();
+  }
+
+  /// Actualiza el perfil propio. Enviar un campo vacío lo borra.
+  Future<Map<String, dynamic>> updateMyProfile({
+    required String fullName,
+    String? bio,
+    String? institution,
+    String? profilePictureUrl,
+  }) async {
+    final response = await _dio.put(
+      '/users/me',
+      data: {
+        'fullName': fullName,
+        'bio': bio,
+        'institution': institution,
+        'profilePictureUrl': profilePictureUrl,
+      },
+    );
+    return (response.data as Map).cast<String, dynamic>();
   }
 
   /// Cifras reales de la comunidad: alumnos, empresas, ofertas activas,

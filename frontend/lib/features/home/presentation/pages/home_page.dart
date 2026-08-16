@@ -903,22 +903,29 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  /// Medidas comunes de los botones del compositor.
+  ///
+  /// "Media" y "Publicar" tenían un ancho fijo de 116 y "Evento" se ajustaba a
+  /// su contenido, así que los tres salían de distinto tamaño. Ahora comparten
+  /// alto, relleno y radio, y cada uno mide lo que necesita su texto — que es
+  /// además lo que aguanta el escalado de texto al 200 %.
+  static const double _composerButtonHeight = 48;
+  static const EdgeInsets _composerButtonPadding = EdgeInsets.symmetric(
+    horizontal: 16,
+  );
+  static final BorderRadius _composerButtonRadius = BorderRadius.circular(12);
+
   Widget _mediaAction() {
-    return SizedBox(
-      width: 116,
-      height: 48,
-      child: OutlinedButton.icon(
-        onPressed: _uploadingImage ? null : _pickImage,
-        icon: const Icon(Icons.image_rounded, size: 16),
-        label: const Text('Media'),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: KairosPalette.secondary,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          side: const BorderSide(color: KairosPalette.border),
-        ),
+    return OutlinedButton.icon(
+      onPressed: _uploadingImage ? null : _pickImage,
+      icon: const Icon(Icons.image_rounded, size: 16),
+      label: const Text('Media'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: KairosPalette.secondary,
+        minimumSize: const Size(0, _composerButtonHeight),
+        padding: _composerButtonPadding,
+        shape: RoundedRectangleBorder(borderRadius: _composerButtonRadius),
+        side: const BorderSide(color: KairosPalette.border),
       ),
     );
   }
@@ -934,9 +941,9 @@ class _HomePageState extends State<HomePage> {
       label: Text(label),
       style: OutlinedButton.styleFrom(
         foregroundColor: KairosPalette.secondary,
-        minimumSize: const Size(0, 48),
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        minimumSize: const Size(0, _composerButtonHeight),
+        padding: _composerButtonPadding,
+        shape: RoundedRectangleBorder(borderRadius: _composerButtonRadius),
         side: const BorderSide(color: KairosPalette.border),
       ),
     );
@@ -948,9 +955,9 @@ class _HomePageState extends State<HomePage> {
       icon: Icon(icon, size: 16),
       label: Text(label),
       style: ElevatedButton.styleFrom(
-        minimumSize: const Size(0, 48),
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        minimumSize: const Size(0, _composerButtonHeight),
+        padding: _composerButtonPadding,
+        shape: RoundedRectangleBorder(borderRadius: _composerButtonRadius),
         backgroundColor: KairosPalette.accent,
         foregroundColor: Colors.white,
       ),
@@ -1073,15 +1080,13 @@ class _HomePageState extends State<HomePage> {
 
   Widget _publishAction() {
     return SizedBox(
-      width: 116,
-      height: 48,
+      height: _composerButtonHeight,
       child: ElevatedButton(
         onPressed: _publishing ? null : _publishPost,
         style: ElevatedButton.styleFrom(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 18),
+          minimumSize: const Size(0, _composerButtonHeight),
+          shape: RoundedRectangleBorder(borderRadius: _composerButtonRadius),
+          padding: _composerButtonPadding,
           elevation: 4,
           shadowColor: KairosPalette.primary.withValues(alpha: 0.35),
         ),

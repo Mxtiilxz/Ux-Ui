@@ -48,6 +48,7 @@ class DemoBackend {
       ..clear()
       ..addAll(_initialJobs());
     _appliedJobIds.clear();
+    _savedJobIds.clear();
     _nextId = 5000;
   }
 
@@ -559,6 +560,54 @@ class DemoBackend {
     };
   }
 
+  // ── Perfil propio ──────────────────────────────────────────────────────────
+
+  final Map<String, dynamic> _myProfileEdits = {};
+
+  Future<Map<String, dynamic>> getMyProfile() => _delayed({
+    'id': _currentUserId,
+    'username': _currentUserName,
+    'email': 'demo@kairos.cl',
+    'fullName': _currentUserName,
+    'bio': null,
+    'institution': _liceo,
+    'profilePictureUrl': null,
+    'role': _currentUserRole,
+    'status': 'approved',
+    'quickMatchVisible': _quickMatchVisible,
+    'postCount': _posts.where((p) => p['authorId'] == _currentUserId).length,
+    'skillCount': _mySkillIds.length,
+    'followingCount': _followingIds.length,
+    // En la demo nadie sigue al usuario: no hay otras sesiones que lo hagan.
+    'followerCount': 0,
+    ..._myProfileEdits,
+  });
+
+  Future<Map<String, dynamic>> updateMyProfile(Map<String, dynamic> body) {
+    _myProfileEdits.addAll({
+      'fullName': body['fullName'],
+      'bio': body['bio'],
+      'institution': body['institution'],
+      'profilePictureUrl': body['profilePictureUrl'],
+    });
+    _currentUserName = body['fullName'] as String? ?? _currentUserName;
+    return getMyProfile();
+  }
+
+  final Set<int> _savedJobIds = <int>{};
+
+  Future<List<int>> getSavedJobs() => _delayed(_savedJobIds.toList());
+
+  Future<Map<String, dynamic>> toggleSavedJob(int jobId) {
+    final saved = !_savedJobIds.contains(jobId);
+    if (saved) {
+      _savedJobIds.add(jobId);
+    } else {
+      _savedJobIds.remove(jobId);
+    }
+    return _delayed({'saved': saved});
+  }
+
   Future<Map<String, dynamic>> getJobs() => _delayed({
     'items': _jobs.map(_withSkills).toList(),
     'totalCount': _jobs.length,
@@ -570,6 +619,7 @@ class DemoBackend {
     required String description,
     String? location,
     String? imageUrl,
+    List<int> skillIds = const [],
   }) {
     final id = _newId();
     _jobs.insert(0, {
@@ -578,6 +628,7 @@ class DemoBackend {
       'description': description,
       'location': location,
       'imageUrl': imageUrl,
+      'skillIds': skillIds,
       'status': 'Open',
       'createdAt': DateTime.now().toUtc().toIso8601String(),
       'expiresAt': DateTime.now()
