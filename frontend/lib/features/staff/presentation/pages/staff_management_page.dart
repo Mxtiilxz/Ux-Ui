@@ -123,7 +123,11 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
           '${row.rut.replaceAll('.', '').replaceAll('-', '')}Kairos!';
 
       try {
-        await client.register(
+        // Va por el endpoint del panel, no por el registro público: ese ya no
+        // concede el rol staff, y además dejaría las cuentas en estado
+        // pendiente, obligando al liceo a aprobar una por una las que acaba de
+        // crear él mismo.
+        await client.createAccountAsStaff(
           username: username,
           email: row.email,
           password: defaultPassword,
@@ -136,7 +140,7 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
             name: row.nombreCompleto,
             email: row.email,
             success: true,
-            message: 'Cuenta creada — contraseña: $defaultPassword',
+            message: 'Cuenta creada y aprobada — contraseña: $defaultPassword',
           ),
         );
       } catch (e) {

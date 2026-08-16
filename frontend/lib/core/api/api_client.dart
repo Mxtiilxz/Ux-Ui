@@ -307,6 +307,32 @@ class ApiClient {
     await _dio.delete('/skills/me/$skillId');
   }
 
+  /// Solo staff: crea una cuenta de alumno o de personal, ya aprobada.
+  ///
+  /// Es la única vía para dar de alta a un `staff`: el registro público no
+  /// concede ese rol. La usa también la importación CSV de cursos.
+  Future<Map<String, dynamic>> createAccountAsStaff({
+    required String fullName,
+    required String email,
+    required String username,
+    required String password,
+    required String role,
+    String? institution,
+  }) async {
+    final response = await _dio.post(
+      '/staff/users',
+      data: {
+        'fullName': fullName,
+        'email': email,
+        'username': username,
+        'password': password,
+        'role': role,
+        if (institution != null) 'institution': institution,
+      },
+    );
+    return (response.data as Map).cast<String, dynamic>();
+  }
+
   /// Solo staff: catálogo con el número de alumnos que tiene cada competencia.
   Future<List<Map<String, dynamic>>> getSkillCatalog() async {
     final response = await _dio.get('/skills/catalog');

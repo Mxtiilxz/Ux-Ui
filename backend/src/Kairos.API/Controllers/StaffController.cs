@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Kairos.Application.Common.Interfaces;
+using Kairos.Application.Features.Staff.Commands.CreateAccount;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,10 +11,40 @@ namespace Kairos.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class StaffController(IApplicationDbContext db) : ControllerBase
+public class StaffController(IApplicationDbContext db, IMediator mediator) : ControllerBase
 {
     private string GetRole() =>
         User.FindFirstValue(ClaimTypes.Role) ?? "student";
+
+    /// <summary>
+    /// Crea una cuenta de alumno o de personal (solo staff).
+    ///
+    /// Es la única vía para dar de alta a un <c>staff</c>: el registro público
+    /// no concede ese rol, así que el primer administrador lo crea
+    /// <c>ProductionSeeder</c> y los siguientes se crean desde aquí. También es
+    /// el endpoint que usa la importación CSV de cursos.
+    /// </summary>
+    [HttpPost("users")]
+    [ProducesResponseType(typeof(CreateAccountResult), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> CreateAccount(
+        [FromBody] CreateAccountRequest request,
+        CancellationToken ct)
+    {
+        if (GetRole() != "staff") return Forbid();
+
+        var result = await mediator.Send(
+            new CreateAccountCommand(
+                request.FullName,
+                request.Email,
+                request.Username,
+                request.Password,
+                request.Role,
+                request.Institution),
+            ct);
+
+        return CreatedAtAction(nameof(GetAllUsers), result);
+    }
 
     /// <summary>List users pending approval.</summary>
     [HttpGet("registration-requests")]
@@ -105,3 +136,11 @@ public class StaffController(IApplicationDbContext db) : ControllerBase
         return Ok(users);
     }
 }
+
+public record CreateAccountRequest(
+    string  FullName,
+    string  Email,
+    string  Username,
+    string  Password,
+    string  Role,
+    string? Institution);
