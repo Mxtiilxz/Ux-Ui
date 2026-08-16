@@ -16,52 +16,68 @@ class NetworkPage extends StatefulWidget {
 
 class _NetworkPageState extends State<NetworkPage> {
   final TextEditingController _searchController = TextEditingController();
-  final Set<String> _connected = <String>{};
+
+  /// Estado de la relación con cada persona: `none`, `pending_sent`,
+  /// `pending_received` o `connected`.
+  ///
+  /// Reemplaza al conjunto de "seguidos" que había antes: con solicitudes de
+  /// por medio, sí/no dejaba fuera los dos estados intermedios y el botón no
+  /// podía saber qué ofrecer.
+  final Map<String, String> _status = <String, String>{};
 
   final _api = ApiClient();
   List<UserProfile> _apiSuggestions = [];
+
+  /// Solicitudes recibidas sin responder.
+  List<Map<String, dynamic>> _requests = [];
+
+  /// Contactos ya conectados.
+  List<UserProfile> _connections = [];
+
   bool _loading = true;
   bool _error = false;
 
   @override
   void initState() {
     super.initState();
-    _loadSuggestions();
+    _loadAll();
   }
 
-  Future<void> _loadSuggestions() async {
-    if (mounted)
+  Future<void> _loadAll() async {
+    if (mounted) {
       setState(() {
         _loading = true;
         _error = false;
       });
+    }
     try {
-      final data = await _api.getNetworkSuggestions();
-      final users = data.cast<Map<String, dynamic>>().map((json) {
-        final roleStr = (json['role'] as String? ?? 'student').toLowerCase();
-        final role = switch (roleStr) {
-          'staff' => UserRole.staff,
-          'company' => UserRole.company,
-          'alumni' => UserRole.alumni,
-          _ => UserRole.student,
-        };
-        // Pre-fill followed state from API
-        if (json['isFollowing'] == true) {
-          _connected.add(json['id'].toString());
+      final results = await Future.wait([
+        _api.getNetworkSuggestions(),
+        _api.getConnectionRequests(),
+        _api.getConnections(),
+      ]);
+
+      final suggestions = results[0]
+          .cast<Map<String, dynamic>>()
+          .map(_toProfile)
+          .toList();
+      final requests = results[1] as List<Map<String, dynamic>>;
+      final connections = (results[2] as List<Map<String, dynamic>>)
+          .map(_toProfile)
+          .toList();
+
+      if (!mounted) return;
+      setState(() {
+        _apiSuggestions = suggestions;
+        _requests = requests;
+        _connections = connections;
+        for (final request in requests) {
+          _status[request['id'].toString()] = 'pending_received';
         }
-        return UserProfile(
-          id: json['id'].toString(),
-          name: json['fullName'] as String? ?? 'Usuario',
-          role: role,
-          title: json['title'] as String? ?? '',
-          avatarUrl: json['avatarUrl'] as String? ?? '',
-          skills: const [],
-          bio: json['bio'] as String? ?? '',
-          location: json['location'] as String? ?? '',
-          connections: (json['followersCount'] as num?)?.toInt() ?? 0,
-        );
-      }).toList();
-      if (mounted) setState(() => _apiSuggestions = users);
+        for (final contact in connections) {
+          _status[contact.id] = 'connected';
+        }
+      });
     } catch (_) {
       if (mounted) setState(() => _error = true);
     } finally {
@@ -69,47 +85,95 @@ class _NetworkPageState extends State<NetworkPage> {
     }
   }
 
-  Future<void> _toggleFollow(UserProfile user) async {
-    final userId = int.tryParse(user.id);
-    if (userId == null) {
-      setState(() {
-        if (_connected.contains(user.id)) {
-          _connected.remove(user.id);
-        } else {
-          _connected.add(user.id);
-        }
-      });
-      return;
-    }
+  UserProfile _toProfile(Map<String, dynamic> json) {
+    final roleStr = (json['role'] as String? ?? 'student').toLowerCase();
+    final role = switch (roleStr) {
+      'staff' => UserRole.staff,
+      'company' => UserRole.company,
+      'alumni' => UserRole.alumni,
+      _ => UserRole.student,
+    };
 
-    final wasConnected = _connected.contains(user.id);
-    setState(() {
-      if (wasConnected) {
-        _connected.remove(user.id);
-      } else {
-        _connected.add(user.id);
-      }
-    });
+    final id = json['id'].toString();
+    final status = json['connectionStatus'] as String?;
+    if (status != null && status != 'none') _status[id] = status;
+
+    return UserProfile(
+      id: id,
+      name: json['fullName'] as String? ?? 'Usuario',
+      role: role,
+      title: (json['title'] ?? json['institution']) as String? ?? '',
+      avatarUrl:
+          (json['avatarUrl'] ?? json['profilePictureUrl']) as String? ?? '',
+      skills: const [],
+      bio: json['bio'] as String? ?? '',
+      location: json['location'] as String? ?? '',
+      connections: (json['followersCount'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  String _statusOf(String userId) => _status[userId] ?? 'none';
+
+  /// Envía la solicitud, o la deshace si ya existía. Conectar deja de ser
+  /// inmediato: hasta que la otra persona acepte, la relación queda en espera.
+  Future<void> _toggleConnection(UserProfile user) async {
+    final userId = int.tryParse(user.id);
+    if (userId == null) return;
+
+    final previous = _statusOf(user.id);
+    final isUndo = previous == 'connected' || previous == 'pending_sent';
+
+    setState(() => _status[user.id] = isUndo ? 'none' : 'pending_sent');
 
     try {
-      if (wasConnected) {
-        await _api.unfollowUser(userId);
+      if (isUndo) {
+        await _api.removeConnection(userId);
         Analytics.follow(false);
+        if (mounted) {
+          setState(() => _connections.removeWhere((c) => c.id == user.id));
+        }
       } else {
-        await _api.followUser(userId);
+        final result = await _api.requestConnection(userId);
         Analytics.follow(true);
         await SocialHubService.current?.notifyFollow(user.id);
+        if (!mounted) return;
+        setState(() => _status[user.id] = result);
+        // El servidor puede responder "connected" si esa persona ya había
+        // solicitado conectar: entonces el contacto entra en la lista.
+        if (result == 'connected') await _loadAll();
       }
     } catch (_) {
-      // Revert on failure
       if (mounted) {
-        setState(() {
-          if (wasConnected) {
-            _connected.add(user.id);
-          } else {
-            _connected.remove(user.id);
-          }
-        });
+        setState(() => _status[user.id] = previous);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo actualizar la conexión.'),
+            backgroundColor: KairosPalette.danger,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _respondToRequest(
+    Map<String, dynamic> request, {
+    required bool accept,
+  }) async {
+    final userId = request['id'] as int;
+    setState(() => _requests.removeWhere((r) => r['id'] == userId));
+
+    try {
+      await _api.respondToConnectionRequest(userId, accept: accept);
+      await _loadAll();
+    } catch (_) {
+      if (mounted) {
+        setState(() => _requests = [..._requests, request]);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo responder la solicitud.'),
+            backgroundColor: KairosPalette.danger,
+          ),
+        );
       }
     }
   }
@@ -173,7 +237,7 @@ class _NetworkPageState extends State<NetworkPage> {
                   Icons.people_alt_rounded,
                   // Antes se le sumaba 234 a este número, sin más motivo que
                   // hacer parecer poblada una red que estaba vacía.
-                  '${_connected.length}',
+                  '${_connections.length}',
                   'Conexiones totales',
                 ),
                 const SizedBox(height: 10),
@@ -198,7 +262,7 @@ class _NetworkPageState extends State<NetworkPage> {
                   children: [
                     _stats(
                       Icons.people_alt_rounded,
-                      '${_connected.length}',
+                      '${_connections.length}',
                       'Conexiones totales',
                     ),
                     _stats(
@@ -211,6 +275,14 @@ class _NetworkPageState extends State<NetworkPage> {
               },
             ),
           const SizedBox(height: 12),
+          _requestsBubble(),
+          _connectionsList(),
+          const SizedBox(height: 4),
+          const Text(
+            'Sugerencias para ti',
+            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+          ),
+          const SizedBox(height: 8),
           if (_loading)
             Semantics(
               liveRegion: true,
@@ -236,7 +308,7 @@ class _NetworkPageState extends State<NetworkPage> {
                       const Text('No se pudo cargar la red. Intenta de nuevo.'),
                       const SizedBox(height: 12),
                       ElevatedButton(
-                        onPressed: _loadSuggestions,
+                        onPressed: _loadAll,
                         child: const Text('Reintentar'),
                       ),
                     ],
@@ -296,6 +368,233 @@ class _NetworkPageState extends State<NetworkPage> {
     );
   }
 
+  /// Burbuja de solicitudes recibidas. Muestra las primeras y abre el resto en
+  /// una ventana desplazable, para que una bandeja larga no empuje el resto de
+  /// la pantalla hacia abajo.
+  Widget _requestsBubble() {
+    if (_requests.isEmpty) return const SizedBox.shrink();
+
+    const preview = 3;
+    final shown = _requests.take(preview).toList(growable: false);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: KCard(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Semantics(
+                liveRegion: true,
+                label: _requests.length == 1
+                    ? 'Tienes 1 solicitud de conexión'
+                    : 'Tienes ${_requests.length} solicitudes de conexión',
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.mark_email_unread_rounded,
+                      color: KairosPalette.accent,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _requests.length == 1
+                            ? 'Solicitudes de conexión (1)'
+                            : 'Solicitudes de conexión (${_requests.length})',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    if (_requests.length > preview)
+                      TextButton(
+                        onPressed: _showAllRequests,
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(0, 48),
+                        ),
+                        child: Text('Ver las ${_requests.length}'),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 6),
+              ...shown.map(_requestRow),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAllRequests() {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          'Solicitudes de conexión (${_requests.length})',
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        content: SizedBox(
+          width: 460,
+          // Altura acotada y desplazamiento propio: la bandeja puede crecer sin
+          // que el diálogo se salga de la pantalla.
+          height: 420,
+          child: StatefulBuilder(
+            builder: (ctx, setInner) => ListView(
+              children: _requests
+                  .map(
+                    (request) => _requestRow(
+                      request,
+                      onResponded: () => setInner(() {}),
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _requestRow(
+    Map<String, dynamic> request, {
+    VoidCallback? onResponded,
+  }) {
+    final name = request['fullName'] as String? ?? 'Usuario';
+    final institution = request['institution'] as String?;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: KairosPalette.muted,
+            child: Text(
+              name.isNotEmpty ? name[0].toUpperCase() : '?',
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                if (institution != null && institution.isNotEmpty)
+                  Text(
+                    institution,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: KairosPalette.mutedForeground,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Aceptar la solicitud de $name',
+            onPressed: () {
+              _respondToRequest(request, accept: true);
+              onResponded?.call();
+            },
+            icon: const Icon(
+              Icons.check_circle_rounded,
+              color: KairosPalette.success,
+            ),
+          ),
+          IconButton(
+            tooltip: 'Rechazar la solicitud de $name',
+            onPressed: () {
+              _respondToRequest(request, accept: false);
+              onResponded?.call();
+            },
+            icon: const Icon(Icons.cancel_rounded, color: KairosPalette.danger),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Contactos ya conectados, en lista, debajo de la burbuja de solicitudes.
+  Widget _connectionsList() {
+    if (_connections.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: KCard(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Mis contactos (${_connections.length})',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 6),
+              ..._connections.map(
+                (contact) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        backgroundColor: KairosPalette.muted,
+                        child: Text(
+                          contact.name.isNotEmpty
+                              ? contact.name[0].toUpperCase()
+                              : '?',
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              contact.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            if (contact.title.isNotEmpty)
+                              Text(
+                                contact.title,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: KairosPalette.mutedForeground,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Quitar a ${contact.name} de mis contactos',
+                        onPressed: () => _toggleConnection(contact),
+                        icon: const Icon(Icons.person_remove_rounded, size: 20),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _stats(IconData icon, String value, String label) {
     return KCard(
       borderColor: KairosPalette.primary.withValues(alpha: 0.4),
@@ -337,9 +636,50 @@ class _NetworkPageState extends State<NetworkPage> {
     );
   }
 
+  /// Botón de conexión según el estado de la relación.
+  Widget _connectionButton(UserProfile user, String status) {
+    final (label, icon, filled) = switch (status) {
+      'connected' => ('Conectado', Icons.how_to_reg_rounded, false),
+      'pending_sent' => (
+        'Solicitud enviada',
+        Icons.hourglass_top_rounded,
+        false,
+      ),
+      'pending_received' => ('Te solicitó conectar', Icons.mail_rounded, true),
+      _ => ('Conectar', Icons.person_add_rounded, true),
+    };
+
+    // Una solicitud recibida se responde desde la burbuja de arriba, no desde
+    // esta tarjeta: ahí están los dos botones, aceptar y rechazar.
+    final onPressed = status == 'pending_received'
+        ? null
+        : () => _toggleConnection(user);
+
+    return SizedBox(
+      width: double.infinity,
+      child: filled
+          ? ElevatedButton.icon(
+              onPressed: onPressed,
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(0, 48),
+                backgroundColor: KairosPalette.accent,
+                foregroundColor: Colors.white,
+              ),
+              icon: Icon(icon, size: 16),
+              label: Text(label),
+            )
+          : OutlinedButton.icon(
+              onPressed: onPressed,
+              style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
+              icon: Icon(icon, size: 16),
+              label: Text(label),
+            ),
+    );
+  }
+
   Widget _networkUserCard(UserProfile user) {
     final mobile = MediaQuery.sizeOf(context).width < 760;
-    final connected = _connected.contains(user.id);
+    final status = _statusOf(user.id);
     return KCard(
       padding: EdgeInsets.zero,
       child: Column(
@@ -443,32 +783,10 @@ class _NetworkPageState extends State<NetworkPage> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _toggleFollow(user),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: connected
-                              ? KairosPalette.muted
-                              : KairosPalette.accent,
-                          foregroundColor: connected
-                              ? KairosPalette.foreground
-                              : Colors.white,
-                        ),
-                        icon: const Icon(Icons.person_add_rounded, size: 16),
-                        label: Text(connected ? 'Conectado' : 'Conectar'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () {},
-                        child: const Text('Ver perfil'),
-                      ),
-                    ),
-                  ],
-                ),
+                // El botón refleja los cuatro estados posibles. Con un simple
+                // "Conectar / Conectado" no había forma de distinguir una
+                // solicitud enviada de una conexión real.
+                _connectionButton(user, status),
               ],
             ),
           ),

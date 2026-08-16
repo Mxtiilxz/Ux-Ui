@@ -1,4 +1,5 @@
 using Kairos.Application.Common.Interfaces;
+using Kairos.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,19 +12,25 @@ public class GetNetworkSuggestionsQueryHandler(IApplicationDbContext db)
         GetNetworkSuggestionsQuery request,
         CancellationToken cancellationToken)
     {
-        // IDs the current user already follows
-        var alreadyFollowing = (await db.Follows
-            .Where(f => f.FollowerId == request.CurrentUserId)
-            .Select(f => f.FollowedId)
-            .ToListAsync(cancellationToken))
-            .ToHashSet();
+        // Cualquier fila que involucre al usuario actual lo saca de las
+        // sugerencias: ya está conectado o hay una solicitud en curso, y en
+        // ambos casos volver a proponerlo sería ruido.
+        var related = await db.Follows
+            .Where(f => f.FollowerId == request.CurrentUserId ||
+                        f.FollowedId == request.CurrentUserId)
+            .Select(f => f.FollowerId == request.CurrentUserId ? f.FollowedId : f.FollowerId)
+            .ToListAsync(cancellationToken);
 
+        var excluded = related.ToHashSet();
         var skip = (request.Page - 1) * request.PageSize;
 
-        // Suggest users not yet followed (excluding the user themselves)
-        var suggestions = await db.Users
-            .Where(u => u.Id != request.CurrentUserId && !alreadyFollowing.Contains(u.Id))
-            .OrderByDescending(u => u.Followers.Count)
+        return await db.Users
+            .Where(u => u.Id != request.CurrentUserId &&
+                        !excluded.Contains(u.Id) &&
+                        u.Status == "approved")
+            .OrderByDescending(u => db.Follows.Count(
+                c => c.Status == ConnectionStatus.Accepted &&
+                     (c.FollowerId == u.Id || c.FollowedId == u.Id)))
             .Skip(skip)
             .Take(request.PageSize)
             .Select(u => new UserSuggestionDto(
@@ -34,10 +41,9 @@ public class GetNetworkSuggestionsQueryHandler(IApplicationDbContext db)
                 null,
                 u.Bio,
                 u.Role,
-                u.Followers.Count,
-                false))
+                db.Follows.Count(c => c.Status == ConnectionStatus.Accepted &&
+                                      (c.FollowerId == u.Id || c.FollowedId == u.Id)),
+                "none"))
             .ToListAsync(cancellationToken);
-
-        return suggestions;
     }
 }

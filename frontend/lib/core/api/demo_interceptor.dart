@@ -99,7 +99,9 @@ class DemoInterceptor extends Interceptor {
     if (_is(s, ['network', 'suggestions'])) {
       return _demo.getNetworkSuggestions();
     }
-    if (_is(s, ['network', 'following'])) return _demo.getFollowing();
+    if (_is(s, ['network', 'following'])) return _demo.getConnections();
+    if (_is(s, ['network', 'connections'])) return _demo.getConnections();
+    if (_is(s, ['network', 'requests'])) return _demo.getConnectionRequests();
 
     // chat
     if (_is(s, ['chat', 'conversations'])) return _demo.getConversations();
@@ -159,9 +161,14 @@ class DemoInterceptor extends Interceptor {
     }
 
     // network
-    if (s.length == 3 && s[0] == 'network' && s[2] == 'follow') {
-      await _demo.followUser(idAt(1));
-      return null;
+    if (s.length == 3 && s[0] == 'network' && s[2] == 'connect') {
+      return _demo.requestConnection(idAt(1));
+    }
+    if (s.length == 4 && s[0] == 'network' && s[1] == 'requests') {
+      return _demo.respondToConnectionRequest(
+        idAt(2),
+        accept: s[3] == 'accept',
+      );
     }
 
     // chat
@@ -213,8 +220,8 @@ class DemoInterceptor extends Interceptor {
       await _demo.removeMySkill(idAt(2));
       return null;
     }
-    if (s.length == 3 && s[0] == 'network' && s[2] == 'follow') {
-      await _demo.unfollowUser(idAt(1));
+    if (s.length == 3 && s[0] == 'network' && s[2] == 'connect') {
+      await _demo.removeConnection(idAt(1));
       return null;
     }
     if (s.length == 2 && s[0] == 'posts') {

@@ -492,8 +492,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     // 8: ninguno de los dos consultaba nada. Las visitas no se
                     // registran en ninguna parte, así que esa tarjeta se
                     // reemplaza por un dato que sí existe.
-                    _counter('${_metric('followerCount')}', 'Seguidores'),
-                    _counter('${_metric('followingCount')}', 'Siguiendo'),
+                    _counter('${_metric('connectionCount')}', 'Conexiones'),
+                    _counter('${_metric('skillCount')}', 'Competencias'),
                     _counter('${_metric('postCount')}', 'Publicaciones'),
                   ],
                 ),

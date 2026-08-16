@@ -1,31 +1,23 @@
 using Kairos.Application.Common.Interfaces;
+using Kairos.Application.Features.Network.Queries.GetConnections;
 using Kairos.Application.Features.Network.Queries.GetNetworkSuggestions;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace Kairos.Application.Features.Network.Queries.GetFollowing;
 
-public class GetFollowingQueryHandler(IApplicationDbContext db)
+/// <summary>
+/// Contactos con los que se puede conversar.
+///
+/// Antes devolvía a quien el usuario seguía, sin que la otra persona hubiera
+/// aceptado nada: bastaba con pulsar un botón para aparecer en su lista de
+/// chat. Ahora son las conexiones aceptadas, que es lo que hace mutuo el
+/// contacto.
+/// </summary>
+public class GetFollowingQueryHandler(IMediator mediator)
     : IRequestHandler<GetFollowingQuery, IReadOnlyList<UserSuggestionDto>>
 {
-    public async Task<IReadOnlyList<UserSuggestionDto>> Handle(
+    public Task<IReadOnlyList<UserSuggestionDto>> Handle(
         GetFollowingQuery request,
-        CancellationToken cancellationToken)
-    {
-        return await db.Follows
-            .Where(f => f.FollowerId == request.CurrentUserId)
-            .Include(f => f.Followed)
-                .ThenInclude(u => u.Followers)
-            .Select(f => new UserSuggestionDto(
-                f.Followed.Id,
-                f.Followed.FullName,
-                f.Followed.Institution,
-                f.Followed.ProfilePictureUrl,
-                null,
-                f.Followed.Bio,
-                f.Followed.Role,
-                f.Followed.Followers.Count,
-                true))
-            .ToListAsync(cancellationToken);
-    }
+        CancellationToken cancellationToken) =>
+        mediator.Send(new GetConnectionsQuery(request.CurrentUserId), cancellationToken);
 }

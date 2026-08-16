@@ -45,10 +45,16 @@ public class UsersController(IApplicationDbContext db, IMediator mediator) : Con
                 u.Status,
                 u.QuickMatchVisible,
                 u.CreatedAt,
-                PostCount      = u.Posts.Count,
-                SkillCount     = u.Skills.Count,
-                FollowingCount = db.Follows.Count(f => f.FollowerId == userId),
-                FollowerCount  = db.Follows.Count(f => f.FollowedId == userId),
+                PostCount  = u.Posts.Count,
+                SkillCount = u.Skills.Count,
+                // Una conexión aceptada cuenta en los dos sentidos, así que se
+                // miran ambos lados de la fila. Contar solo un lado devolvería
+                // la mitad de los contactos según quién envió la solicitud.
+                ConnectionCount = db.Follows.Count(
+                    f => f.Status == "accepted" &&
+                         (f.FollowerId == userId || f.FollowedId == userId)),
+                PendingRequestCount = db.Follows.Count(
+                    f => f.FollowedId == userId && f.Status == "pending"),
             })
             .FirstOrDefaultAsync(ct);
 

@@ -15,5 +15,14 @@ public record UserSuggestionDto(
     string? Location,
     string? Bio,
     string? Role,
+    /// <summary>Conexiones aceptadas que tiene esa persona.</summary>
     int     FollowersCount,
-    bool    IsFollowing);
+    /// <summary>
+    /// Estado de la relación con el usuario actual: <c>none</c>,
+    /// <c>pending_sent</c>, <c>pending_received</c> o <c>connected</c>.
+    ///
+    /// Reemplaza al antiguo booleano "lo sigo": con solicitudes de por medio,
+    /// sí/no dejaba fuera los dos estados intermedios y el botón no podía saber
+    /// qué ofrecer.
+    /// </summary>
+    string  ConnectionStatus);

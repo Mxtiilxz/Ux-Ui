@@ -480,12 +480,38 @@ class ApiClient {
     return response.data as List<dynamic>;
   }
 
-  Future<void> followUser(int userId) async {
-    await _dio.post('/network/$userId/follow');
+  /// Envía una solicitud de conexión. Devuelve el estado resultante:
+  /// `pending_sent` o, si esa persona ya te había solicitado, `connected`.
+  Future<String> requestConnection(int userId) async {
+    final response = await _dio.post('/network/$userId/connect');
+    return (response.data as Map)['status'] as String? ?? 'pending_sent';
   }
 
-  Future<void> unfollowUser(int userId) async {
-    await _dio.delete('/network/$userId/follow');
+  /// Deshace la conexión o retira una solicitud propia.
+  Future<void> removeConnection(int userId) async {
+    await _dio.delete('/network/$userId/connect');
+  }
+
+  /// Solicitudes de conexión recibidas y sin responder.
+  Future<List<Map<String, dynamic>>> getConnectionRequests() async {
+    final response = await _dio.get('/network/requests');
+    return (response.data as List<dynamic>).cast<Map<String, dynamic>>();
+  }
+
+  /// Acepta o rechaza una solicitud recibida.
+  Future<String> respondToConnectionRequest(
+    int userId, {
+    required bool accept,
+  }) async {
+    final action = accept ? 'accept' : 'reject';
+    final response = await _dio.post('/network/requests/$userId/$action');
+    return (response.data as Map)['status'] as String? ?? 'none';
+  }
+
+  /// Contactos ya conectados.
+  Future<List<Map<String, dynamic>>> getConnections() async {
+    final response = await _dio.get('/network/connections');
+    return (response.data as List<dynamic>).cast<Map<String, dynamic>>();
   }
 
   Future<List<dynamic>> getFollowing() async {

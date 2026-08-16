@@ -831,7 +831,15 @@ class DemoBackend {
 
   Future<List<Map<String, dynamic>>> getNetworkSuggestions() => _delayed(
     _people
-        .where((p) => p['id'] != _currentUserId)
+        // Igual que el backend real: quien ya está conectado o tiene una
+        // solicitud en curso sale de las sugerencias.
+        .where(
+          (p) =>
+              p['id'] != _currentUserId &&
+              !_followingIds.contains(p['id']) &&
+              !_sentRequestIds.contains(p['id']) &&
+              !_incomingRequests.any((r) => r['id'] == p['id']),
+        )
         .map(
           (p) => {
             'id': p['id'],
@@ -842,7 +850,7 @@ class DemoBackend {
             'bio': p['bio'],
             'location': p['institution'],
             'followersCount': p['followers'],
-            'isFollowing': _followingIds.contains(p['id']),
+            'connectionStatus': 'none',
           },
         )
         .toList(),
@@ -863,14 +871,81 @@ class DemoBackend {
         .toList(),
   );
 
-  Future<void> followUser(int userId) {
-    _followingIds.add(userId);
+  // ── Conexiones bilaterales ─────────────────────────────────────────────────
+  // `_followingIds` guarda ahora las conexiones aceptadas y `_sentRequestIds`
+  // las solicitudes enviadas sin responder.
+
+  final Set<int> _sentRequestIds = <int>{};
+
+  /// Solicitudes recibidas de ejemplo, para que la burbuja no salga vacía en la
+  /// demo. Se responden como en la aplicación real.
+  final List<Map<String, dynamic>> _incomingRequests = [
+    {
+      'id': 105,
+      'fullName': 'Valentina Soto Cárdenas',
+      'institution': _liceo,
+      'profilePictureUrl': null,
+      'bio': 'Modelado 3D y prototipado rápido.',
+      'role': 'student',
+      'requestedAt': null,
+    },
+    {
+      'id': 106,
+      'fullName': 'Ignacio Fuentes Bravo',
+      'institution': _liceo,
+      'profilePictureUrl': null,
+      'bio': 'Robótica y sistemas embebidos.',
+      'role': 'student',
+      'requestedAt': null,
+    },
+  ];
+
+  Future<List<Map<String, dynamic>>> getConnectionRequests() =>
+      _delayed(List<Map<String, dynamic>>.from(_incomingRequests));
+
+  Future<List<Map<String, dynamic>>> getConnections() => _delayed(
+    _people
+        .where((p) => _followingIds.contains(p['id']))
+        .map(
+          (p) => {
+            'id': p['id'],
+            'fullName': p['fullName'],
+            'institution': p['institution'],
+            'profilePictureUrl': null,
+            'bio': p['bio'],
+            'role': p['role'],
+            'followersCount': p['followers'],
+            'connectionStatus': 'connected',
+          },
+        )
+        .toList(),
+  );
+
+  Future<Map<String, dynamic>> requestConnection(int userId) {
+    // Si esa persona ya había solicitado, se interpreta como acuerdo.
+    final incoming = _incomingRequests.any((r) => r['id'] == userId);
+    if (incoming) {
+      _incomingRequests.removeWhere((r) => r['id'] == userId);
+      _followingIds.add(userId);
+      return _delayed({'status': 'connected'});
+    }
+    _sentRequestIds.add(userId);
+    return _delayed({'status': 'pending_sent'});
+  }
+
+  Future<void> removeConnection(int userId) {
+    _followingIds.remove(userId);
+    _sentRequestIds.remove(userId);
     return _delayed(null, 150);
   }
 
-  Future<void> unfollowUser(int userId) {
-    _followingIds.remove(userId);
-    return _delayed(null, 150);
+  Future<Map<String, dynamic>> respondToConnectionRequest(
+    int userId, {
+    required bool accept,
+  }) {
+    _incomingRequests.removeWhere((r) => r['id'] == userId);
+    if (accept) _followingIds.add(userId);
+    return _delayed({'status': accept ? 'connected' : 'none'});
   }
 
   // ════════════════════════════════════════════════════════════════════════

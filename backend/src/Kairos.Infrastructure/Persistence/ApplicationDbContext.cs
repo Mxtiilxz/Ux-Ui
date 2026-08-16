@@ -81,6 +81,12 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
             // Índice para buscar "todos los que sigue este usuario" rápido
             e.HasIndex(f => f.FollowedId);
+
+            e.Property(f => f.Status).HasMaxLength(20).IsRequired()
+             .HasDefaultValue(ConnectionStatus.Pending);
+
+            // Índice para la bandeja de solicitudes: "qué me llegó sin responder"
+            e.HasIndex(f => new { f.FollowedId, f.Status });
         });
 
         // ════════════════════════════════════════════════════

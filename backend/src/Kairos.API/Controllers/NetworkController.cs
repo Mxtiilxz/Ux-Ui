@@ -1,6 +1,8 @@
 using System.Security.Claims;
-using Kairos.Application.Features.Network.Commands.FollowUser;
-using Kairos.Application.Features.Network.Commands.UnfollowUser;
+using Kairos.Application.Features.Network.Commands.RemoveConnection;
+using Kairos.Application.Features.Network.Commands.RespondToConnectionRequest;
+using Kairos.Application.Features.Network.Commands.SendConnectionRequest;
+using Kairos.Application.Features.Network.Queries.GetConnections;
 using Kairos.Application.Features.Network.Queries.GetFollowing;
 using Kairos.Application.Features.Network.Queries.GetNetworkSuggestions;
 using MediatR;
@@ -19,43 +21,66 @@ public class NetworkController(IMediator mediator) : ControllerBase
         ?? User.FindFirstValue("sub")
         ?? throw new UnauthorizedAccessException());
 
-    /// <summary>Get users that the current user follows (for chat suggestions).</summary>
+    /// <summary>
+    /// Contactos conectados. Se conserva la ruta <c>following</c> porque la usa
+    /// la pestaña de chat, pero ya no son "los que sigo": son las conexiones
+    /// aceptadas por ambas partes.
+    /// </summary>
     [HttpGet("following")]
     [ProducesResponseType(typeof(IReadOnlyList<UserSuggestionDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetFollowing(CancellationToken ct)
-    {
-        var result = await mediator.Send(new GetFollowingQuery(GetUserId()), ct);
-        return Ok(result);
-    }
+        => Ok(await mediator.Send(new GetFollowingQuery(GetUserId()), ct));
 
-    /// <summary>Get suggested users to follow (not yet followed).</summary>
+    /// <summary>Contactos conectados.</summary>
+    [HttpGet("connections")]
+    [ProducesResponseType(typeof(IReadOnlyList<UserSuggestionDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetConnections(CancellationToken ct)
+        => Ok(await mediator.Send(new GetConnectionsQuery(GetUserId()), ct));
+
+    /// <summary>Solicitudes de conexión recibidas y sin responder.</summary>
+    [HttpGet("requests")]
+    [ProducesResponseType(typeof(IReadOnlyList<ConnectionRequestDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetRequests(CancellationToken ct)
+        => Ok(await mediator.Send(new GetConnectionRequestsQuery(GetUserId()), ct));
+
+    /// <summary>Personas sugeridas: ni conectadas ni con solicitud en curso.</summary>
     [HttpGet("suggestions")]
     [ProducesResponseType(typeof(IReadOnlyList<UserSuggestionDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetSuggestions(
         [FromQuery] int page     = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken ct     = default)
-    {
-        var result = await mediator.Send(
-            new GetNetworkSuggestionsQuery(GetUserId(), page, pageSize), ct);
-        return Ok(result);
-    }
+        => Ok(await mediator.Send(new GetNetworkSuggestionsQuery(GetUserId(), page, pageSize), ct));
 
-    /// <summary>Follow a user.</summary>
-    [HttpPost("{userId:int}/follow")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> Follow(int userId, CancellationToken ct)
-    {
-        await mediator.Send(new FollowUserCommand(GetUserId(), userId), ct);
-        return NoContent();
-    }
+    /// <summary>
+    /// Envía una solicitud de conexión. Si esa persona ya te había enviado una,
+    /// se interpreta como aceptación y quedan conectados.
+    /// </summary>
+    [HttpPost("{userId:int}/connect")]
+    [ProducesResponseType(typeof(ConnectionState), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Connect(int userId, CancellationToken ct)
+        => Ok(await mediator.Send(new SendConnectionRequestCommand(GetUserId(), userId), ct));
 
-    /// <summary>Unfollow a user.</summary>
-    [HttpDelete("{userId:int}/follow")]
+    /// <summary>Acepta una solicitud recibida.</summary>
+    [HttpPost("requests/{userId:int}/accept")]
+    [ProducesResponseType(typeof(ConnectionState), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AcceptRequest(int userId, CancellationToken ct)
+        => Ok(await mediator.Send(
+            new RespondToConnectionRequestCommand(GetUserId(), userId, Accept: true), ct));
+
+    /// <summary>Rechaza una solicitud recibida.</summary>
+    [HttpPost("requests/{userId:int}/reject")]
+    [ProducesResponseType(typeof(ConnectionState), StatusCodes.Status200OK)]
+    public async Task<IActionResult> RejectRequest(int userId, CancellationToken ct)
+        => Ok(await mediator.Send(
+            new RespondToConnectionRequestCommand(GetUserId(), userId, Accept: false), ct));
+
+    /// <summary>Deshace la conexión, o retira una solicitud propia.</summary>
+    [HttpDelete("{userId:int}/connect")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> Unfollow(int userId, CancellationToken ct)
+    public async Task<IActionResult> Disconnect(int userId, CancellationToken ct)
     {
-        await mediator.Send(new UnfollowUserCommand(GetUserId(), userId), ct);
+        await mediator.Send(new RemoveConnectionCommand(GetUserId(), userId), ct);
         return NoContent();
     }
 }
