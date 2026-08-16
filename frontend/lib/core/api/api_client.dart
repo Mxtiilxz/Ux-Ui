@@ -132,26 +132,36 @@ class ApiClient {
     required String name,
   }) => DemoBackend.instance.login('demo@kairos.cl', role, name);
 
+  /// Registro público de un alumno o de una empresa.
+  ///
+  /// El nombre de usuario ya no se envía: lo deriva el servidor del nombre real
+  /// (primer nombre y primer apellido, o la razón social), para que el liceo
+  /// mantenga el control de cómo aparecen sus alumnos.
+  ///
+  /// Devuelve, entre otros, `status`: `pending` para un alumno y `approved`
+  /// para una empresa, que entra directo.
   Future<Map<String, dynamic>> register({
-    required String username,
     required String email,
     required String password,
-    required String fullName,
-    String? institution,
     String role = 'student',
+    String? firstNames,
+    String? lastNames,
+    String? companyName,
+    String? institution,
   }) async {
     final response = await _dio.post(
       '/auth/register',
       data: {
-        'username': username,
         'email': email,
         'password': password,
-        'fullName': fullName,
-        'institution': institution,
         'role': role,
+        if (firstNames != null) 'firstNames': firstNames,
+        if (lastNames != null) 'lastNames': lastNames,
+        if (companyName != null) 'companyName': companyName,
+        if (institution != null) 'institution': institution,
       },
     );
-    return response.data as Map<String, dynamic>;
+    return (response.data as Map).cast<String, dynamic>();
   }
 
   // ── Feed / Posts ─────────────────────────────────────────────────────────────
@@ -322,6 +332,34 @@ class ApiClient {
 
   Future<void> removeMySkill(int skillId) async {
     await _dio.delete('/skills/me/$skillId');
+  }
+
+  /// Estado de la cuenta cuando el servidor rechaza el acceso por no estar
+  /// habilitada: `'pending'`, `'rejected'` o `null` si el fallo fue otro.
+  ///
+  /// Las credenciales correctas de una cuenta en espera no son un error de
+  /// acceso, y confundir ambos casos deja al usuario sin saber si se equivocó
+  /// de contraseña o si solo tiene que esperar.
+  static String? accountStatusOf(Object error) {
+    if (error is! DioException) return null;
+    final data = error.response?.data;
+    return data is Map ? data['accountStatus'] as String? : null;
+  }
+
+  /// Solo staff: cuántas solicitudes de registro esperan revisión.
+  Future<int> getPendingRequestCount() async {
+    final response = await _dio.get('/staff/pending-count');
+    return (response.data as Map)['count'] as int? ?? 0;
+  }
+
+  /// Solo staff: historial de altas. Un alumno aparece al ser aprobado; una
+  /// empresa, al registrarse.
+  Future<List<Map<String, dynamic>>> getJoinHistory({int limit = 30}) async {
+    final response = await _dio.get(
+      '/staff/join-history',
+      queryParameters: {'limit': limit},
+    );
+    return (response.data as List<dynamic>).cast<Map<String, dynamic>>();
   }
 
   /// Perfil propio con sus métricas reales (publicaciones, seguidores,

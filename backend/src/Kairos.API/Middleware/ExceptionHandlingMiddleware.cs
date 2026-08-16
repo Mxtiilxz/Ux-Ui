@@ -26,6 +26,7 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
         var (statusCode, title) = ex switch
         {
             ValidationException         => (HttpStatusCode.BadRequest,           "Solicitud inválida."),
+            AccountNotApprovedException => (HttpStatusCode.Forbidden,             "Cuenta no habilitada."),
             UnauthorizedAccessException => (HttpStatusCode.Unauthorized,          "No autorizado."),
             ForbiddenException          => (HttpStatusCode.Forbidden,             "Acción no permitida."),
             KeyNotFoundException        => (HttpStatusCode.NotFound,              "Recurso no encontrado."),
@@ -44,7 +45,10 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
             title,
             status = (int)statusCode,
             detail = ex.Message,
-            instance = context.Request.Path.Value
+            instance = context.Request.Path.Value,
+            // Campo legible por el cliente para distinguir "espera aprobación"
+            // de "cuenta rechazada" sin tener que interpretar el texto.
+            accountStatus = (ex as AccountNotApprovedException)?.AccountStatus,
         };
 
         return context.Response.WriteAsync(JsonSerializer.Serialize(problemDetails));

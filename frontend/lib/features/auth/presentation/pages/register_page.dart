@@ -5,9 +5,17 @@ import '../../../../core/models/user_profile.dart';
 import '../../../../core/theme/app_colors.dart';
 
 class RegisterPage extends StatefulWidget {
-  const RegisterPage({super.key, required this.onRegisterSuccess});
+  const RegisterPage({
+    super.key,
+    required this.onRegisterSuccess,
+    this.onPendingApproval,
+  });
 
   final void Function(UserProfile user, String token) onRegisterSuccess;
+
+  /// Se invoca cuando la cuenta creada queda a la espera de aprobación, para
+  /// que la aplicación muestre la pantalla de espera en vez de un error.
+  final void Function(String email, String password)? onPendingApproval;
 
   @override
   State<RegisterPage> createState() => _RegisterPageState();
@@ -15,8 +23,12 @@ class RegisterPage extends StatefulWidget {
 
 class _RegisterPageState extends State<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _usernameController = TextEditingController();
+  // Nombres y apellidos separados: el nombre de usuario lo deriva el servidor
+  // del primer nombre y el primer apellido, así el liceo controla cómo
+  // aparecen sus alumnos en vez de dejarlo a elección de cada uno.
+  final _firstNamesController = TextEditingController();
+  final _lastNamesController = TextEditingController();
+  final _companyNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
@@ -54,8 +66,9 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _usernameController.dispose();
+    _firstNamesController.dispose();
+    _lastNamesController.dispose();
+    _companyNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmController.dispose();
@@ -66,39 +79,49 @@ class _RegisterPageState extends State<RegisterPage> {
     super.dispose();
   }
 
-  String _institutionLabel() {
-    return _selectedRole == 'company'
-        ? 'Nombre de la empresa'
-        : 'Liceo (opcional)';
-  }
+  String _institutionLabel() => 'Liceo (opcional)';
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
+    final isCompany = _selectedRole == 'company';
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
     try {
       final client = ApiClient();
-      await client.register(
-        username: _usernameController.text.trim(),
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-        fullName: _nameController.text.trim(),
+      final registration = await client.register(
+        email: email,
+        password: password,
+        role: _selectedRole,
+        firstNames: isCompany ? null : _firstNamesController.text.trim(),
+        lastNames: isCompany ? null : _lastNamesController.text.trim(),
+        companyName: isCompany ? _companyNameController.text.trim() : null,
         institution: _institutionController.text.trim().isEmpty
             ? null
             : _institutionController.text.trim(),
-        role: _selectedRole,
       );
 
-      // Iniciar sesión automáticamente tras registro
-      final loginResponse = await client.login(
-        _emailController.text.trim(),
-        _passwordController.text,
-      );
+      // Un alumno queda pendiente de aprobación, así que no tiene sentido
+      // intentar iniciar sesión: el servidor lo rechazaría. Se le muestra la
+      // pantalla de espera, que entra sola cuando el liceo lo aprueba.
+      if (registration['status'] == 'pending') {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        widget.onPendingApproval?.call(email, password);
+        return;
+      }
+
+      // Una empresa entra directo.
+      final loginResponse = await client.login(email, password);
 
       final token = loginResponse['token'] as String;
       final userId = (loginResponse['userId'] as int? ?? 0).toString();
       final fullName =
-          loginResponse['fullName'] as String? ?? _nameController.text.trim();
+          loginResponse['fullName'] as String? ??
+          registration['fullName'] as String? ??
+          '';
       final avatarUrl = loginResponse['profilePictureUrl'] as String? ?? '';
       final roleStr = loginResponse['role'] as String? ?? _selectedRole;
 
@@ -286,47 +309,76 @@ class _RegisterPageState extends State<RegisterPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _field(
-                          controller: _nameController,
-                          label: 'Nombre completo',
-                          hint: 'Juan Pérez',
-                          icon: Icons.person_outline,
-                          validator: (v) => v == null || v.trim().isEmpty
-                              ? 'Ingresa tu nombre'
-                              : null,
-                        ),
-                        const SizedBox(height: 14),
-                        _field(
-                          controller: _usernameController,
-                          label: 'Nombre de usuario',
-                          hint: 'juanperez',
-                          icon: Icons.alternate_email_rounded,
-                          validator: (v) => v == null || v.trim().isEmpty
-                              ? 'Ingresa un usuario'
-                              : null,
-                        ),
+                        // El formulario cambia con el rol: una empresa no tiene
+                        // nombres ni apellidos, y un alumno no tiene razón
+                        // social. El campo de nombre de usuario desapareció:
+                        // ahora lo deriva el servidor del nombre real.
+                        if (_selectedRole == 'company')
+                          _field(
+                            controller: _companyNameController,
+                            label: 'Nombre de la empresa',
+                            hint: 'TechSolutions Chile SpA',
+                            icon: Icons.business_outlined,
+                            validator: (v) => v == null || v.trim().isEmpty
+                                ? 'Ingresa el nombre de la empresa'
+                                : null,
+                          )
+                        else ...[
+                          _field(
+                            controller: _firstNamesController,
+                            label: 'Nombres',
+                            hint: 'Ana María',
+                            icon: Icons.person_outline,
+                            validator: (v) => v == null || v.trim().isEmpty
+                                ? 'Ingresa tus nombres'
+                                : null,
+                          ),
+                          const SizedBox(height: 14),
+                          _field(
+                            controller: _lastNamesController,
+                            label: 'Apellidos',
+                            hint: 'Pérez Soto',
+                            icon: Icons.badge_outlined,
+                            validator: (v) => v == null || v.trim().isEmpty
+                                ? 'Ingresa tus apellidos'
+                                : null,
+                          ),
+                        ],
                         const SizedBox(height: 14),
                         _field(
                           controller: _emailController,
                           label: 'Correo electrónico',
-                          hint: 'correo@liceo.cl',
+                          hint: _selectedRole == 'company'
+                              ? 'contacto@tuempresa.cl'
+                              : 'nombre@kairos.cl',
                           icon: Icons.email_outlined,
                           keyboardType: TextInputType.emailAddress,
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty) {
-                              return 'Ingresa tu correo';
+                            final value = v?.trim() ?? '';
+                            if (value.isEmpty) return 'Ingresa tu correo';
+                            if (!value.contains('@')) return 'Correo inválido';
+                            // El liceo exige su dominio para los alumnos; se
+                            // avisa aquí en vez de esperar el rechazo del
+                            // servidor tras rellenar todo el formulario.
+                            if (_selectedRole != 'company' &&
+                                !value.toLowerCase().endsWith('@kairos.cl')) {
+                              return 'Debe ser tu correo @kairos.cl del liceo';
                             }
-                            if (!v.contains('@')) return 'Correo inválido';
                             return null;
                           },
                         ),
-                        const SizedBox(height: 14),
-                        _field(
-                          controller: _institutionController,
-                          label: _institutionLabel(),
-                          hint: 'Liceo Técnico Cardenal José María Caro',
-                          icon: Icons.business_outlined,
-                        ),
+                        // La empresa ya dio su razón social arriba; pedirle
+                        // además una "institución" duplicaba el mismo dato con
+                        // dos etiquetas iguales.
+                        if (_selectedRole != 'company') ...[
+                          const SizedBox(height: 14),
+                          _field(
+                            controller: _institutionController,
+                            label: _institutionLabel(),
+                            hint: 'Liceo Técnico Cardenal José María Caro',
+                            icon: Icons.business_outlined,
+                          ),
+                        ],
                         const SizedBox(height: 14),
                         _field(
                           controller: _passwordController,

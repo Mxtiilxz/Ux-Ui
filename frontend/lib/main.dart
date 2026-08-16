@@ -13,6 +13,7 @@ import 'core/state/user_role_controller.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/app_shell.dart';
 import 'features/auth/presentation/pages/login_page.dart';
+import 'features/auth/presentation/pages/pending_approval_page.dart';
 import 'features/chat/presentation/pages/chats_page.dart';
 import 'features/home/presentation/pages/home_page.dart';
 import 'features/jobs/presentation/pages/jobs_page.dart';
@@ -37,6 +38,11 @@ class _KairosAppState extends State<KairosApp> {
   int _selectedIndex = 0;
   bool _restoringSession = true;
   String? _initialChatContactId;
+
+  /// Credenciales de una cuenta que existe pero espera aprobación. Se guardan
+  /// solo en memoria y solo mientras dura la espera, para poder reintentar el
+  /// acceso sin volver a pedirlas.
+  ({String email, String password})? _awaitingApproval;
 
   // Notificaciones sociales en vivo. El shell las publica en una región
   // `liveRegion`, así que un lector de pantalla las anuncia sin robar el foco
@@ -165,6 +171,53 @@ class _KairosAppState extends State<KairosApp> {
     });
   }
 
+  /// La cuenta que esperaba fue aprobada: se completa la sesión con la
+  /// respuesta del login que consiguió la pantalla de espera, sin pedirle nada
+  /// más al usuario.
+  Future<void> _onApproved(Map<String, dynamic> response) async {
+    final api = ApiClient();
+    final token = response['token'] as String? ?? '';
+    if (token.isEmpty) return;
+
+    final roleStr = response['role'] as String? ?? 'student';
+    final role = switch (roleStr) {
+      'staff' => UserRole.staff,
+      'company' => UserRole.company,
+      'alumni' => UserRole.alumni,
+      _ => UserRole.student,
+    };
+    final institution = response['institution'] as String?;
+
+    await api.saveToken(token);
+    await api.saveProfile({
+      'id': (response['userId'] as int? ?? 0).toString(),
+      'fullName': response['fullName'] as String? ?? '',
+      'role': roleStr,
+      'title': '',
+      'profilePictureUrl': response['profilePictureUrl'] as String? ?? '',
+      'institution': institution,
+    });
+
+    if (!mounted) return;
+    setState(() => _awaitingApproval = null);
+
+    _onLoginSuccess(
+      UserProfile(
+        id: (response['userId'] as int? ?? 0).toString(),
+        name: response['fullName'] as String? ?? '',
+        role: role,
+        title: '',
+        avatarUrl: response['profilePictureUrl'] as String? ?? '',
+        skills: const [],
+        bio: '',
+        location: '',
+        connections: 0,
+        institution: institution,
+        quickMatchVisible: response['quickMatchVisible'] as bool? ?? false,
+      ),
+    );
+  }
+
   void _onLoginSuccess(UserProfile user) {
     _roleController.setRole(user.role);
     setState(() {
@@ -191,6 +244,7 @@ class _KairosAppState extends State<KairosApp> {
 
   String get _pageTitle {
     if (_restoringSession) return 'Kairos — Cargando';
+    if (_awaitingApproval != null) return 'Kairos — Cuenta en espera';
     if (_currentUser == null) return 'Kairos — Iniciar sesión';
     final title = _selectedIndex >= 0 && _selectedIndex < _tabTitles.length
         ? _tabTitles[_selectedIndex]
@@ -221,8 +275,20 @@ class _KairosAppState extends State<KairosApp> {
               label: 'Cargando sesión',
               child: Scaffold(body: Center(child: CircularProgressIndicator())),
             )
+          : _awaitingApproval != null
+          ? PendingApprovalPage(
+              email: _awaitingApproval!.email,
+              password: _awaitingApproval!.password,
+              onApproved: _onApproved,
+              onCancel: () => setState(() => _awaitingApproval = null),
+            )
           : _currentUser == null
-          ? LoginPage(onLoginSuccess: _onLoginSuccess)
+          ? LoginPage(
+              onLoginSuccess: _onLoginSuccess,
+              onPendingApproval: (email, password) => setState(
+                () => _awaitingApproval = (email: email, password: password),
+              ),
+            )
           : AnimatedBuilder(
               animation: _roleController,
               builder: (context, _) {

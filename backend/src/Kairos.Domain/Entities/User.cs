@@ -16,6 +16,11 @@ public class User
     public string? Role             { get; set; }  // "student" | "company" | "staff"
     public string  Status           { get; set; } = "approved"; // "pending" | "approved" | "rejected"
     public DateTime CreatedAt       { get; set; } = DateTime.UtcNow;
+    // Momento en que la cuenta quedó habilitada. Una empresa se une al
+    // registrarse; un alumno, cuando el liceo lo aprueba. El historial de altas
+    // del panel usa esta fecha, no CreatedAt: mostrar a un alumno como "se unió"
+    // antes de ser aprobado sería anunciar a alguien que aún no está dentro.
+    public DateTime? ApprovedAt     { get; set; }
 
     // Quick Match: el estudiante debe activar esto explícitamente para
     // aparecer en las búsquedas de competencias de las empresas.

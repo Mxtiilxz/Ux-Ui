@@ -9,6 +9,7 @@ import '../../../../core/theme/kairos_palette.dart';
 import '../../../../core/widgets/k_card.dart';
 import '../../../../core/widgets/post_card.dart';
 import '../../../home/data/models/post_model.dart';
+import '../../../staff/presentation/pages/join_history_page.dart';
 import '../../../staff/presentation/pages/registration_requests_page.dart';
 import '../../../staff/presentation/pages/skill_catalog_page.dart';
 import '../../../staff/presentation/pages/staff_management_page.dart';
@@ -50,11 +51,25 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> _topDemand = [];
   bool _statsLoading = true;
 
+  /// Solicitudes de registro sin revisar. Solo se consulta si el usuario es
+  /// staff; para el resto no existe el panel.
+  int _pendingRequests = 0;
+
   @override
   void initState() {
     super.initState();
     _loadFeed();
     _loadStats();
+    if (widget.role == UserRole.staff) _loadPendingRequests();
+  }
+
+  Future<void> _loadPendingRequests() async {
+    try {
+      final count = await _api.getPendingRequestCount();
+      if (mounted) setState(() => _pendingRequests = count);
+    } catch (_) {
+      // La insignia es un aviso, no una función: si falla no se muestra.
+    }
   }
 
   Future<void> _loadStats() async {
@@ -403,21 +418,59 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      const Expanded(
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Panel de Gestión',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w900,
-                                fontSize: 16,
-                              ),
+                            Row(
+                              children: [
+                                const Text(
+                                  'Panel de Gestión',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                // Sin este aviso, una solicitud podía quedarse
+                                // días sin revisar: nada en Inicio delataba que
+                                // había alguien esperando entrar.
+                                if (_pendingRequests > 0) ...[
+                                  const SizedBox(width: 8),
+                                  Semantics(
+                                    liveRegion: true,
+                                    label: _pendingRequests == 1
+                                        ? '1 solicitud pendiente de revisión'
+                                        : '$_pendingRequests solicitudes pendientes de revisión',
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: KairosPalette.danger,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        '$_pendingRequests',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
-                            SizedBox(height: 4),
+                            const SizedBox(height: 4),
                             Text(
-                              'Crea cuentas de alumnos o staff desde un CSV.',
-                              style: TextStyle(fontSize: 13),
+                              _pendingRequests > 0
+                                  ? _pendingRequests == 1
+                                        ? 'Hay 1 solicitud esperando aprobación.'
+                                        : 'Hay $_pendingRequests solicitudes esperando aprobación.'
+                                  : 'Crea cuentas de alumnos o staff desde un CSV.',
+                              style: const TextStyle(fontSize: 13),
                             ),
                           ],
                         ),
@@ -430,13 +483,22 @@ class _HomePageState extends State<HomePage> {
                     runSpacing: 8,
                     children: [
                       ElevatedButton.icon(
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const RegistrationRequestsPage(),
-                          ),
-                        ),
+                        // Al volver del panel se refresca el contador: si el
+                        // staff acaba de aprobar, la insignia debe reflejarlo.
+                        onPressed: () async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const RegistrationRequestsPage(),
+                            ),
+                          );
+                          await _loadPendingRequests();
+                        },
                         icon: const Icon(Icons.person_add_rounded, size: 18),
-                        label: const Text('Solicitudes'),
+                        label: Text(
+                          _pendingRequests > 0
+                              ? 'Solicitudes ($_pendingRequests)'
+                              : 'Solicitudes',
+                        ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: KairosPalette.accent,
                           foregroundColor: Colors.white,
@@ -479,6 +541,19 @@ class _HomePageState extends State<HomePage> {
                         ),
                         icon: const Icon(Icons.checklist_rounded, size: 18),
                         label: const Text('Competencias'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: KairosPalette.primary,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const JoinHistoryPage(),
+                          ),
+                        ),
+                        icon: const Icon(Icons.history_rounded, size: 18),
+                        label: const Text('Historial'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: KairosPalette.primary,
                           foregroundColor: Colors.white,

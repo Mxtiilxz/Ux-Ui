@@ -80,6 +80,9 @@ public class StaffController(IApplicationDbContext db, IMediator mediator) : Con
         if (user is null) return NotFound();
 
         user.Status = "approved";
+        // Se registra el momento de la aprobación: es cuando el alumno pasa a
+        // formar parte de la red, y es lo que ordena el historial de altas.
+        user.ApprovedAt ??= DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
         return NoContent();
     }
@@ -110,6 +113,48 @@ public class StaffController(IApplicationDbContext db, IMediator mediator) : Con
         db.Users.Remove(user);
         await db.SaveChangesAsync(ct);
         return NoContent();
+    }
+
+    /// <summary>
+    /// Historial de altas: quién se sumó a la plataforma y cuándo.
+    ///
+    /// Un alumno aparece al ser aprobado, no al registrarse — antes de eso no
+    /// forma parte de la red y anunciarlo sería prematuro. Una empresa aparece
+    /// al registrarse, porque entra directo.
+    /// </summary>
+    [HttpGet("join-history")]
+    public async Task<IActionResult> GetJoinHistory(
+        [FromQuery] int limit = 30,
+        CancellationToken ct = default)
+    {
+        if (GetRole() != "staff") return Forbid();
+
+        var history = await db.Users
+            .Where(u => u.Status == "approved" && u.ApprovedAt != null)
+            .OrderByDescending(u => u.ApprovedAt)
+            .Take(Math.Clamp(limit, 1, 100))
+            .Select(u => new
+            {
+                u.Id,
+                u.FullName,
+                u.Username,
+                u.Role,
+                u.Institution,
+                JoinedAt = u.ApprovedAt,
+            })
+            .ToListAsync(ct);
+
+        return Ok(history);
+    }
+
+    /// <summary>Número de solicitudes pendientes, para la insignia del panel.</summary>
+    [HttpGet("pending-count")]
+    public async Task<IActionResult> GetPendingCount(CancellationToken ct)
+    {
+        if (GetRole() != "staff") return Forbid();
+
+        var count = await db.Users.CountAsync(u => u.Status == "pending", ct);
+        return Ok(new { count });
     }
 
     /// <summary>List all registered users (for staff dashboard).</summary>

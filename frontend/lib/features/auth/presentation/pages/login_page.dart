@@ -7,9 +7,17 @@ import '../../../../core/theme/app_colors.dart';
 import 'register_page.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key, required this.onLoginSuccess});
+  const LoginPage({
+    super.key,
+    required this.onLoginSuccess,
+    this.onPendingApproval,
+  });
 
   final void Function(UserProfile user) onLoginSuccess;
+
+  /// Se invoca con las credenciales cuando la cuenta existe y la contraseña es
+  /// correcta, pero todavía espera la aprobación del liceo.
+  final void Function(String email, String password)? onPendingApproval;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -133,6 +141,18 @@ class _LoginPageState extends State<LoginPage> {
     } on DioException catch (e) {
       if (!mounted) return;
 
+      // La contraseña era correcta pero la cuenta espera aprobación. Eso no es
+      // un error de acceso: se muestra la pantalla de espera, que deja entrar
+      // sola cuando el liceo aprueba.
+      if (ApiClient.accountStatusOf(e) == 'pending') {
+        setState(() => _isLoading = false);
+        widget.onPendingApproval?.call(
+          _emailController.text.trim(),
+          _passwordController.text,
+        );
+        return;
+      }
+
       if (_isBackendUnavailable(e)) {
         final demoUser = _buildDemoUser();
         setState(() => _isLoading = false);
@@ -247,6 +267,12 @@ class _LoginPageState extends State<LoginPage> {
       MaterialPageRoute(
         builder: (_) => RegisterPage(
           onRegisterSuccess: (user, _) => widget.onLoginSuccess(user),
+          onPendingApproval: (email, password) {
+            // Se cierra el formulario antes de delegar: la pantalla de espera
+            // la monta la aplicación, no esta pila de navegación.
+            Navigator.of(context).pop();
+            widget.onPendingApproval?.call(email, password);
+          },
         ),
       ),
     );

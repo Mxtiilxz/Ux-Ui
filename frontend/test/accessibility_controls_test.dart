@@ -61,7 +61,10 @@ void main() {
         hasFocusAction: true,
       ),
     );
-    expect(find.bySemanticsLabel('Nombre completo'), findsOneWidget);
+    // El registro pide nombres y apellidos por separado: de ahí deriva el
+    // servidor el nombre de usuario del alumno.
+    expect(find.bySemanticsLabel('Nombres'), findsOneWidget);
+    expect(find.bySemanticsLabel('Apellidos'), findsOneWidget);
     expect(find.bySemanticsLabel('Correo electrónico'), findsOneWidget);
     expect(find.byTooltip('Mostrar contraseña'), findsOneWidget);
     expect(
@@ -85,6 +88,23 @@ void main() {
     );
     await tester.pump();
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('el formulario de empresa pide razón social, no nombres', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      _viewport(RegisterPage(onRegisterSuccess: (_, _) {})),
+    );
+
+    await tester.tap(find.bySemanticsLabel(RegExp('^Empresa')));
+    await tester.pumpAndSettle();
+
+    expect(find.bySemanticsLabel('Nombre de la empresa'), findsOneWidget);
+    expect(find.bySemanticsLabel('Nombres'), findsNothing);
+    expect(find.bySemanticsLabel('Apellidos'), findsNothing);
+    semantics.dispose();
   });
 
   testWidgets('el registro público no ofrece el rol staff', (tester) async {
