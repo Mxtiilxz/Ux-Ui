@@ -88,6 +88,9 @@ class DemoInterceptor extends Interceptor {
       return _demo.searchCandidates(ids);
     }
 
+    // estadísticas de comunidad
+    if (_is(s, ['stats', 'community'])) return _demo.getCommunityStats();
+
     // network
     if (_is(s, ['network', 'suggestions'])) {
       return _demo.getNetworkSuggestions();

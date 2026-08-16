@@ -634,6 +634,64 @@ class DemoBackend {
   //  COMPETENCIAS / QUICK MATCH
   // ════════════════════════════════════════════════════════════════════════
 
+  /// Mismas cifras que calcula el backend real, pero sobre los datos en memoria
+  /// de la demo: alumnos aprobados, empresas, ofertas abiertas, competencias
+  /// más registradas y ofertas por oficio.
+  Future<Map<String, dynamic>> getCommunityStats() {
+    final studentSkillCounts = <int, int>{};
+    for (final person in _people) {
+      if (person['role'] != 'student') continue;
+      for (final id in (person['skillIds'] as List).cast<int>()) {
+        studentSkillCounts[id] = (studentSkillCounts[id] ?? 0) + 1;
+      }
+    }
+
+    final topSkills =
+        _skills
+            .where((skill) => studentSkillCounts.containsKey(skill['id']))
+            .map(
+              (skill) => {
+                'id': skill['id'],
+                'name': skill['name'],
+                'studentCount': studentSkillCounts[skill['id']],
+              },
+            )
+            .toList()
+          ..sort(
+            (a, b) =>
+                (b['studentCount'] as int).compareTo(a['studentCount'] as int),
+          );
+
+    const trades = [
+      'Electricista',
+      'Soldador',
+      'Carpintero',
+      'Mecánico',
+      'Gasfiter',
+    ];
+    final topTrades =
+        trades.map((trade) {
+          final needle = trade.toLowerCase();
+          final count = _jobs.where((job) {
+            final title = (job['title'] as String? ?? '').toLowerCase();
+            final description = (job['description'] as String? ?? '')
+                .toLowerCase();
+            return title.contains(needle) || description.contains(needle);
+          }).length;
+          return {'name': trade, 'jobCount': count};
+        }).toList()..sort(
+          (a, b) => (b['jobCount'] as int).compareTo(a['jobCount'] as int),
+        );
+
+    return _delayed({
+      'students': _people.where((p) => p['role'] == 'student').length,
+      'companies': _people.where((p) => p['role'] == 'company').length,
+      'activeJobs': _jobs.length,
+      'topSkills': topSkills.take(6).toList(),
+      'topTrades': topTrades,
+    });
+  }
+
   Future<List<Map<String, dynamic>>> getSkills() =>
       _delayed(_skills.map((s) => Map<String, dynamic>.from(s)).toList());
 

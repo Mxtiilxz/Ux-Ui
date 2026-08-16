@@ -171,7 +171,9 @@ class _NetworkPageState extends State<NetworkPage> {
               children: [
                 _stats(
                   Icons.people_alt_rounded,
-                  '${_connected.length + 234}',
+                  // Antes se le sumaba 234 a este número, sin más motivo que
+                  // hacer parecer poblada una red que estaba vacía.
+                  '${_connected.length}',
                   'Conexiones totales',
                 ),
                 const SizedBox(height: 10),
@@ -196,7 +198,7 @@ class _NetworkPageState extends State<NetworkPage> {
                   children: [
                     _stats(
                       Icons.people_alt_rounded,
-                      '${_connected.length + 234}',
+                      '${_connected.length}',
                       'Conexiones totales',
                     ),
                     _stats(

@@ -307,6 +307,13 @@ class ApiClient {
     await _dio.delete('/skills/me/$skillId');
   }
 
+  /// Cifras reales de la comunidad: alumnos, empresas, ofertas activas,
+  /// competencias más registradas y ofertas por oficio.
+  Future<Map<String, dynamic>> getCommunityStats() async {
+    final response = await _dio.get('/stats/community');
+    return (response.data as Map).cast<String, dynamic>();
+  }
+
   /// Solo staff: crea una cuenta de alumno o de personal, ya aprobada.
   ///
   /// Es la única vía para dar de alta a un `staff`: el registro público no

@@ -4,7 +4,6 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/analytics/analytics.dart';
 import '../../../../core/api/api_client.dart';
-import '../../../../core/data/static_content.dart';
 import '../../../../core/models/user_profile.dart';
 import '../../../../core/theme/kairos_palette.dart';
 import '../../../../core/widgets/k_card.dart';
@@ -43,11 +42,44 @@ class _HomePageState extends State<HomePage> {
   bool _uploadingImage = false;
   String? _uploadedImageUrl;
 
+  // Cifras reales de la comunidad para las tarjetas laterales.
+  List<Map<String, dynamic>> _topSkills = [];
+  List<Map<String, dynamic>> _topTrades = [];
+  bool _statsLoading = true;
+
   @override
   void initState() {
     super.initState();
     _loadFeed();
+    _loadStats();
   }
+
+  Future<void> _loadStats() async {
+    try {
+      final stats = await _api.getCommunityStats();
+      if (!mounted) return;
+      setState(() {
+        _topSkills = (stats['topSkills'] as List<dynamic>? ?? [])
+            .cast<Map<String, dynamic>>();
+        _topTrades = (stats['topTrades'] as List<dynamic>? ?? [])
+            .cast<Map<String, dynamic>>();
+      });
+    } catch (_) {
+      // Las tarjetas laterales son accesorias: si fallan se muestran vacías,
+      // que es preferible a inventar números o a tumbar el feed entero.
+      if (mounted) {
+        setState(() {
+          _topSkills = [];
+          _topTrades = [];
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _statsLoading = false);
+    }
+  }
+
+  static String _offersLabel(int count) =>
+      count == 1 ? '1 oferta' : '$count ofertas';
 
   @override
   void dispose() {
@@ -286,29 +318,43 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   Icon(Icons.trending_up_rounded, color: KairosPalette.primary),
                   SizedBox(width: 8),
+                  // Antes decía "En demanda" sobre una lista fija de cinco
+                  // competencias. El título ahora describe lo que el número
+                  // realmente mide: cuántos alumnos declararon cada una.
                   Text(
-                    'En demanda',
+                    'Competencias más registradas',
                     style: TextStyle(fontWeight: FontWeight.w800),
                   ),
                 ],
               ),
               const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: trendingSkills
-                    .map(
-                      (skill) => Chip(
-                        label: Text(
-                          skill,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
+              if (_statsLoading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: LinearProgressIndicator(),
+                )
+              else if (_topSkills.isEmpty)
+                const Text(
+                  'Todavía ningún alumno ha registrado competencias.',
+                  style: TextStyle(color: KairosPalette.mutedForeground),
+                )
+              else
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _topSkills
+                      .map(
+                        (skill) => Chip(
+                          label: Text(
+                            '${skill['name']} · ${skill['studentCount']}',
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          side: BorderSide.none,
+                          backgroundColor: KairosPalette.muted,
                         ),
-                        side: BorderSide.none,
-                        backgroundColor: KairosPalette.muted,
-                      ),
-                    )
-                    .toList(growable: false),
-              ),
+                      )
+                      .toList(growable: false),
+                ),
             ],
           ),
         ),
@@ -737,19 +783,33 @@ class _HomePageState extends State<HomePage> {
                 ],
               ),
               const SizedBox(height: 10),
-              ...highlightedTrades.asMap().entries.map(
-                (entry) => ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(entry.value),
-                  trailing: Text(
-                    '${120 - (entry.key * 15)} ofertas',
-                    style: const TextStyle(
-                      color: KairosPalette.primary,
-                      fontWeight: FontWeight.w800,
+              // El número que acompañaba a cada oficio era `120 - posición * 15`:
+              // 120, 105, 90... aritmética sobre el índice, sin consultar nada.
+              // Ahora sale de contar las ofertas abiertas que mencionan el oficio.
+              if (_statsLoading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: LinearProgressIndicator(),
+                )
+              else if (_topTrades.isEmpty)
+                const Text(
+                  'Todavía no hay ofertas publicadas.',
+                  style: TextStyle(color: KairosPalette.mutedForeground),
+                )
+              else
+                ..._topTrades.map(
+                  (trade) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(trade['name'] as String? ?? ''),
+                    trailing: Text(
+                      _offersLabel(trade['jobCount'] as int? ?? 0),
+                      style: const TextStyle(
+                        color: KairosPalette.primary,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         ),
