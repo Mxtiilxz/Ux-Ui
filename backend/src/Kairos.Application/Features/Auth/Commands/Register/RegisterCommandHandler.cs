@@ -16,6 +16,14 @@ public class RegisterCommandHandler(IApplicationDbContext db)
         var usernameExists = await db.Users.AnyAsync(u => u.Username == request.Username, cancellationToken);
         if (usernameExists) throw new InvalidOperationException("El nombre de usuario ya está en uso.");
 
+        // El rol llega en el cuerpo de la petición, así que no se puede confiar en
+        // él aunque el validador ya lo haya revisado: cualquiera puede llamar al
+        // endpoint sin pasar por la aplicación. Se acepta "company" y todo lo
+        // demás cae a "student"; "staff" nunca se concede por esta vía.
+        var role = string.Equals(request.Role, "company", StringComparison.OrdinalIgnoreCase)
+            ? "company"
+            : "student";
+
         var user = new User
         {
             Username = request.Username,
@@ -23,7 +31,7 @@ public class RegisterCommandHandler(IApplicationDbContext db)
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             FullName = request.FullName,
             Institution = request.Institution,
-            Role = request.Role ?? "student",
+            Role = role,
             Status = "pending"
         };
 

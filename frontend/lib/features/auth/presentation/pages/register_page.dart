@@ -28,22 +28,21 @@ class _RegisterPageState extends State<RegisterPage> {
   String _selectedRole = 'student';
   final _roleFocusNodes = <String, FocusNode>{
     'student': FocusNode(debugLabel: 'Register student role'),
-    'staff': FocusNode(debugLabel: 'Register staff role'),
     'company': FocusNode(debugLabel: 'Register company role'),
   };
 
+  /// Roles que se pueden pedir desde el registro público.
+  ///
+  /// "Staff del Liceo" estaba aquí y se quitó: es el rol que aprueba cuentas y
+  /// administra a los demás usuarios, así que ofrecerlo en un formulario abierto
+  /// convertía la aprobación en el único obstáculo entre un alumno y los
+  /// permisos de administración. Esas cuentas las crea el liceo desde el panel.
   static const _roles = [
     _RoleOption(
       'student',
       'Estudiante',
       Icons.school_rounded,
       'Postula a prácticas y oportunidades laborales',
-    ),
-    _RoleOption(
-      'staff',
-      'Staff del Liceo',
-      Icons.manage_accounts_rounded,
-      'Gestiona alumnos y publica eventos',
     ),
     _RoleOption(
       'company',
@@ -68,14 +67,9 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   String _institutionLabel() {
-    switch (_selectedRole) {
-      case 'staff':
-        return 'Liceo / Institución';
-      case 'company':
-        return 'Nombre de la empresa';
-      default:
-        return 'Liceo (opcional)';
-    }
+    return _selectedRole == 'company'
+        ? 'Nombre de la empresa'
+        : 'Liceo (opcional)';
   }
 
   Future<void> _submit() async {

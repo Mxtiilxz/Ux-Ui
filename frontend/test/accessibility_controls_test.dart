@@ -87,6 +87,33 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('el registro público no ofrece el rol staff', (tester) async {
+    await tester.pumpWidget(
+      _viewport(RegisterPage(onRegisterSuccess: (_, _) {})),
+    );
+
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is RadioListTile<String> && widget.value == 'staff',
+      ),
+      findsNothing,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is RadioListTile<String> && widget.value == 'student',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is RadioListTile<String> && widget.value == 'company',
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('registration role group supports keyboard arrow selection', (
     tester,
   ) async {
@@ -95,13 +122,15 @@ void main() {
       _viewport(RegisterPage(onRegisterSuccess: (_, _) {})),
     );
 
-    final staffTileFinder = find.byWidgetPredicate(
-      (widget) => widget is RadioListTile<String> && widget.value == 'staff',
+    // El registro público ofrece solo estudiante y empresa: el rol staff se
+    // retiró del formulario para que nadie pueda pedir permisos de gestión.
+    final studentTileFinder = find.byWidgetPredicate(
+      (widget) => widget is RadioListTile<String> && widget.value == 'student',
     );
-    final staffTile = tester.widget<RadioListTile<String>>(staffTileFinder);
-    staffTile.focusNode!.requestFocus();
+    final studentTile = tester.widget<RadioListTile<String>>(studentTileFinder);
+    studentTile.focusNode!.requestFocus();
     await tester.pump();
-    expect(staffTile.focusNode!.hasFocus, isTrue);
+    expect(studentTile.focusNode!.hasFocus, isTrue);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.pump();
