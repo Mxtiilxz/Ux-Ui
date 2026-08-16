@@ -45,7 +45,8 @@ public class JobsController(IMediator mediator, IApplicationDbContext db) : Cont
 
         var id = await mediator.Send(new CreateJobPostingCommand(
             GetUserId(), request.Title, request.Description,
-            request.Location, request.ExpiresAt, request.ImageUrl), ct);
+            request.Location, request.ExpiresAt, request.ImageUrl,
+            request.SkillIds), ct);
 
         return CreatedAtAction(nameof(GetJobs), new { id }, id);
     }
@@ -177,6 +178,7 @@ public record CreateJobRequest(
     string    Description,
     string?   Location  = null,
     string?   ImageUrl  = null,
-    DateTime? ExpiresAt = null);
+    DateTime? ExpiresAt = null,
+    IReadOnlyList<int>? SkillIds = null);
 
 public record ApplyRequest(string? CvUrl = null);

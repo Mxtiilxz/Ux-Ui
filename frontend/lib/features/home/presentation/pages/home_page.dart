@@ -43,8 +43,11 @@ class _HomePageState extends State<HomePage> {
   String? _uploadedImageUrl;
 
   // Cifras reales de la comunidad para las tarjetas laterales.
+  /// Oferta de talento: competencias ordenadas por cuántos alumnos las tienen.
   List<Map<String, dynamic>> _topSkills = [];
-  List<Map<String, dynamic>> _topTrades = [];
+
+  /// Demanda: competencias ordenadas por cuántas ofertas abiertas las piden.
+  List<Map<String, dynamic>> _topDemand = [];
   bool _statsLoading = true;
 
   @override
@@ -61,7 +64,7 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         _topSkills = (stats['topSkills'] as List<dynamic>? ?? [])
             .cast<Map<String, dynamic>>();
-        _topTrades = (stats['topTrades'] as List<dynamic>? ?? [])
+        _topDemand = (stats['topDemand'] as List<dynamic>? ?? [])
             .cast<Map<String, dynamic>>();
       });
     } catch (_) {
@@ -70,7 +73,7 @@ class _HomePageState extends State<HomePage> {
       if (mounted) {
         setState(() {
           _topSkills = [];
-          _topTrades = [];
+          _topDemand = [];
         });
       }
     } finally {
@@ -777,32 +780,32 @@ class _HomePageState extends State<HomePage> {
                   Icon(Icons.build_rounded, color: KairosPalette.primary),
                   SizedBox(width: 8),
                   Text(
-                    'Oficios destacados',
+                    'Lo que más piden las empresas',
                     style: TextStyle(fontWeight: FontWeight.w800),
                   ),
                 ],
               ),
               const SizedBox(height: 10),
-              // El número que acompañaba a cada oficio era `120 - posición * 15`:
-              // 120, 105, 90... aritmética sobre el índice, sin consultar nada.
-              // Ahora sale de contar las ofertas abiertas que mencionan el oficio.
+              // Esta tarjeta listaba cinco oficios fijos con un número calculado
+              // como `120 - posición * 15`. Ahora cuenta cuántas ofertas abiertas
+              // solicitan cada competencia, que es demanda medida, no estimada.
               if (_statsLoading)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 8),
                   child: LinearProgressIndicator(),
                 )
-              else if (_topTrades.isEmpty)
+              else if (_topDemand.isEmpty)
                 const Text(
-                  'Todavía no hay ofertas publicadas.',
+                  'Ninguna oferta abierta indica todavía qué competencias busca.',
                   style: TextStyle(color: KairosPalette.mutedForeground),
                 )
               else
-                ..._topTrades.map(
-                  (trade) => ListTile(
+                ..._topDemand.map(
+                  (skill) => ListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: Text(trade['name'] as String? ?? ''),
+                    title: Text(skill['name'] as String? ?? ''),
                     trailing: Text(
-                      _offersLabel(trade['jobCount'] as int? ?? 0),
+                      _offersLabel(skill['jobCount'] as int? ?? 0),
                       style: const TextStyle(
                         color: KairosPalette.primary,
                         fontWeight: FontWeight.w800,

@@ -11,13 +11,15 @@ namespace Kairos.Application.Features.Stats.Queries.GetCommunityStats;
 /// </summary>
 public record GetCommunityStatsQuery : IRequest<CommunityStats>;
 
-public record SkillDemand(int Id, string Name, int StudentCount);
+/// <summary>Cuántos alumnos declararon la competencia. Oferta de talento.</summary>
+public record SkillSupply(int Id, string Name, int StudentCount);
 
-public record TradeDemand(string Name, int JobCount);
+/// <summary>Cuántas ofertas abiertas la solicitan. Demanda de las empresas.</summary>
+public record SkillDemand(int Id, string Name, int JobCount);
 
 public record CommunityStats(
     int Students,
     int Companies,
     int ActiveJobs,
-    IReadOnlyList<SkillDemand> TopSkills,
-    IReadOnlyList<TradeDemand> TopTrades);
+    IReadOnlyList<SkillSupply> TopSkills,
+    IReadOnlyList<SkillDemand> TopDemand);

@@ -25,6 +25,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<Message>        Messages        { get; set; }
     public DbSet<Skill>          Skills          { get; set; }
     public DbSet<UserSkill>      UserSkills      { get; set; }
+    public DbSet<JobPostingSkill> JobPostingSkills { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -285,6 +286,30 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
             // Índice para la búsqueda de Quick Match: "qué usuarios tienen la competencia X"
             e.HasIndex(us => us.SkillId);
+        });
+
+        // ════════════════════════════════════════════════════
+        //  JOB POSTING SKILL  (competencias que pide una oferta)
+        // ════════════════════════════════════════════════════
+        modelBuilder.Entity<JobPostingSkill>(e =>
+        {
+            e.ToTable("job_posting_skills");
+
+            // Una oferta no puede pedir la misma competencia dos veces
+            e.HasKey(js => new { js.JobPostingId, js.SkillId });
+
+            e.HasOne(js => js.JobPosting)
+             .WithMany(j => j.Skills)
+             .HasForeignKey(js => js.JobPostingId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(js => js.Skill)
+             .WithMany(s => s.JobPostings)
+             .HasForeignKey(js => js.SkillId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            // Índice para el recuento de demanda: "cuántas ofertas piden la competencia X"
+            e.HasIndex(js => js.SkillId);
         });
     }
 }

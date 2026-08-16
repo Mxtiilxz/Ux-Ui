@@ -48,7 +48,13 @@ public class GetJobsQueryHandler(IApplicationDbContext db)
                 j.ExpiresAt,
                 j.CompanyId,
                 j.Company.FullName,
-                j.Company.ProfilePictureUrl))
+                j.Company.ProfilePictureUrl,
+                j.Skills
+                    .Select(js => new JobSkillDto(
+                        js.Skill.Id,
+                        js.Skill.Name,
+                        js.Skill.Category.ToString()))
+                    .ToList()))
             .ToListAsync(cancellationToken);
 
         return new GetJobsResult(items, total, skip + items.Count < total);

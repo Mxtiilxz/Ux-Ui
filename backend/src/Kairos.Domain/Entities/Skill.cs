@@ -14,4 +14,7 @@ public class Skill
     public SkillCategory  Category { get; set; } = SkillCategory.Technical;
 
     public ICollection<UserSkill> UserSkills { get; set; } = [];
+
+    /// <summary>Ofertas laborales que solicitan esta competencia.</summary>
+    public ICollection<JobPostingSkill> JobPostings { get; set; } = [];
 }

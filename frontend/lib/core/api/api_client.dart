@@ -241,12 +241,16 @@ class ApiClient {
     return response.data as Map<String, dynamic>;
   }
 
+  /// [skillIds] son las competencias del catálogo que la oferta solicita. Es lo
+  /// que la convierte en demanda medible y lo que permite cruzarla con los
+  /// perfiles de los alumnos.
   Future<int> createJobPosting({
     required String title,
     required String description,
     String? location,
     String? imageUrl,
     DateTime? expiresAt,
+    List<int> skillIds = const [],
   }) async {
     final response = await _dio.post(
       '/jobs',
@@ -256,6 +260,7 @@ class ApiClient {
         if (location != null) 'location': location,
         if (imageUrl != null) 'imageUrl': imageUrl,
         if (expiresAt != null) 'expiresAt': expiresAt.toIso8601String(),
+        if (skillIds.isNotEmpty) 'skillIds': skillIds,
       },
     );
     return response.data as int;

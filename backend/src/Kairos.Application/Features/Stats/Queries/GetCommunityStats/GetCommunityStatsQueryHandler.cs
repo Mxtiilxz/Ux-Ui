@@ -8,14 +8,7 @@ namespace Kairos.Application.Features.Stats.Queries.GetCommunityStats;
 public class GetCommunityStatsQueryHandler(IApplicationDbContext db)
     : IRequestHandler<GetCommunityStatsQuery, CommunityStats>
 {
-    /// <summary>
-    /// Oficios del liceo que se muestran en la tarjeta lateral. La lista es
-    /// curada, pero el número que la acompaña ya no: sale de contar ofertas.
-    /// </summary>
-    private static readonly string[] Trades =
-        ["Electricista", "Soldador", "Carpintero", "Mecánico", "Gasfiter"];
-
-    private const int TopSkillsLimit = 6;
+    private const int Limit = 6;
 
     public async Task<CommunityStats> Handle(GetCommunityStatsQuery request, CancellationToken cancellationToken)
     {
@@ -30,32 +23,29 @@ public class GetCommunityStatsQueryHandler(IApplicationDbContext db)
         var activeJobs = await db.JobPostings
             .CountAsync(j => j.Status == JobStatus.Open, cancellationToken);
 
+        // Oferta de talento: qué sabe hacer el liceo.
         var topSkills = await db.Skills
-            .Select(s => new SkillDemand(s.Id, s.Name, s.UserSkills.Count))
+            .Select(s => new SkillSupply(s.Id, s.Name, s.UserSkills.Count))
             .Where(s => s.StudentCount > 0)
             .OrderByDescending(s => s.StudentCount)
             .ThenBy(s => s.Name)
-            .Take(TopSkillsLimit)
+            .Take(Limit)
             .ToListAsync(cancellationToken);
 
-        // Las ofertas son texto libre, así que el oficio se busca en el título y
-        // en la descripción. Es una aproximación, pero cuenta ofertas que
-        // existen, que es la diferencia con lo que había antes.
-        var jobs = await db.JobPostings
-            .Where(j => j.Status == JobStatus.Open)
-            .Select(j => new { j.Title, j.Description })
+        // Demanda real: qué piden las empresas. Antes esto se estimaba buscando
+        // el nombre de un oficio dentro del texto libre de la oferta; ahora sale
+        // de las competencias que la propia empresa marcó al publicarla.
+        var topDemand = await db.Skills
+            .Select(s => new SkillDemand(
+                s.Id,
+                s.Name,
+                s.JobPostings.Count(js => js.JobPosting.Status == JobStatus.Open)))
+            .Where(s => s.JobCount > 0)
+            .OrderByDescending(s => s.JobCount)
+            .ThenBy(s => s.Name)
+            .Take(Limit)
             .ToListAsync(cancellationToken);
 
-        var topTrades = Trades
-            .Select(trade => new TradeDemand(
-                trade,
-                jobs.Count(j =>
-                    j.Title.Contains(trade, StringComparison.OrdinalIgnoreCase) ||
-                    j.Description.Contains(trade, StringComparison.OrdinalIgnoreCase))))
-            .OrderByDescending(t => t.JobCount)
-            .ThenBy(t => t.Name)
-            .ToList();
-
-        return new CommunityStats(students, companies, activeJobs, topSkills, topTrades);
+        return new CommunityStats(students, companies, activeJobs, topSkills, topDemand);
     }
 }

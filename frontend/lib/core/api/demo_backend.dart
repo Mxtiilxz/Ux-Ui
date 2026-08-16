@@ -292,6 +292,7 @@ class DemoBackend {
       'companyId': 201,
       'companyName': 'Automatización Industrial S.A.',
       'companyAvatarUrl': null,
+      'skillIds': [1, 8, 22],
       'applicationCount': 3,
     },
     {
@@ -310,6 +311,7 @@ class DemoBackend {
       'companyId': 201,
       'companyName': 'Automatización Industrial S.A.',
       'companyAvatarUrl': null,
+      'skillIds': [1, 14, 12],
       'applicationCount': 1,
     },
     {
@@ -328,6 +330,7 @@ class DemoBackend {
       'companyId': 202,
       'companyName': 'TechSolutions Chile SpA',
       'companyAvatarUrl': null,
+      'skillIds': [2, 5, 6],
       'applicationCount': 0,
     },
     {
@@ -346,6 +349,7 @@ class DemoBackend {
       'companyId': 202,
       'companyName': 'TechSolutions Chile SpA',
       'companyAvatarUrl': null,
+      'skillIds': [4, 10, 3],
       'applicationCount': 2,
     },
   ];
@@ -542,8 +546,21 @@ class DemoBackend {
   //  OFERTAS LABORALES
   // ════════════════════════════════════════════════════════════════════════
 
+  /// Expande los `skillIds` de una oferta a la forma que devuelve el backend
+  /// real: una lista de objetos con id, nombre y categoría.
+  Map<String, dynamic> _withSkills(Map<String, dynamic> job) {
+    final ids = (job['skillIds'] as List<dynamic>? ?? []).cast<int>();
+    return {
+      ...job,
+      'skills': _skills
+          .where((skill) => ids.contains(skill['id']))
+          .map((skill) => Map<String, dynamic>.from(skill))
+          .toList(),
+    };
+  }
+
   Future<Map<String, dynamic>> getJobs() => _delayed({
-    'items': List<Map<String, dynamic>>.from(_jobs),
+    'items': _jobs.map(_withSkills).toList(),
     'totalCount': _jobs.length,
     'hasNextPage': false,
   });
@@ -662,33 +679,36 @@ class DemoBackend {
                 (b['studentCount'] as int).compareTo(a['studentCount'] as int),
           );
 
-    const trades = [
-      'Electricista',
-      'Soldador',
-      'Carpintero',
-      'Mecánico',
-      'Gasfiter',
-    ];
-    final topTrades =
-        trades.map((trade) {
-          final needle = trade.toLowerCase();
-          final count = _jobs.where((job) {
-            final title = (job['title'] as String? ?? '').toLowerCase();
-            final description = (job['description'] as String? ?? '')
-                .toLowerCase();
-            return title.contains(needle) || description.contains(needle);
-          }).length;
-          return {'name': trade, 'jobCount': count};
-        }).toList()..sort(
-          (a, b) => (b['jobCount'] as int).compareTo(a['jobCount'] as int),
-        );
+    // Demanda: cuántas ofertas piden cada competencia, igual que en el backend
+    // real desde que las ofertas se vinculan al catálogo.
+    final jobSkillCounts = <int, int>{};
+    for (final job in _jobs) {
+      for (final id in (job['skillIds'] as List<dynamic>? ?? []).cast<int>()) {
+        jobSkillCounts[id] = (jobSkillCounts[id] ?? 0) + 1;
+      }
+    }
+
+    final topDemand =
+        _skills
+            .where((skill) => jobSkillCounts.containsKey(skill['id']))
+            .map(
+              (skill) => {
+                'id': skill['id'],
+                'name': skill['name'],
+                'jobCount': jobSkillCounts[skill['id']],
+              },
+            )
+            .toList()
+          ..sort(
+            (a, b) => (b['jobCount'] as int).compareTo(a['jobCount'] as int),
+          );
 
     return _delayed({
       'students': _people.where((p) => p['role'] == 'student').length,
       'companies': _people.where((p) => p['role'] == 'company').length,
       'activeJobs': _jobs.length,
       'topSkills': topSkills.take(6).toList(),
-      'topTrades': topTrades,
+      'topDemand': topDemand.take(6).toList(),
     });
   }
 

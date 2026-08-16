@@ -16,6 +16,7 @@ class JobModel {
     required this.type,
     required this.description,
     required this.skills,
+    this.skillIds = const [],
     required this.logoUrl,
     required this.postedDate,
     this.salary,
@@ -29,7 +30,14 @@ class JobModel {
   final String location;
   final OpportunityType type;
   final String description;
+
+  /// Nombres de las competencias que la oferta solicita, para mostrarlas.
   final List<String> skills;
+
+  /// Identificadores de esas mismas competencias, para cruzarlas con el perfil
+  /// del alumno sin depender de comparar cadenas.
+  final List<int> skillIds;
+
   final String logoUrl;
   final String postedDate;
   final String? salary;
@@ -50,6 +58,11 @@ class JobModel {
       }
     }
 
+    // Competencias que la empresa marcó al publicar. Antes este campo llegaba
+    // siempre vacío porque las ofertas y el catálogo no estaban relacionados.
+    final rawSkills = (json['skills'] as List<dynamic>? ?? [])
+        .cast<Map<String, dynamic>>();
+
     return JobModel(
       id: json['id'].toString(),
       company: json['companyName'] as String? ?? 'Empresa',
@@ -57,7 +70,14 @@ class JobModel {
       location: json['location'] as String? ?? 'Chile',
       type: OpportunityType.job,
       description: json['description'] as String? ?? '',
-      skills: const [],
+      skills: rawSkills
+          .map((s) => s['name'] as String? ?? '')
+          .where((name) => name.isNotEmpty)
+          .toList(growable: false),
+      skillIds: rawSkills
+          .map((s) => s['id'] as int?)
+          .whereType<int>()
+          .toList(growable: false),
       logoUrl: json['companyAvatarUrl'] as String? ?? '',
       postedDate: postedDate,
       salary: null,

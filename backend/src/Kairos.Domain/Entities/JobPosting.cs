@@ -18,4 +18,7 @@ public class JobPosting
     public User Company   { get; set; } = null!;
 
     public ICollection<JobApplication> Applications { get; set; } = [];
+
+    /// <summary>Competencias que la oferta solicita, del catálogo de Quick Match.</summary>
+    public ICollection<JobPostingSkill> Skills { get; set; } = [];
 }

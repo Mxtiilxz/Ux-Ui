@@ -19,7 +19,10 @@ public record JobDto(
     DateTime? ExpiresAt,
     int      CompanyId,
     string   CompanyName,
-    string?  CompanyAvatarUrl);
+    string?  CompanyAvatarUrl,
+    IReadOnlyList<JobSkillDto> Skills);
+
+public record JobSkillDto(int Id, string Name, string Category);
 
 public record GetJobsResult(
     IReadOnlyList<JobDto> Items,

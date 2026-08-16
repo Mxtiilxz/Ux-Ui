@@ -90,7 +90,6 @@ class _JobsPageState extends State<JobsPage> {
           .toList();
       if (mounted) setState(() => _apiJobs = items);
     } catch (_) {
-      // Fall back to mock data
       if (mounted) setState(() => _apiJobs = []);
     } finally {
       if (mounted) setState(() => _jobsLoading = false);
@@ -984,6 +983,9 @@ class _JobsPageState extends State<JobsPage> {
     bool submitting = false;
     bool uploadingImg = false;
     String? uploadedImageUrl;
+    // Competencias que pide la oferta. Es lo que la vuelve visible en Quick
+    // Match y lo que alimenta el recuento de demanda del feed.
+    final requestedSkillIds = <int>{};
 
     showDialog<void>(
       context: context,
@@ -1032,6 +1034,44 @@ class _JobsPageState extends State<JobsPage> {
                         labelText: 'Ubicación',
                         hintText: 'Ej: Santiago, Chile',
                       ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Competencias que buscas',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _skillCatalog.isEmpty
+                          ? 'El liceo aún no ha publicado su catálogo de competencias.'
+                          : 'Marcar competencias hace que la oferta aparezca en las '
+                                'búsquedas de talento y le muestra al alumno si encaja.',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: KairosPalette.mutedForeground,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _skillCatalog
+                          .map((skill) {
+                            final id = skill['id'] as int;
+                            final selected = requestedSkillIds.contains(id);
+                            return FilterChip(
+                              label: Text(skill['name'] as String? ?? ''),
+                              selected: selected,
+                              onSelected: (value) => setInner(() {
+                                if (value) {
+                                  requestedSkillIds.add(id);
+                                } else {
+                                  requestedSkillIds.remove(id);
+                                }
+                              }),
+                            );
+                          })
+                          .toList(growable: false),
                     ),
                     const SizedBox(height: 14),
                     // Image picker
@@ -1155,6 +1195,7 @@ class _JobsPageState extends State<JobsPage> {
                               ? locationCtrl.text.trim()
                               : null,
                           imageUrl: uploadedImageUrl,
+                          skillIds: requestedSkillIds.toList(),
                         );
                         Analytics.jobCreate();
                         if (ctx.mounted) Navigator.of(ctx).pop();

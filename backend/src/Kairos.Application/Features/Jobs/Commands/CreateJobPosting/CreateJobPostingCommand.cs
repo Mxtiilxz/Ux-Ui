@@ -8,4 +8,10 @@ public record CreateJobPostingCommand(
     string   Description,
     string?  Location,
     DateTime? ExpiresAt,
-    string?  ImageUrl = null) : IRequest<int>;
+    string?  ImageUrl = null,
+    /// <summary>
+    /// Competencias del catálogo que la oferta solicita. Es lo que convierte la
+    /// oferta en demanda medible y lo que permite cruzarla con los perfiles de
+    /// los alumnos en Quick Match.
+    /// </summary>
+    IReadOnlyList<int>? SkillIds = null) : IRequest<int>;
