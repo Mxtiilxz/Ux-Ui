@@ -3,7 +3,6 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/analytics/analytics.dart';
 import '../../../../core/api/api_client.dart';
-import '../../../../core/data/mock_data.dart';
 import '../../../../core/models/user_profile.dart';
 import '../../../../core/theme/kairos_palette.dart';
 import '../../../../core/utils/file_downloader.dart';
@@ -300,8 +299,9 @@ class _JobsPageState extends State<JobsPage> {
     final pagePadding = mobile
         ? const EdgeInsets.fromLTRB(14, 14, 14, 16)
         : const EdgeInsets.all(20);
-    final allJobs = _apiJobs.isNotEmpty ? _apiJobs : jobs;
-    final filteredJobs = allJobs.where(_matchesFilter).toList(growable: false);
+    // Solo ofertas reales. Antes, una lista vacía legítima —una empresa que aún
+    // no publica nada— se sustituía por ofertas de ejemplo.
+    final filteredJobs = _apiJobs.where(_matchesFilter).toList(growable: false);
 
     return SingleChildScrollView(
       padding: pagePadding,
@@ -588,11 +588,17 @@ class _JobsPageState extends State<JobsPage> {
               ),
             )
           else if (filteredJobs.isEmpty)
-            const KCard(
+            KCard(
               child: Padding(
-                padding: EdgeInsets.all(24),
+                padding: const EdgeInsets.all(24),
                 child: Center(
-                  child: Text('No hay resultados con esos filtros.'),
+                  // "Sin ofertas" y "sin coincidencias" son situaciones distintas:
+                  // en la primera no hay filtro que aflojar.
+                  child: Text(
+                    _apiJobs.isEmpty
+                        ? 'Todavía no hay ofertas publicadas.'
+                        : 'No hay resultados con esos filtros.',
+                  ),
                 ),
               ),
             )

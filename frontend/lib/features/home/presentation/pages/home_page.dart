@@ -4,7 +4,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/analytics/analytics.dart';
 import '../../../../core/api/api_client.dart';
-import '../../../../core/data/mock_data.dart';
+import '../../../../core/data/static_content.dart';
 import '../../../../core/models/user_profile.dart';
 import '../../../../core/theme/kairos_palette.dart';
 import '../../../../core/widgets/k_card.dart';
@@ -70,8 +70,17 @@ class _HomePageState extends State<HomePage> {
           .toList();
       if (mounted) setState(() => _posts = items);
     } catch (_) {
-      // Fall back to mock data when backend is unavailable
-      if (mounted) setState(() => _posts = posts);
+      // Antes se rellenaba el feed con publicaciones de ejemplo. En producción
+      // eso es peor que un error: el usuario ve contenido inventado, atribuido a
+      // personas que no existen, sin ninguna señal de que algo falló.
+      if (mounted) {
+        setState(() {
+          _posts = [];
+          _feedError =
+              'No se pudieron cargar las publicaciones. '
+              'Revisa tu conexión y vuelve a intentarlo.';
+        });
+      }
     } finally {
       if (mounted) setState(() => _feedLoading = false);
     }
