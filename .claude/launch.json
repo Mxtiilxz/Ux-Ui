@@ -16,10 +16,15 @@
     },
     {
       "name": "kairos-demo",
-      "cwd": "frontend/build/web",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "4173"],
-      "port": 4173
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4310",
+        "--directory",
+        "frontend/build/demo"
+      ],
+      "port": 4310
     }
   ]
 }
