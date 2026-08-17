@@ -583,6 +583,35 @@ class DemoBackend {
     ..._myProfileEdits,
   });
 
+  // ── Currículum ─────────────────────────────────────────────────────────────
+  // Una formación de ejemplo, como la que el liceo carga con el CSV, para que
+  // la sección no salga vacía en la demo.
+  late final List<Map<String, dynamic>> _cvEntries = [
+    {
+      'id': 1,
+      'kind': 'education',
+      'title': 'Mecatrónica',
+      'organization': _liceo,
+      'detail': 'Enseñanza Media Técnico-Profesional',
+      'startYear': DateTime.now().year - 1,
+      'endYear': null,
+    },
+  ];
+
+  Future<List<Map<String, dynamic>>> getCvEntries() =>
+      _delayed(List<Map<String, dynamic>>.from(_cvEntries));
+
+  Future<Map<String, dynamic>> addCvEntry(Map<String, dynamic> body) {
+    final entry = {'id': _newId(), ...body};
+    _cvEntries.insert(0, entry);
+    return _delayed(entry);
+  }
+
+  Future<void> deleteCvEntry(int id) {
+    _cvEntries.removeWhere((e) => e['id'] == id);
+    return _delayed(null, 150);
+  }
+
   String _messagePrivacy = 'everyone';
   String _postVisibility = 'everyone';
 

@@ -40,7 +40,8 @@ public class StaffController(IApplicationDbContext db, IMediator mediator) : Con
                 request.Username,
                 request.Password,
                 request.Role,
-                request.Institution),
+                request.Institution,
+                request.Specialty),
             ct);
 
         return CreatedAtAction(nameof(GetAllUsers), result);
@@ -188,4 +189,5 @@ public record CreateAccountRequest(
     string  Username,
     string  Password,
     string  Role,
-    string? Institution);
+    string? Institution,
+    string? Specialty = null);

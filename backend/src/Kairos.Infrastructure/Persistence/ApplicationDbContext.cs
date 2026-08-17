@@ -27,6 +27,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<UserSkill>      UserSkills      { get; set; }
     public DbSet<JobPostingSkill> JobPostingSkills { get; set; }
     public DbSet<SavedJob>       SavedJobs        { get; set; }
+    public DbSet<CvEntry>        CvEntries        { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -328,6 +329,29 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
             // Índice para el recuento de demanda: "cuántas ofertas piden la competencia X"
             e.HasIndex(js => js.SkillId);
+        });
+
+        // ════════════════════════════════════════════════════
+        //  CV ENTRY  (formación y experiencia del currículum)
+        // ════════════════════════════════════════════════════
+        modelBuilder.Entity<CvEntry>(e =>
+        {
+            e.ToTable("cv_entries");
+
+            e.HasKey(c => c.Id);
+
+            e.Property(c => c.Kind).HasMaxLength(20).IsRequired();
+            e.Property(c => c.Title).HasMaxLength(150).IsRequired();
+            e.Property(c => c.Organization).HasMaxLength(200).IsRequired();
+            e.Property(c => c.Detail).HasMaxLength(600);
+
+            e.HasOne(c => c.User)
+             .WithMany()
+             .HasForeignKey(c => c.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            // Índice para armar el CV de una persona en una sola pasada
+            e.HasIndex(c => new { c.UserId, c.Kind });
         });
 
         // ════════════════════════════════════════════════════

@@ -74,12 +74,25 @@ class _ProfilePageState extends State<ProfilePage> {
   String _postVisibility = 'everyone';
   bool _savingPrivacy = false;
 
+  /// Formación y experiencia: las mismas secciones que compone el CV.
+  List<Map<String, dynamic>> _cvEntries = [];
+  bool _loadingCv = true;
+
+  /// Solo quien busca práctica o trabajo necesita mostrar formación,
+  /// competencias y disponibilidad. El personal y las empresas, no.
+  bool get _isCandidate =>
+      widget.activeRole == UserRole.student ||
+      widget.activeRole == UserRole.alumni;
+
   @override
   void initState() {
     super.initState();
     _quickMatchVisible = widget.currentUser.quickMatchVisible;
     _loadProfile();
-    if (widget.activeRole == UserRole.student) _loadSkills();
+    if (_isCandidate) {
+      _loadSkills();
+      _loadCvEntries();
+    }
   }
 
   Future<void> _loadProfile() async {
@@ -333,23 +346,38 @@ class _ProfilePageState extends State<ProfilePage> {
                 const SizedBox(height: 12),
               ],
               _buildAbout(user),
-              const SizedBox(height: 12),
-              _buildSkills(user),
-              if (widget.activeRole == UserRole.student) ...[
+              // El perfil cambia según el rol. Un integrante del personal no
+              // necesita mostrar competencias ni potencial de contratación, y
+              // una empresa tampoco tiene formación que exhibir: esas secciones
+              // solo tienen sentido para quien busca una práctica o un trabajo.
+              if (_isCandidate) ...[
+                const SizedBox(height: 12),
+                _buildCvSection(
+                  kind: 'education',
+                  title: 'Formación',
+                  icon: Icons.school_rounded,
+                  emptyMessage:
+                      'El liceo carga tu especialidad al matricularte. '
+                      'Si falta, puedes agregarla tú.',
+                  addLabel: 'Agregar formación',
+                ),
+                const SizedBox(height: 12),
+                _buildCvSection(
+                  kind: 'experience',
+                  title: 'Experiencia',
+                  icon: Icons.work_history_rounded,
+                  emptyMessage:
+                      'Agrega tus prácticas, trabajos o proyectos: es lo que '
+                      'una empresa mira primero.',
+                  addLabel: 'Agregar experiencia',
+                ),
+                const SizedBox(height: 12),
+                _buildSkills(user),
                 const SizedBox(height: 12),
                 _buildQuickMatchVisibility(),
               ],
               const SizedBox(height: 12),
               _buildPrivacy(),
-              if (widget.activeRole == UserRole.student ||
-                  widget.activeRole == UserRole.alumni) ...[
-                const SizedBox(height: 12),
-                _buildExperience(),
-                const SizedBox(height: 12),
-                _buildCertifications(),
-                const SizedBox(height: 12),
-                _buildProjects(),
-              ],
               const SizedBox(height: 12),
               _buildReportCard(),
             ],
@@ -681,6 +709,297 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  Future<void> _loadCvEntries() async {
+    try {
+      final entries = await _api.getCvEntries();
+      if (mounted) setState(() => _cvEntries = entries);
+    } catch (_) {
+      // Las secciones quedan vacías con su mensaje; no vale bloquear el perfil.
+    } finally {
+      if (mounted) setState(() => _loadingCv = false);
+    }
+  }
+
+  /// Formación o experiencia. Ambas se editan aquí y el CV las refleja: el
+  /// alumno corrige su currículum donde ya mira sus datos.
+  Widget _buildCvSection({
+    required String kind,
+    required String title,
+    required IconData icon,
+    required String emptyMessage,
+    required String addLabel,
+  }) {
+    final entries = _cvEntries
+        .where((e) => e['kind'] == kind)
+        .toList(growable: false);
+
+    return SizedBox(
+      width: double.infinity,
+      child: KCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: KairosPalette.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: addLabel,
+                  onPressed: () => _showAddCvEntryDialog(kind, title),
+                  icon: const Icon(Icons.add_rounded),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (_loadingCv)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: LinearProgressIndicator(),
+              )
+            else if (entries.isEmpty)
+              _emptySection(
+                message: emptyMessage,
+                actionLabel: addLabel,
+                onPressed: () => _showAddCvEntryDialog(kind, title),
+              )
+            else
+              ...entries.map(_cvEntryRow),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _cvEntryRow(Map<String, dynamic> entry) {
+    final start = entry['startYear'] as int?;
+    final end = entry['endYear'] as int?;
+    final period = start == null && end == null
+        ? ''
+        : end == null
+        ? '$start — Actual'
+        : start == null || start == end
+        ? '$end'
+        : '$start — $end';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  entry['title'] as String? ?? '',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                if ((entry['organization'] as String? ?? '').isNotEmpty)
+                  Text(
+                    entry['organization'] as String,
+                    style: const TextStyle(color: KairosPalette.secondary),
+                  ),
+                if ((entry['detail'] as String? ?? '').isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      entry['detail'] as String,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: KairosPalette.mutedForeground,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (period.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 8, top: 2),
+              child: Text(
+                period,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: KairosPalette.mutedForeground,
+                ),
+              ),
+            ),
+          IconButton(
+            tooltip: 'Eliminar "${entry['title']}"',
+            onPressed: () => _deleteCvEntry(entry['id'] as int),
+            icon: const Icon(Icons.delete_outline_rounded, size: 20),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteCvEntry(int id) async {
+    try {
+      await _api.deleteCvEntry(id);
+      if (mounted) setState(() => _cvEntries.removeWhere((e) => e['id'] == id));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo eliminar la entrada.'),
+          backgroundColor: KairosPalette.danger,
+        ),
+      );
+    }
+  }
+
+  void _showAddCvEntryDialog(String kind, String sectionTitle) {
+    final formKey = GlobalKey<FormState>();
+    final titleCtrl = TextEditingController();
+    final orgCtrl = TextEditingController();
+    final detailCtrl = TextEditingController();
+    final startCtrl = TextEditingController();
+    final endCtrl = TextEditingController();
+    final isEducation = kind == 'education';
+    var saving = false;
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setInner) => AlertDialog(
+          title: Text(
+            'Agregar $sectionTitle'.toLowerCase().replaceFirst(
+              'agregar',
+              'Agregar',
+            ),
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+          content: SizedBox(
+            width: 440,
+            child: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: titleCtrl,
+                      maxLength: 150,
+                      decoration: InputDecoration(
+                        labelText: isEducation
+                            ? 'Especialidad o carrera *'
+                            : 'Cargo o rol *',
+                        hintText: isEducation
+                            ? 'Mecatrónica'
+                            : 'Práctica en mantenimiento',
+                        counterText: '',
+                      ),
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Campo requerido'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: orgCtrl,
+                      maxLength: 200,
+                      decoration: InputDecoration(
+                        labelText: isEducation ? 'Institución' : 'Empresa',
+                        counterText: '',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: detailCtrl,
+                      maxLength: 600,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        labelText: isEducation ? 'Detalle' : 'Qué hiciste',
+                        alignLabelWithHint: true,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: startCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Año de inicio',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            controller: endCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Año de término',
+                              helperText: 'Vacío si sigue en curso',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: saving ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(minimumSize: const Size(48, 48)),
+              onPressed: saving
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setInner(() => saving = true);
+                      try {
+                        await _api.addCvEntry(
+                          kind: kind,
+                          title: titleCtrl.text.trim(),
+                          organization: orgCtrl.text.trim(),
+                          detail: detailCtrl.text.trim(),
+                          startYear: int.tryParse(startCtrl.text.trim()),
+                          endYear: int.tryParse(endCtrl.text.trim()),
+                        );
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        await _loadCvEntries();
+                      } catch (_) {
+                        setInner(() => saving = false);
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('No se pudo guardar.'),
+                            backgroundColor: KairosPalette.danger,
+                          ),
+                        );
+                      }
+                    },
+              child: saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Guardar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Preferencias de privacidad.
   ///
   /// Existen porque en una plataforma con menores de edad "todo el mundo puede
@@ -984,207 +1303,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // ── Experience ───────────────────────────────────────────────────────────────
-
-  Widget _buildExperience() {
-    const exp = [
-      (
-        'Proyecto de Robotica - Competencia Regional',
-        'Liceo Tecnico Cardenal Jose Maria Caro',
-        'La Florida, Santiago  2025-2026',
-        'Diseno y programacion de robot autonomo de clasificacion. Primer lugar regional.',
-      ),
-      (
-        'Ayudante de Laboratorio',
-        'Liceo Tecnico Cardenal Jose Maria Caro',
-        'La Florida, Santiago  2025',
-        'Apoyo en mantencion y preparacion de equipos de laboratorio de mecatronica.',
-      ),
-    ];
-
-    return KCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Experiencia',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 10),
-          ...exp.map(
-            (e) => ListTile(
-              contentPadding: EdgeInsets.zero,
-              minLeadingWidth: 52,
-              leading: _sectionBubble(Icons.work_rounded),
-              title: Text(
-                e.$1,
-                style: const TextStyle(fontWeight: FontWeight.w800),
-              ),
-              subtitle: Text('${e.$2}\n${e.$3}\n${e.$4}'),
-              isThreeLine: true,
-            ),
-          ),
-          OutlinedButton.icon(
-            onPressed: () {},
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('Agregar experiencia'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Certifications ───────────────────────────────────────────────────────────
-
-  Widget _buildCertifications() {
-    const certs = [
-      ('Curso de Arduino Avanzado', 'INACAP  2025'),
-      ('Certificacion en Impresion 3D', 'FabLab Santiago  2025'),
-      ('Programacion en C++', 'Coursera  2024'),
-    ];
-
-    return KCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Certificaciones y formacion',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 10),
-          ...certs.map(
-            (c) => ListTile(
-              contentPadding: EdgeInsets.zero,
-              minLeadingWidth: 52,
-              leading: _sectionBubble(Icons.school_rounded),
-              title: Text(
-                c.$1,
-                style: const TextStyle(fontWeight: FontWeight.w800),
-              ),
-              subtitle: Text(c.$2),
-            ),
-          ),
-          OutlinedButton.icon(
-            onPressed: () {},
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('Agregar certificacion'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Projects ─────────────────────────────────────────────────────────────────
-
-  Widget _buildProjects() {
-    const projects = [
-      (
-        'Robot Clasificador Autonomo',
-        'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=900',
-        'Robot que clasifica objetos por color y tamano usando sensores y Arduino.',
-      ),
-      (
-        'Sistema de Riego Automatizado',
-        'https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?w=900',
-        'Control de riego por humedad del suelo y temperatura para invernadero.',
-      ),
-    ];
-
-    return KCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Proyectos destacados',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 10),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final cross = constraints.maxWidth > 800 ? 2 : 1;
-              return GridView.builder(
-                itemCount: projects.length,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: cross,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  childAspectRatio: 1.2,
-                ),
-                itemBuilder: (context, index) {
-                  final p = projects[index];
-                  return Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: KairosPalette.border),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: ClipRRect(
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(15),
-                              topRight: Radius.circular(15),
-                            ),
-                            child: Image.network(
-                              p.$2,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              semanticLabel: 'Proyecto ${p.$1}: ${p.$3}',
-                              errorBuilder: (context, error, stackTrace) =>
-                                  Semantics(
-                                    image: true,
-                                    label:
-                                        'Proyecto ${p.$1}: ${p.$3}. Imagen no disponible.',
-                                    child: const ColoredBox(
-                                      color: KairosPalette.muted,
-                                      child: Center(
-                                        child: Icon(
-                                          Icons.image_not_supported_outlined,
-                                          color: KairosPalette.secondary,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                            ),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(10),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                p.$1,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                p.$3,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Report ───────────────────────────────────────────────────────────────────
-
   Widget _buildReportCard() {
     return KCard(
       borderColor: KairosPalette.primary.withValues(alpha: 0.4),
@@ -1202,35 +1320,46 @@ class _ProfilePageState extends State<ProfilePage> {
             ],
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Genera y descarga tu CV o el reporte mensual de actividad.',
-            style: TextStyle(color: KairosPalette.secondary),
+          Text(
+            _isCandidate
+                ? 'Tu CV se arma con las secciones de este perfil: formación, '
+                      'experiencia y competencias. Edítalas arriba y vuelve a '
+                      'descargarlo.'
+                : 'Descarga el reporte mensual de actividad.',
+            style: const TextStyle(color: KairosPalette.secondary),
           ),
           const SizedBox(height: 14),
           // ── CV ──────────────────────────────────────────────────────────────
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _isDownloadingCv ? null : _downloadCv,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: KairosPalette.accent,
-              ),
-              icon: _isDownloadingCv
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : const Icon(Icons.badge_rounded, size: 18),
-              label: Text(
-                _isDownloadingCv ? 'Generando CV...' : 'Generar y descargar CV',
+          // Solo para quien busca práctica o trabajo: un integrante del personal
+          // no tiene por qué generar un currículum desde aquí.
+          if (_isCandidate) ...[
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isDownloadingCv ? null : _downloadCv,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: KairosPalette.accent,
+                  minimumSize: const Size(0, 48),
+                ),
+                icon: _isDownloadingCv
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Icon(Icons.badge_rounded, size: 18),
+                label: Text(
+                  _isDownloadingCv
+                      ? 'Generando CV...'
+                      : 'Generar y descargar CV',
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 8),
+            const SizedBox(height: 8),
+          ],
           // ── Reporte mensual ─────────────────────────────────────────────────
           SizedBox(
             width: double.infinity,
@@ -1416,14 +1545,6 @@ class _ProfilePageState extends State<ProfilePage> {
           Text(label, style: const TextStyle(color: KairosPalette.secondary)),
         ],
       ),
-    );
-  }
-
-  Widget _sectionBubble(IconData icon) {
-    return CircleAvatar(
-      radius: 22,
-      backgroundColor: KairosPalette.muted,
-      child: Icon(icon, size: 20, color: KairosPalette.primary),
     );
   }
 

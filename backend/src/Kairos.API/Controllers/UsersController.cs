@@ -62,6 +62,74 @@ public class UsersController(IApplicationDbContext db, IMediator mediator) : Con
         return profile is null ? NotFound() : Ok(profile);
     }
 
+    // ── Currículum ───────────────────────────────────────────────────────────
+    // Formación y experiencia. Se editan desde el perfil, y el PDF los refleja:
+    // así el alumno corrige su currículum donde ya mira sus datos, en vez de
+    // mantener un segundo formulario aparte.
+
+    /// <summary>Entradas de formación y experiencia propias.</summary>
+    [HttpGet("me/cv-entries")]
+    public async Task<IActionResult> GetMyCvEntries(CancellationToken ct)
+    {
+        var userId = GetUserId();
+        var entries = await db.CvEntries
+            .Where(c => c.UserId == userId)
+            .OrderByDescending(c => c.EndYear ?? int.MaxValue)
+            .ThenByDescending(c => c.StartYear)
+            .Select(c => new
+            {
+                c.Id, c.Kind, c.Title, c.Organization,
+                c.Detail, c.StartYear, c.EndYear,
+            })
+            .ToListAsync(ct);
+
+        return Ok(entries);
+    }
+
+    [HttpPost("me/cv-entries")]
+    public async Task<IActionResult> AddCvEntry(
+        [FromBody] CvEntryRequest request,
+        CancellationToken ct)
+    {
+        if (!CvEntryKind.IsValid(request.Kind))
+            return BadRequest(new { detail = "El tipo debe ser 'education' o 'experience'." });
+
+        if (string.IsNullOrWhiteSpace(request.Title))
+            return BadRequest(new { detail = "El título es obligatorio." });
+
+        var entry = new CvEntry
+        {
+            UserId       = GetUserId(),
+            Kind         = request.Kind,
+            Title        = request.Title.Trim(),
+            Organization = request.Organization?.Trim() ?? string.Empty,
+            Detail       = string.IsNullOrWhiteSpace(request.Detail) ? null : request.Detail.Trim(),
+            StartYear    = request.StartYear,
+            EndYear      = request.EndYear,
+        };
+
+        db.CvEntries.Add(entry);
+        await db.SaveChangesAsync(ct);
+
+        return CreatedAtAction(nameof(GetMyCvEntries), new { id = entry.Id }, new { entry.Id });
+    }
+
+    [HttpDelete("me/cv-entries/{id:int}")]
+    public async Task<IActionResult> DeleteCvEntry(int id, CancellationToken ct)
+    {
+        var userId = GetUserId();
+        // Se filtra por dueño además de por id: sin eso, cualquiera podría
+        // borrar la entrada de otra persona conociendo el número.
+        var entry = await db.CvEntries
+            .FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId, ct);
+
+        if (entry is null) return NotFound();
+
+        db.CvEntries.Remove(entry);
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     /// <summary>Preferencias de privacidad propias.</summary>
     [HttpGet("me/privacy")]
     public async Task<IActionResult> GetMyPrivacy(CancellationToken ct)
@@ -125,6 +193,14 @@ public class UsersController(IApplicationDbContext db, IMediator mediator) : Con
 }
 
 public record UpdatePrivacyRequest(string MessagePrivacy, string PostVisibility);
+
+public record CvEntryRequest(
+    string  Kind,
+    string  Title,
+    string? Organization = null,
+    string? Detail       = null,
+    int?    StartYear    = null,
+    int?    EndYear      = null);
 
 public record UpdateProfileRequest(
     string  FullName,

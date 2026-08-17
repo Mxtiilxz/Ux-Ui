@@ -92,6 +92,7 @@ class DemoInterceptor extends Interceptor {
     // perfil propio
     if (_is(s, ['users', 'me'])) return _demo.getMyProfile();
     if (_is(s, ['users', 'me', 'privacy'])) return _demo.getMyPrivacy();
+    if (_is(s, ['users', 'me', 'cv-entries'])) return _demo.getCvEntries();
 
     // estadísticas de comunidad
     if (_is(s, ['stats', 'community'])) return _demo.getCommunityStats();
@@ -121,6 +122,9 @@ class DemoInterceptor extends Interceptor {
     Map<String, dynamic> body,
     int Function(int) idAt,
   ) async {
+    // currículum
+    if (_is(s, ['users', 'me', 'cv-entries'])) return _demo.addCvEntry(body);
+
     // posts
     if (_is(s, ['posts'])) {
       return _demo.createPost(
@@ -218,6 +222,10 @@ class DemoInterceptor extends Interceptor {
   }
 
   Future<dynamic> _delete(List<String> s, int Function(int) idAt) async {
+    if (s.length == 4 && s[0] == 'users' && s[2] == 'cv-entries') {
+      await _demo.deleteCvEntry(idAt(3));
+      return null;
+    }
     if (s.length == 3 && s[0] == 'skills' && s[1] == 'me') {
       await _demo.removeMySkill(idAt(2));
       return null;

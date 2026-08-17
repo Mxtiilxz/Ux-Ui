@@ -370,6 +370,38 @@ class ApiClient {
     return (response.data as Map).cast<String, dynamic>();
   }
 
+  /// Formación y experiencia propias: las secciones que componen el CV.
+  Future<List<Map<String, dynamic>>> getCvEntries() async {
+    final response = await _dio.get('/users/me/cv-entries');
+    return (response.data as List<dynamic>).cast<Map<String, dynamic>>();
+  }
+
+  /// [kind] es 'education' o 'experience'.
+  Future<void> addCvEntry({
+    required String kind,
+    required String title,
+    String? organization,
+    String? detail,
+    int? startYear,
+    int? endYear,
+  }) async {
+    await _dio.post(
+      '/users/me/cv-entries',
+      data: {
+        'kind': kind,
+        'title': title,
+        if (organization != null) 'organization': organization,
+        if (detail != null) 'detail': detail,
+        if (startYear != null) 'startYear': startYear,
+        if (endYear != null) 'endYear': endYear,
+      },
+    );
+  }
+
+  Future<void> deleteCvEntry(int id) async {
+    await _dio.delete('/users/me/cv-entries/$id');
+  }
+
   /// Preferencias de privacidad propias: quién puede escribirme y quién ve mis
   /// publicaciones.
   Future<Map<String, dynamic>> getMyPrivacy() async {
@@ -430,6 +462,7 @@ class ApiClient {
     required String password,
     required String role,
     String? institution,
+    String? specialty,
   }) async {
     final response = await _dio.post(
       '/staff/users',
@@ -440,6 +473,7 @@ class ApiClient {
         'password': password,
         'role': role,
         if (institution != null) 'institution': institution,
+        if (specialty != null) 'specialty': specialty,
       },
     );
     return (response.data as Map).cast<String, dynamic>();

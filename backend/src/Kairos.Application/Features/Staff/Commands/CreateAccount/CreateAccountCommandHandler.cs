@@ -37,6 +37,25 @@ public class CreateAccountCommandHandler(IApplicationDbContext db)
         db.Users.Add(user);
         await db.SaveChangesAsync(cancellationToken);
 
+        // La especialidad del CSV se convierte en la primera entrada de
+        // formación del alumno. Sin esto su currículum nacería vacío y tendría
+        // que escribir a mano lo que el liceo ya sabe.
+        var specialty = request.Specialty?.Trim();
+        if (role == "student" && !string.IsNullOrEmpty(specialty))
+        {
+            db.CvEntries.Add(new CvEntry
+            {
+                UserId       = user.Id,
+                Kind         = CvEntryKind.Education,
+                Title        = specialty,
+                Organization = user.Institution ?? "Liceo Técnico Profesional",
+                Detail       = "Enseñanza Media Técnico-Profesional",
+                StartYear    = DateTime.UtcNow.Year,
+            });
+
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
         return new CreateAccountResult(user.Id, user.Email, user.Username, user.Role);
     }
 }

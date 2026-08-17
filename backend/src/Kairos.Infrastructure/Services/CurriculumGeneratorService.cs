@@ -10,6 +10,16 @@ using QuestPDF.Infrastructure;
 
 namespace Kairos.Infrastructure.Services;
 
+/// <summary>
+/// Currículum en formato clásico de una columna: nombre y contacto arriba,
+/// después perfil, formación, experiencia y competencias.
+///
+/// Antes el documento se armaba agrupando <c>user_activities</c>, la bitácora
+/// de uso de la red social. El resultado era un listado de "publicó", "comentó"
+/// y "dio me gusta" — un registro de actividad que ningún empleador puede leer
+/// como currículum, y que además salía casi vacío porque solo las publicaciones
+/// escribían en esa tabla.
+/// </summary>
 public class CurriculumGenerator : ICurriculumGenerator
 {
     static CurriculumGenerator()
@@ -17,101 +27,134 @@ public class CurriculumGenerator : ICurriculumGenerator
         QuestPDF.Settings.License = LicenseType.Community;
     }
 
-    public byte[] Generate(User user, IEnumerable<UserActivity> activities)
+    public byte[] Generate(CurriculumData data)
     {
+        var user = data.User;
+
         return Document.Create(container =>
         {
             container.Page(page =>
             {
                 page.Size(PageSizes.A4);
-                page.Margin(40);
-                page.DefaultTextStyle(t => t.FontSize(11).FontFamily("Arial"));
+                page.Margin(48);
+                page.DefaultTextStyle(t => t.FontSize(10.5f).FontFamily("Arial"));
 
-                // ── Encabezado ────────────────────────────────────────
                 page.Header().Column(col =>
                 {
-                    col.Item().Text(user.FullName)
-                        .FontSize(22).Bold().FontColor(Colors.Grey.Darken3);
+                    col.Item().AlignCenter().Text(user.FullName.ToUpperInvariant())
+                        .FontSize(20).Bold().LetterSpacing(0.06f);
 
-                    col.Item().Text(user.Email)
-                        .FontSize(11).FontColor(Colors.Grey.Medium);
+                    var contact = new[] { user.Email, user.Institution }
+                        .Where(part => !string.IsNullOrWhiteSpace(part));
 
-                    if (!string.IsNullOrWhiteSpace(user.Institution))
-                        col.Item().Text(user.Institution)
-                            .FontSize(11).FontColor(Colors.Grey.Medium);
+                    col.Item().AlignCenter().PaddingTop(4)
+                        .Text(string.Join("  ·  ", contact))
+                        .FontSize(10).FontColor(Colors.Grey.Darken1);
 
-                    if (!string.IsNullOrWhiteSpace(user.Bio))
-                    {
-                        col.Item().PaddingTop(8).Text(user.Bio)
-                            .FontSize(11).FontColor(Colors.Grey.Darken1);
-                    }
-
-                    col.Item().PaddingTop(6)
-                        .LineHorizontal(1).LineColor(Colors.Grey.Lighten1);
+                    col.Item().PaddingTop(10)
+                        .LineHorizontal(1.2f).LineColor(Colors.Black);
                 });
 
-                // ── Contenido ─────────────────────────────────────────
-                page.Content().PaddingTop(16).Column(col =>
+                page.Content().PaddingTop(14).Column(col =>
                 {
-                    var grouped = activities
-                        .GroupBy(a => a.ActivityType)
-                        .OrderBy(g => g.Key.ToString());
-
-                    foreach (var group in grouped)
+                    if (!string.IsNullOrWhiteSpace(user.Bio))
                     {
-                        // Título de sección (tipo de actividad)
-                        col.Item().PaddingTop(12).Text(FormatSection(group.Key))
-                            .FontSize(13).Bold().FontColor(Colors.Grey.Darken2);
+                        Section(col, "PERFIL");
+                        col.Item().PaddingTop(4).Text(user.Bio!).LineHeight(1.35f);
+                    }
 
-                        col.Item().PaddingTop(2)
-                            .LineHorizontal(0.5f).LineColor(Colors.Grey.Lighten2);
+                    if (data.Education.Count > 0)
+                    {
+                        Section(col, "FORMACIÓN");
+                        foreach (var entry in data.Education) Entry(col, entry);
+                    }
 
-                        // Ítems de la sección
-                        foreach (var activity in group.OrderByDescending(a => a.CreatedAt))
+                    if (data.Experience.Count > 0)
+                    {
+                        Section(col, "EXPERIENCIA");
+                        foreach (var entry in data.Experience) Entry(col, entry);
+                    }
+
+                    if (data.Skills.Count > 0)
+                    {
+                        Section(col, "COMPETENCIAS");
+
+                        // Agrupadas por categoría: un bloque de veinte nombres
+                        // seguidos no se lee, y separarlas dice además de qué
+                        // tipo es cada una.
+                        foreach (var group in data.Skills.GroupBy(s => s.Category))
                         {
-                            col.Item().PaddingTop(6).Row(row =>
+                            col.Item().PaddingTop(4).Text(text =>
                             {
-                                row.ConstantItem(110).Text(
-                                    activity.CreatedAt.ToString("dd MMM yyyy"))
-                                    .FontSize(10).FontColor(Colors.Grey.Medium);
-
-                                row.RelativeItem().Text(activity.Description)
-                                    .FontSize(11).FontColor(Colors.Grey.Darken3);
+                                text.Span($"{CategoryLabel(group.Key)}: ").SemiBold();
+                                text.Span(string.Join(", ", group.Select(s => s.Name)));
                             });
                         }
                     }
 
-                    // Mensaje si no hay actividades
-                    if (!activities.Any())
+                    // Un currículum sin nada que contar es peor que ninguno: se
+                    // dice qué falta y dónde completarlo, en vez de entregar una
+                    // hoja con solo el nombre.
+                    if (data.Education.Count == 0 &&
+                        data.Experience.Count == 0 &&
+                        data.Skills.Count == 0)
                     {
-                        col.Item().PaddingTop(20).Text("Sin actividades registradas.")
-                            .FontSize(11).FontColor(Colors.Grey.Medium).Italic();
+                        col.Item().PaddingTop(20).Text(
+                            "Este currículum todavía no tiene contenido. Agrega tu " +
+                            "formación, tu experiencia y tus competencias desde tu " +
+                            "perfil en Kairos y vuelve a descargarlo.")
+                            .FontColor(Colors.Grey.Darken1).Italic();
                     }
                 });
 
-                // ── Pie de página ─────────────────────────────────────
-                page.Footer().AlignCenter().Text(txt =>
-                {
-                    txt.Span("Generado por Kairos · ")
-                        .FontSize(9).FontColor(Colors.Grey.Lighten1);
-                    txt.Span(DateTime.UtcNow.ToString("dd/MM/yyyy"))
-                        .FontSize(9).FontColor(Colors.Grey.Lighten1);
-                });
+                page.Footer().AlignCenter().Text(
+                    $"Generado en Kairos · {DateTime.Now:dd-MM-yyyy}")
+                    .FontSize(8).FontColor(Colors.Grey.Medium);
             });
         }).GeneratePdf();
     }
 
-    // Convierte el enum a un título legible para el PDF
-    private static string FormatSection(ActivityType type) => type switch
+    private static void Section(ColumnDescriptor col, string title)
     {
-        ActivityType.Login           => "Accesos al sistema",
-        ActivityType.PostCreated     => "Publicaciones",
-        ActivityType.PostLiked       => "Interacciones",
-        ActivityType.CommentPosted   => "Comentarios",
-        ActivityType.ProfileUpdated  => "Actualizaciones de perfil",
-        ActivityType.JobApplied      => "Postulaciones laborales",
-        ActivityType.FollowedUser    => "Red de contactos",
-        ActivityType.UserFollowed    => "Nuevos seguidores",
-        _                            => type.ToString()
+        col.Item().PaddingTop(14).Text(title)
+            .FontSize(11).Bold().LetterSpacing(0.08f);
+        col.Item().PaddingTop(2).LineHorizontal(0.6f).LineColor(Colors.Grey.Medium);
+    }
+
+    private static void Entry(ColumnDescriptor col, CvEntry entry)
+    {
+        col.Item().PaddingTop(8).Row(row =>
+        {
+            row.RelativeItem().Column(inner =>
+            {
+                inner.Item().Text(entry.Title).SemiBold();
+
+                if (!string.IsNullOrWhiteSpace(entry.Organization))
+                    inner.Item().Text(entry.Organization)
+                        .FontColor(Colors.Grey.Darken1);
+
+                if (!string.IsNullOrWhiteSpace(entry.Detail))
+                    inner.Item().PaddingTop(2).Text(entry.Detail!).LineHeight(1.3f);
+            });
+
+            row.ConstantItem(90).AlignRight().Text(Period(entry))
+                .FontColor(Colors.Grey.Darken1);
+        });
+    }
+
+    /// <summary>Sin año de término se entiende que sigue en curso.</summary>
+    private static string Period(CvEntry entry) => (entry.StartYear, entry.EndYear) switch
+    {
+        (null, null)         => string.Empty,
+        (null, var end)      => end.ToString()!,
+        (var start, null)    => $"{start} — Actual",
+        var (start, end)     => start == end ? start.ToString()! : $"{start} — {end}",
+    };
+
+    private static string CategoryLabel(SkillCategory category) => category switch
+    {
+        SkillCategory.Language   => "Idiomas",
+        SkillCategory.Experience => "Experiencia",
+        _                        => "Técnicas",
     };
 }

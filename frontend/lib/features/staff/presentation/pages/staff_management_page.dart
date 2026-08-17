@@ -134,6 +134,10 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
           fullName: row.nombreCompleto,
           institution: row.curso.isNotEmpty ? row.curso : null,
           role: _csvRole,
+          // La especialidad se leía del CSV y se descartaba. Ahora crea la
+          // primera entrada de formación del alumno, para que su currículum
+          // no nazca vacío teniendo el liceo el dato.
+          specialty: row.especialidad.isNotEmpty ? row.especialidad : null,
         );
         results.add(
           _ImportResult(

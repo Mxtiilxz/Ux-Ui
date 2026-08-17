@@ -15,6 +15,12 @@ public record CreateAccountCommand(
     string  Username,
     string  Password,
     string  Role,
-    string? Institution) : IRequest<CreateAccountResult>;
+    string? Institution,
+    /// <summary>
+    /// Especialidad que cursa el alumno. Viene de la columna del CSV que el
+    /// liceo ya rellenaba y que hasta ahora se descartaba al importar. Con ella
+    /// se crea la entrada de formación de su currículum.
+    /// </summary>
+    string? Specialty = null) : IRequest<CreateAccountResult>;
 
 public record CreateAccountResult(int UserId, string Email, string Username, string Role);

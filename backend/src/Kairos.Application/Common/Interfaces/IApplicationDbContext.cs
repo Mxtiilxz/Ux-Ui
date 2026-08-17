@@ -26,6 +26,7 @@ public interface IApplicationDbContext
     DbSet<UserSkill>      UserSkills      { get; }
     DbSet<JobPostingSkill> JobPostingSkills { get; }
     DbSet<SavedJob>       SavedJobs        { get; }
+    DbSet<CvEntry>        CvEntries        { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
