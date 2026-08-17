@@ -68,6 +68,12 @@ class _ProfilePageState extends State<ProfilePage> {
   /// salían siempre en cero y las visitas y publicaciones eran literales.
   Map<String, dynamic>? _profile;
 
+  /// Preferencias de privacidad. Arrancan abiertas, que es como funcionaba la
+  /// plataforma antes de existir esta opción.
+  String _messagePrivacy = 'everyone';
+  String _postVisibility = 'everyone';
+  bool _savingPrivacy = false;
+
   @override
   void initState() {
     super.initState();
@@ -82,6 +88,52 @@ class _ProfilePageState extends State<ProfilePage> {
       if (mounted) setState(() => _profile = profile);
     } catch (_) {
       // Sin métricas la pantalla sigue mostrando los datos de la sesión.
+    }
+
+    try {
+      final privacy = await _api.getMyPrivacy();
+      if (mounted) {
+        setState(() {
+          _messagePrivacy = privacy['messagePrivacy'] as String? ?? 'everyone';
+          _postVisibility = privacy['postVisibility'] as String? ?? 'everyone';
+        });
+      }
+    } catch (_) {
+      // Se mantienen los valores abiertos, que son los de por defecto.
+    }
+  }
+
+  /// Guarda ambas preferencias juntas: el endpoint las trata como un par y
+  /// enviar solo una borraría la otra.
+  Future<void> _savePrivacy({String? messages, String? posts}) async {
+    final previousMessages = _messagePrivacy;
+    final previousPosts = _postVisibility;
+
+    setState(() {
+      _messagePrivacy = messages ?? _messagePrivacy;
+      _postVisibility = posts ?? _postVisibility;
+      _savingPrivacy = true;
+    });
+
+    try {
+      await _api.updateMyPrivacy(
+        messagePrivacy: _messagePrivacy,
+        postVisibility: _postVisibility,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _messagePrivacy = previousMessages;
+        _postVisibility = previousPosts;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo guardar la preferencia.'),
+          backgroundColor: KairosPalette.danger,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _savingPrivacy = false);
     }
   }
 
@@ -287,6 +339,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 const SizedBox(height: 12),
                 _buildQuickMatchVisibility(),
               ],
+              const SizedBox(height: 12),
+              _buildPrivacy(),
               if (widget.activeRole == UserRole.student ||
                   widget.activeRole == UserRole.alumni) ...[
                 const SizedBox(height: 12),
@@ -621,6 +675,98 @@ class _ProfilePageState extends State<ProfilePage> {
               )
             else
               Text(bio, style: const TextStyle(height: 1.45)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Preferencias de privacidad.
+  ///
+  /// Existen porque en una plataforma con menores de edad "todo el mundo puede
+  /// escribirte" no debería ser la única opción posible.
+  Widget _buildPrivacy() {
+    return SizedBox(
+      width: double.infinity,
+      child: KCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.lock_outline_rounded, color: KairosPalette.primary),
+                SizedBox(width: 8),
+                Text(
+                  'Privacidad',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _messagePrivacy,
+              decoration: const InputDecoration(
+                labelText: 'Quién puede enviarme mensajes',
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: 'everyone',
+                  child: Text('Cualquier persona'),
+                ),
+                DropdownMenuItem(
+                  value: 'connections',
+                  child: Text('Solo mis contactos'),
+                ),
+                DropdownMenuItem(
+                  value: 'staff',
+                  child: Text('Solo el personal del liceo'),
+                ),
+              ],
+              onChanged: _savingPrivacy
+                  ? null
+                  : (value) {
+                      if (value != null) _savePrivacy(messages: value);
+                    },
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'El personal del liceo siempre puede escribirte. Si te ofreces en '
+              'Quick Match, las empresas también.',
+              style: TextStyle(
+                fontSize: 12,
+                color: KairosPalette.mutedForeground,
+              ),
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              initialValue: _postVisibility,
+              decoration: const InputDecoration(
+                labelText: 'Quién ve mis publicaciones',
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: 'everyone',
+                  child: Text('Toda la plataforma'),
+                ),
+                DropdownMenuItem(
+                  value: 'connections',
+                  child: Text('Solo mis contactos'),
+                ),
+              ],
+              onChanged: _savingPrivacy
+                  ? null
+                  : (value) {
+                      if (value != null) _savePrivacy(posts: value);
+                    },
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Se aplica a las publicaciones que ya hiciste, no solo a las nuevas.',
+              style: TextStyle(
+                fontSize: 12,
+                color: KairosPalette.mutedForeground,
+              ),
+            ),
           ],
         ),
       ),

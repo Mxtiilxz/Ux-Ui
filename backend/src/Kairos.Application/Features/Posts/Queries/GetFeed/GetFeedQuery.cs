@@ -2,7 +2,11 @@ using MediatR;
 
 namespace Kairos.Application.Features.Posts.Queries.GetFeed;
 
-public record GetFeedQuery(int Page = 1, int PageSize = 20) : IRequest<GetFeedResult>;
+/// <summary>
+/// Feed del usuario. Necesita saber quién mira, no solo la página: cada autor
+/// decide si sus publicaciones son públicas o solo para sus contactos.
+/// </summary>
+public record GetFeedQuery(int ViewerId, int Page = 1, int PageSize = 20) : IRequest<GetFeedResult>;
 
 public record PostDto(
     int      Id,

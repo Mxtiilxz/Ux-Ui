@@ -50,6 +50,7 @@ public static class DependencyInjection
         // JWT
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.Section));
         services.AddScoped<IJwtService, JwtService>();
+        services.AddScoped<IAudienceService, AudienceService>();
 
         // Storage: filesystem local en desarrollo, Supabase Storage en producción.
         // En Development no hace falta configurar nada de Supabase.

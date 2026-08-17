@@ -91,6 +91,7 @@ class DemoInterceptor extends Interceptor {
 
     // perfil propio
     if (_is(s, ['users', 'me'])) return _demo.getMyProfile();
+    if (_is(s, ['users', 'me', 'privacy'])) return _demo.getMyPrivacy();
 
     // estadísticas de comunidad
     if (_is(s, ['stats', 'community'])) return _demo.getCommunityStats();
@@ -190,6 +191,7 @@ class DemoInterceptor extends Interceptor {
     int Function(int) idAt,
   ) async {
     if (_is(s, ['users', 'me'])) return _demo.updateMyProfile(body);
+    if (_is(s, ['users', 'me', 'privacy'])) return _demo.updateMyPrivacy(body);
     if (_is(s, ['skills', 'me', 'visibility'])) {
       final visible = await _demo.setQuickMatchVisibility(
         body['visible'] as bool? ?? false,

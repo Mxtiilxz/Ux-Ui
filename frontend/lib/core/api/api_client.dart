@@ -370,6 +370,29 @@ class ApiClient {
     return (response.data as Map).cast<String, dynamic>();
   }
 
+  /// Preferencias de privacidad propias: quién puede escribirme y quién ve mis
+  /// publicaciones.
+  Future<Map<String, dynamic>> getMyPrivacy() async {
+    final response = await _dio.get('/users/me/privacy');
+    return (response.data as Map).cast<String, dynamic>();
+  }
+
+  /// [messagePrivacy] es 'everyone', 'connections' o 'staff'.
+  /// [postVisibility] es 'everyone' o 'connections'.
+  Future<Map<String, dynamic>> updateMyPrivacy({
+    required String messagePrivacy,
+    required String postVisibility,
+  }) async {
+    final response = await _dio.put(
+      '/users/me/privacy',
+      data: {
+        'messagePrivacy': messagePrivacy,
+        'postVisibility': postVisibility,
+      },
+    );
+    return (response.data as Map).cast<String, dynamic>();
+  }
+
   /// Actualiza el perfil propio. Enviar un campo vacío lo borra.
   Future<Map<String, dynamic>> updateMyProfile({
     required String fullName,

@@ -56,6 +56,17 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             e.Property(u => u.Status).HasMaxLength(20).HasDefaultValue("approved").IsRequired();
             e.Property(u => u.QuickMatchVisible).HasDefaultValue(false).IsRequired();
             e.Property(u => u.QuickMatchMessageTemplate).HasMaxLength(1000);
+
+            // El valor por defecto se declara también en la base, no solo en la
+            // entidad: al añadir la columna, las filas existentes necesitan un
+            // valor válido. Sin esto quedarían con cadena vacía, que no es
+            // ninguna audiencia conocida, y esos usuarios desaparecerían del
+            // feed ajeno y no podrían recibir mensajes.
+            e.Property(u => u.MessagePrivacy).HasMaxLength(20).IsRequired()
+             .HasDefaultValue(PrivacyAudience.Everyone);
+
+            e.Property(u => u.PostVisibility).HasMaxLength(20).IsRequired()
+             .HasDefaultValue(PrivacyAudience.Everyone);
         });
 
         // ════════════════════════════════════════════════════

@@ -31,6 +31,18 @@ public class User
     // y {competencias}. Null = se usa el mensaje por defecto del sistema.
     public string? QuickMatchMessageTemplate { get; set; }
 
+    // ── Privacidad ───────────────────────────────────────────────────────────
+    // Quién puede escribirle y quién ve lo que publica. Por defecto todo abierto,
+    // que es como funcionaba la plataforma antes de existir estas opciones:
+    // cambiar el valor por defecto habría alterado en silencio lo que cada
+    // usuario ya tenía visible.
+
+    /// <summary>"everyone" | "connections" | "staff" — quién puede enviarle mensajes.</summary>
+    public string MessagePrivacy { get; set; } = PrivacyAudience.Everyone;
+
+    /// <summary>"everyone" | "connections" — quién ve sus publicaciones.</summary>
+    public string PostVisibility { get; set; } = PrivacyAudience.Everyone;
+
     // Navegación (EF Core las usa para construir los JOINs)
     public ICollection<Post>            Posts           { get; set; } = [];
     public ICollection<UserActivity>    Activities      { get; set; } = [];

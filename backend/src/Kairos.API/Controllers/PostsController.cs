@@ -33,7 +33,7 @@ public class PostsController(IMediator mediator) : ControllerBase
         [FromQuery] int pageSize = 20,
         CancellationToken ct     = default)
     {
-        var result = await mediator.Send(new GetFeedQuery(page, pageSize), ct);
+        var result = await mediator.Send(new GetFeedQuery(GetUserId(), page, pageSize), ct);
         return Ok(result);
     }
 

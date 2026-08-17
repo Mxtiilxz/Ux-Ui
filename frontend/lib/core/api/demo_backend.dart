@@ -583,6 +583,20 @@ class DemoBackend {
     ..._myProfileEdits,
   });
 
+  String _messagePrivacy = 'everyone';
+  String _postVisibility = 'everyone';
+
+  Future<Map<String, dynamic>> getMyPrivacy() => _delayed({
+    'messagePrivacy': _messagePrivacy,
+    'postVisibility': _postVisibility,
+  });
+
+  Future<Map<String, dynamic>> updateMyPrivacy(Map<String, dynamic> body) {
+    _messagePrivacy = body['messagePrivacy'] as String? ?? _messagePrivacy;
+    _postVisibility = body['postVisibility'] as String? ?? _postVisibility;
+    return getMyPrivacy();
+  }
+
   Future<Map<String, dynamic>> updateMyProfile(Map<String, dynamic> body) {
     _myProfileEdits.addAll({
       'fullName': body['fullName'],

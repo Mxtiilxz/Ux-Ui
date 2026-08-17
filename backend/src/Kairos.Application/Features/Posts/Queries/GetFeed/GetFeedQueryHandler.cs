@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Kairos.Application.Features.Posts.Queries.GetFeed;
 
-public class GetFeedQueryHandler(IApplicationDbContext db)
+public class GetFeedQueryHandler(IApplicationDbContext db, IAudienceService audience)
     : IRequestHandler<GetFeedQuery, GetFeedResult>
 {
     public async Task<GetFeedResult> Handle(GetFeedQuery request, CancellationToken cancellationToken)
@@ -12,10 +12,18 @@ public class GetFeedQueryHandler(IApplicationDbContext db)
         if (request.Page < 1)
             throw new ArgumentException("El número de página debe ser mayor a 0.");
 
-        var skip  = (request.Page - 1) * request.PageSize;
-        var total = await db.Posts.CountAsync(cancellationToken);
+        // Cada autor decide si publica en abierto o solo para sus contactos, así
+        // que el conjunto de autores visibles se calcula por lector. El filtro va
+        // antes de contar: si no, la paginación prometería publicaciones que
+        // luego no aparecen.
+        var visibleAuthors = await audience.VisibleAuthorsAsync(request.ViewerId, cancellationToken);
 
-        var posts = await db.Posts
+        var query = db.Posts.Where(p => visibleAuthors.Contains(p.AuthorId));
+
+        var skip  = (request.Page - 1) * request.PageSize;
+        var total = await query.CountAsync(cancellationToken);
+
+        var posts = await query
             .Include(p => p.Author)
             .OrderByDescending(p => p.CreatedAt)
             .Skip(skip)
