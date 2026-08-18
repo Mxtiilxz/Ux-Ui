@@ -1,8 +1,13 @@
-# Configuración del sitio de producción (kairoswebapp).
+# Configuración del sitio publicado.
 #
 # El directorio a publicar se elige en el panel de Netlify; acá solo viven las
 # cabeceras, que son lo que revisa una auditoría de seguridad o un informe de
 # Lighthouse y que por defecto no se envían.
+#
+# Este archivo vive en `frontend/web/` y no en la raíz del repositorio porque
+# Netlify lo lee desde la raíz de *lo que se publica*: al desplegar arrastrando
+# `build/web`, un archivo en la raíz del repo no llega nunca. Flutter copia todo
+# lo que hay en `web/` a cada build.
 
 [[headers]]
   for = "/*"
@@ -20,16 +25,30 @@
     # La aplicación no usa cámara, micrófono ni geolocalización.
     Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=()"
 
-    # `wasm-unsafe-eval` y `unsafe-inline` los exige el arranque de Flutter web.
-    # `connect-src` abarca la API en Render, sus WebSockets de SignalR, el
-    # almacenamiento de Supabase y Google Analytics.
+    # Cuidado al tocar esta política: una directiva de menos deja la página en
+    # blanco, y en local no se nota porque el servidor de desarrollo no envía
+    # cabeceras. Cada permiso está acá por un motivo concreto:
+    #
+    #   www.gstatic.com    CanvasKit, el motor de render de Flutter web. Se carga
+    #                      como script y además se descarga el .wasm por fetch,
+    #                      así que hace falta en script-src Y en connect-src.
+    #   fonts.gstatic.com  Flutter descarga Roboto por fetch, no con @font-face:
+    #                      por eso va en connect-src además de en font-src.
+    #   'wasm-unsafe-eval' Compilar el WebAssembly de CanvasKit.
+    #   'unsafe-inline'    El arranque de Flutter inyecta scripts y estilos.
+    #   blob:              Los workers que Flutter crea en tiempo de ejecución.
+    #   onrender.com       La API y los WebSockets de SignalR.
+    #   supabase.co        Las imágenes subidas por los usuarios.
+    #   googletagmanager   Google Analytics.
     Content-Security-Policy = """
       default-src 'self'; \
-      script-src 'self' 'wasm-unsafe-eval' 'unsafe-inline' https://www.googletagmanager.com; \
-      style-src 'self' 'unsafe-inline'; \
+      script-src 'self' 'wasm-unsafe-eval' 'unsafe-inline' blob: https://www.gstatic.com https://www.googletagmanager.com; \
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; \
       img-src 'self' data: blob: https:; \
-      font-src 'self' data:; \
-      connect-src 'self' https://ux-ui-b1s1.onrender.com wss://ux-ui-b1s1.onrender.com https://*.supabase.co https://www.google-analytics.com https://*.google-analytics.com; \
+      font-src 'self' data: https://fonts.gstatic.com; \
+      worker-src 'self' blob:; \
+      child-src 'self' blob:; \
+      connect-src 'self' data: blob: https://www.gstatic.com https://fonts.gstatic.com https://ux-ui-b1s1.onrender.com wss://ux-ui-b1s1.onrender.com https://*.supabase.co https://www.google-analytics.com https://*.google-analytics.com; \
       frame-ancestors 'none'; \
       base-uri 'self'; \
       form-action 'self'"""
