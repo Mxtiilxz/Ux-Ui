@@ -1,13 +1,21 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-COPY Kairos.sln .
+# Solo los proyectos que acaban dentro de la imagen. La solución también
+# referencia backend/tests/, que el servidor no necesita.
 COPY src/Kairos.API/Kairos.API.csproj             src/Kairos.API/
 COPY src/Kairos.Application/Kairos.Application.csproj src/Kairos.Application/
 COPY src/Kairos.Domain/Kairos.Domain.csproj       src/Kairos.Domain/
 COPY src/Kairos.Infrastructure/Kairos.Infrastructure.csproj src/Kairos.Infrastructure/
 
-RUN dotnet restore
+# Se restaura el proyecto de la API, no la solución.
+#
+# `dotnet restore` a secas resuelve Kairos.sln entera, y por tanto también el
+# proyecto de tests, cuyo .csproj no se ha copiado: el restore falla y la
+# compilación del host termina en "exited with status 1". Pasó exactamente eso
+# al añadir los tests. Apuntando al proyecto se restauran él y sus referencias
+# —Application, Domain, Infrastructure— sin mirar el archivo de solución.
+RUN dotnet restore src/Kairos.API/Kairos.API.csproj
 
 COPY . .
 RUN dotnet publish src/Kairos.API/Kairos.API.csproj -c Release -o /app/out
