@@ -24,6 +24,7 @@ Red social para estudiantes técnico-profesionales de liceos técnicos. Conecta 
 | [docs/accessibility/](docs/accessibility/) | Auditoría WCAG 2.2 AA y reporte de remediación |
 | [DEMO.md](DEMO.md) | Modo demo sin backend y eventos de Google Analytics |
 | [backend/README.md](backend/README.md) | Arquitectura, endpoints, rate limiting, cómo levantar la API |
+| [backend/tests/](backend/tests/) | Tests del backend: traducción a SQL de las consultas (`dotnet test`) |
 | [frontend/README.md](frontend/README.md) | Estructura Flutter, tema, flags de compilación |
 | [\_\_tests\_\_/README.md](__tests__/README.md) | Suite de tests de integración (pytest) |
 

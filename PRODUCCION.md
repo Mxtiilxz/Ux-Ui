@@ -282,6 +282,7 @@ Verificado en el repositorio (17 de agosto de 2026):
 | Comprobación | Resultado |
 |---|---|
 | `dotnet build` de la solución | 0 advertencias, 0 errores |
+| `dotnet test` | 5 de 5 — traducción a SQL de las consultas del feed y de la red |
 | `flutter analyze` | **Sin ningún aviso**, ni siquiera de nivel `info` |
 | `flutter test` | 35 de 35 |
 | `flutter build web --release` (producción y demo) | Ambas compilan |
@@ -334,11 +335,19 @@ behavior de MediatR, en vez de repetir el mismo bloque en seis handlers.
 > razón por la que salía listando likes y comentarios; ahora se construye desde el perfil y
 > la tabla `cv_entries`, así que es independiente del registro de actividad.
 
-### La pantalla de chat no se estabiliza
+### La pantalla de chat no tiene test de widgets
 
-`ChatsPage` nunca llega a un estado quieto bajo `pumpAndSettle`: hay una animación o un
-temporizador permanente. Además del consumo innecesario, deja esa pantalla fuera del alcance
-de cualquier test de widgets.
+`ChatsPage` no llega a un estado quieto bajo `pumpAndSettle`, pero **no es un defecto de la
+aplicación**: en un test sin backend la pantalla se queda en su indicador de carga, y un
+`CircularProgressIndicator` es una animación indeterminada que por definición nunca termina.
+`pumpAndSettle` espera a que todas las animaciones acaben, así que agota su tiempo. Los dos
+temporizadores de la pantalla se cancelan en `dispose()`; no hay ninguna fuga.
+
+Lo que falta es el test, que sí se puede escribir: hay que avanzar el reloj con
+`pump(Duration)` en vez de `pumpAndSettle`, y compilar con `--dart-define=DEMO_MODE=true`
+para que el backend simulado responda. La atribución de cada mensaje —quién lo envió, de
+qué lado aparece— está cubierta hoy a nivel de datos en
+[`demo_chat_sides_test.dart`](frontend/test/demo_chat_sides_test.dart).
 
 ---
 
