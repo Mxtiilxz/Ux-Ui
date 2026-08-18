@@ -734,6 +734,9 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
           ),
+          // El período y el botón se alinean con la primera línea del texto, no
+          // con el centro del bloque: si no, quedan flotando a media altura
+          // frente a una entrada de tres líneas y no se lee a qué pertenecen.
           if (period.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(left: 8, top: 2),
@@ -749,6 +752,11 @@ class _ProfilePageState extends State<ProfilePage> {
             tooltip: 'Eliminar "${entry['title']}"',
             onPressed: () => _deleteCvEntry(entry['id'] as int),
             icon: const Icon(Icons.delete_outline_rounded, size: 20),
+            // `topCenter` sube el icono dentro de su caja en vez de encogerla:
+            // el área táctil sigue midiendo 48 px, como exige WCAG 2.5.8.
+            alignment: Alignment.topCenter,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints.tightFor(width: 48, height: 48),
           ),
         ],
       ),

@@ -35,7 +35,14 @@ class _NetworkPageState extends State<NetworkPage> {
   List<UserProfile> _connections = [];
 
   bool _loading = true;
-  bool _error = false;
+
+  /// Qué partes de la pantalla no se pudieron cargar. Se guarda el nombre de
+  /// cada una en vez de un único booleano para poder decir qué falló: "no se
+  /// pudo cargar la red" no distingue entre las sugerencias, las solicitudes y
+  /// los contactos, y sin esa distinción no hay por dónde empezar a mirar.
+  final Set<String> _failed = <String>{};
+
+  bool get _error => _failed.isNotEmpty;
 
   @override
   void initState() {
@@ -47,42 +54,69 @@ class _NetworkPageState extends State<NetworkPage> {
     if (mounted) {
       setState(() {
         _loading = true;
-        _error = false;
+        _failed.clear();
       });
     }
-    try {
-      final results = await Future.wait([
-        _api.getNetworkSuggestions(),
-        _api.getConnectionRequests(),
-        _api.getConnections(),
-      ]);
 
-      final suggestions = results[0]
+    // Las tres consultas se resuelven por separado a propósito. Antes iban en
+    // un solo `Future.wait`, así que si una fallaba se perdían también las dos
+    // que habían respondido bien y la pantalla entera quedaba en cero.
+    final suggestions = await _tryLoad(
+      'las sugerencias',
+      () async => (await _api.getNetworkSuggestions())
           .cast<Map<String, dynamic>>()
           .map(_toProfile)
-          .toList();
-      final requests = results[1] as List<Map<String, dynamic>>;
-      final connections = (results[2] as List<Map<String, dynamic>>)
-          .map(_toProfile)
-          .toList();
+          .toList(),
+    );
 
-      if (!mounted) return;
-      setState(() {
-        _apiSuggestions = suggestions;
+    final requests = await _tryLoad(
+      'las solicitudes',
+      () async => await _api.getConnectionRequests(),
+    );
+
+    final connections = await _tryLoad(
+      'tus contactos',
+      () async =>
+          (await _api.getConnections()).map(_toProfile).toList(),
+    );
+
+    if (!mounted) return;
+    setState(() {
+      if (suggestions != null) _apiSuggestions = suggestions;
+      if (requests != null) {
         _requests = requests;
-        _connections = connections;
         for (final request in requests) {
           _status[request['id'].toString()] = 'pending_received';
         }
+      }
+      if (connections != null) {
+        _connections = connections;
         for (final contact in connections) {
           _status[contact.id] = 'connected';
         }
-      });
+      }
+      _loading = false;
+    });
+  }
+
+  /// Ejecuta [load] y devuelve `null` si falla, anotando [nombre] entre las
+  /// partes que no cargaron.
+  Future<T?> _tryLoad<T>(String nombre, Future<T> Function() load) async {
+    try {
+      return await load();
     } catch (_) {
-      if (mounted) setState(() => _error = true);
-    } finally {
-      if (mounted) setState(() => _loading = false);
+      _failed.add(nombre);
+      return null;
     }
+  }
+
+  /// "No se pudieron cargar las sugerencias y tus contactos."
+  String _errorMessage() {
+    final partes = _failed.toList();
+    final lista = partes.length == 1
+        ? partes.single
+        : '${partes.take(partes.length - 1).join(', ')} y ${partes.last}';
+    return 'No se pudieron cargar $lista. Intenta de nuevo.';
   }
 
   UserProfile _toProfile(Map<String, dynamic> json) {
@@ -299,13 +333,13 @@ class _NetworkPageState extends State<NetworkPage> {
             Semantics(
               liveRegion: true,
               container: true,
-              label: 'No se pudo cargar la red. Intenta de nuevo.',
+              label: _errorMessage(),
               child: Center(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 40),
                   child: Column(
                     children: [
-                      const Text('No se pudo cargar la red. Intenta de nuevo.'),
+                      Text(_errorMessage(), textAlign: TextAlign.center),
                       const SizedBox(height: 12),
                       ElevatedButton(
                         onPressed: _loadAll,

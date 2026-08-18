@@ -51,6 +51,12 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> _topDemand = [];
   bool _statsLoading = true;
 
+  /// Distingue "no hay datos todavía" de "no se pudieron pedir". Antes ambos
+  /// casos mostraban el mismo texto, así que un fallo del servidor se leía como
+  /// una comunidad vacía y no había forma de notar la diferencia desde la
+  /// interfaz.
+  bool _statsFailed = false;
+
   /// Solicitudes de registro sin revisar. Solo se consulta si el usuario es
   /// staff; para el resto no existe el panel.
   int _pendingRequests = 0;
@@ -77,16 +83,19 @@ class _HomePageState extends State<HomePage> {
       final stats = await _api.getCommunityStats();
       if (!mounted) return;
       setState(() {
+        _statsFailed = false;
         _topSkills = (stats['topSkills'] as List<dynamic>? ?? [])
             .cast<Map<String, dynamic>>();
         _topDemand = (stats['topDemand'] as List<dynamic>? ?? [])
             .cast<Map<String, dynamic>>();
       });
     } catch (_) {
-      // Las tarjetas laterales son accesorias: si fallan se muestran vacías,
-      // que es preferible a inventar números o a tumbar el feed entero.
+      // Las tarjetas laterales son accesorias: un fallo no debe tumbar el feed.
+      // Pero sí se dice que falló, en vez de mostrarlas vacías: dar por vacío lo
+      // que en realidad no se pudo consultar oculta el problema a quien lo mira.
       if (mounted) {
         setState(() {
+          _statsFailed = true;
           _topSkills = [];
           _topDemand = [];
         });
@@ -94,6 +103,31 @@ class _HomePageState extends State<HomePage> {
     } finally {
       if (mounted) setState(() => _statsLoading = false);
     }
+  }
+
+  /// Mensaje de las tarjetas laterales cuando la consulta falló.
+  ///
+  /// Se separa del estado vacío a propósito: "no hay datos" y "no pude
+  /// preguntar" son cosas distintas, y confundirlas deja un error del servidor
+  /// disfrazado de comunidad sin actividad.
+  Widget _statsError() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'No se pudieron cargar estas cifras.',
+          style: TextStyle(color: KairosPalette.mutedForeground),
+        ),
+        const SizedBox(height: 4),
+        TextButton(
+          onPressed: () {
+            setState(() => _statsLoading = true);
+            _loadStats();
+          },
+          child: const Text('Reintentar'),
+        ),
+      ],
+    );
   }
 
   static String _offersLabel(int count) =>
@@ -351,6 +385,8 @@ class _HomePageState extends State<HomePage> {
                   padding: EdgeInsets.symmetric(vertical: 8),
                   child: LinearProgressIndicator(),
                 )
+              else if (_statsFailed)
+                _statsError()
               else if (_topSkills.isEmpty)
                 const Text(
                   'Todavía ningún alumno ha registrado competencias.',
@@ -870,6 +906,8 @@ class _HomePageState extends State<HomePage> {
                   padding: EdgeInsets.symmetric(vertical: 8),
                   child: LinearProgressIndicator(),
                 )
+              else if (_statsFailed)
+                _statsError()
               else if (_topDemand.isEmpty)
                 const Text(
                   'Ninguna oferta abierta indica todavía qué competencias busca.',
