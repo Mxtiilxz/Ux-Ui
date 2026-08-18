@@ -153,16 +153,26 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
+      // El servidor no contestó. Nunca se entra igual: dejar pasar a alguien
+      // sin que el backend valide sus credenciales es un acceso sin
+      // autenticar, aunque el perfil que se arme no tenga permisos reales.
       if (_isBackendUnavailable(e)) {
-        final demoUser = _buildDemoUser();
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Backend no disponible. Ingresando en modo demo.'),
+          SnackBar(
+            content: const Text(
+              'El servidor no responde. Puede estar iniciándose: '
+              'espera unos segundos y vuelve a intentar.',
+            ),
             backgroundColor: AppColors.warning,
+            duration: const Duration(seconds: 8),
+            action: SnackBarAction(
+              label: 'Reintentar',
+              textColor: Colors.white,
+              onPressed: _submit,
+            ),
           ),
         );
-        widget.onLoginSuccess(demoUser);
         return;
       }
 
@@ -209,43 +219,31 @@ class _LoginPageState extends State<LoginPage> {
     return 'No se pudo iniciar sesion.';
   }
 
-  UserProfile _buildDemoUser() {
-    final emailOrUser = _emailController.text.trim();
-    final role = _roleFromInput(emailOrUser);
-
-    final displayName = emailOrUser.isEmpty
-        ? 'Usuario Demo'
-        : emailOrUser.split('@').first.replaceAll('.', ' ').trim();
-
-    return UserProfile(
-      id: 'demo-user',
-      name: displayName.isEmpty ? 'Usuario Demo' : displayName,
-      role: role,
-      title: _titleForRole(role.name),
-      avatarUrl: '',
-      skills: const [],
-      bio: 'Modo demo sin conexion al backend.',
-      location: 'La Florida, Santiago',
-      connections: 0,
-      institution: role == UserRole.company
-          ? null
-          : 'Liceo Tecnico Cardenal Jose Maria Caro',
+  /// Explica cómo recuperar el acceso.
+  ///
+  /// Kairos no envía correos de restablecimiento: las cuentas son
+  /// institucionales y quien las administra es el liceo, así que el
+  /// procedimiento real pasa por el establecimiento. Se dice explícitamente en
+  /// vez de ofrecer un formulario que no existe.
+  void _showPasswordHelp() {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Recuperar el acceso'),
+        content: const Text(
+          'Las cuentas de Kairos las administra el liceo, por lo que la '
+          'contraseña se restablece desde el establecimiento.\n\n'
+          'Escribe a Inspectoría o a tu profesor jefe indicando tu nombre '
+          'completo y tu correo institucional, y podrán asignarte una nueva.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
     );
-  }
-
-  UserRole _roleFromInput(String text) {
-    final normalized = text.toLowerCase();
-    // El rol staff (administración del liceo) queda deliberadamente fuera:
-    // los testers no deben poder entrar al panel de gestión.
-    if (normalized.contains('company') ||
-        normalized.contains('empresa') ||
-        normalized.contains('hr')) {
-      return UserRole.company;
-    }
-    if (normalized.contains('alumni') || normalized.contains('egresado')) {
-      return UserRole.alumni;
-    }
-    return UserRole.student;
   }
 
   UserRole _mapRole(String role) => switch (role) {
@@ -414,7 +412,7 @@ class _LoginPageState extends State<LoginPage> {
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.06),
+                          color: Colors.black.withValues(alpha: 0.06),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
@@ -475,21 +473,20 @@ class _LoginPageState extends State<LoginPage> {
                                   () => _obscurePassword = !_obscurePassword,
                                 ),
                               ),
-                              validator: (v) {
-                                if (v == null || v.isEmpty) {
-                                  return 'Ingresa tu contraseña';
-                                }
-                                if (v.length < 6) {
-                                  return 'Mínimo 6 caracteres';
-                                }
-                                return null;
-                              },
+                              // Al entrar no se valida el formato: la política
+                              // se exige al crear la cuenta, no al usarla. Un
+                              // mínimo de longitud acá solo lograría rechazar
+                              // en el cliente una contraseña antigua que el
+                              // servidor sí aceptaría.
+                              validator: (v) => (v == null || v.isEmpty)
+                                  ? 'Ingresa tu contraseña'
+                                  : null,
                             ),
                             const SizedBox(height: 8),
                             Align(
                               alignment: Alignment.centerRight,
                               child: TextButton(
-                                onPressed: () {},
+                                onPressed: _showPasswordHelp,
                                 child: const Text(
                                   '¿Olvidaste tu contraseña?',
                                   style: TextStyle(

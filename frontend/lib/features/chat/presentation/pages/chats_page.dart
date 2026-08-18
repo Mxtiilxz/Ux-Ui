@@ -573,7 +573,7 @@ class _ChatsPageState extends State<ChatsPage> {
               Icon(
                 Icons.chat_bubble_outline_rounded,
                 size: 40,
-                color: KairosPalette.secondary.withOpacity(0.4),
+                color: KairosPalette.secondary.withValues(alpha: 0.4),
               ),
               const SizedBox(height: 12),
               const Text(
@@ -710,7 +710,7 @@ class _ChatsPageState extends State<ChatsPage> {
               Icon(
                 Icons.people_outline_rounded,
                 size: 40,
-                color: KairosPalette.secondary.withOpacity(0.4),
+                color: KairosPalette.secondary.withValues(alpha: 0.4),
               ),
               const SizedBox(height: 12),
               const Text(

@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/analytics/analytics.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/theme/kairos_palette.dart';
+import '../../../../core/utils/file_downloader.dart';
 import '../../../../core/widgets/k_card.dart';
 
 class CompanyJobsPage extends StatefulWidget {
@@ -28,8 +29,9 @@ class _CompanyJobsPageState extends State<CompanyJobsPage> {
     setState(() => _loading = true);
     try {
       final data = await _api.getMyJobPostings();
-      if (mounted)
+      if (mounted) {
         setState(() => _postings = data.cast<Map<String, dynamic>>());
+      }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -206,7 +208,7 @@ class _CompanyJobsPageState extends State<CompanyJobsPage> {
                                         imageUrl = result['cdnUrl'] as String?,
                                   );
                                 } catch (_) {
-                                  if (ctx.mounted)
+                                  if (ctx.mounted) {
                                     ScaffoldMessenger.of(ctx).showSnackBar(
                                       const SnackBar(
                                         content: Text(
@@ -214,6 +216,7 @@ class _CompanyJobsPageState extends State<CompanyJobsPage> {
                                         ),
                                       ),
                                     );
+                                  }
                                 } finally {
                                   setInner(() => uploadingImg = false);
                                 }
@@ -331,7 +334,7 @@ class _CompanyJobsPageState extends State<CompanyJobsPage> {
           : ListView.separated(
               padding: const EdgeInsets.all(16),
               itemCount: _postings.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
               itemBuilder: (context, index) {
                 final p = _postings[index];
                 final appCount = p['applicationCount'] as int? ?? 0;
@@ -485,8 +488,9 @@ class _ApplicationsPageState extends State<_ApplicationsPage> {
     setState(() => _loading = true);
     try {
       final data = await _api.getJobApplications(widget.jobId);
-      if (mounted)
+      if (mounted) {
         setState(() => _applications = data.cast<Map<String, dynamic>>());
+      }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -521,7 +525,7 @@ class _ApplicationsPageState extends State<_ApplicationsPage> {
           : ListView.separated(
               padding: const EdgeInsets.all(16),
               itemCount: _applications.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
               itemBuilder: (context, index) {
                 final app = _applications[index];
                 final applicant =
@@ -596,12 +600,13 @@ class _ApplicationsPageState extends State<_ApplicationsPage> {
                       ),
                       if ((app['cvUrl'] as String?)?.isNotEmpty == true)
                         IconButton(
-                          tooltip: 'Ver CV',
+                          tooltip:
+                              'Ver CV de ${applicant['fullName'] as String? ?? 'el postulante'}',
                           icon: const Icon(
                             Icons.picture_as_pdf_rounded,
                             color: KairosPalette.primary,
                           ),
-                          onPressed: () {},
+                          onPressed: () => openUrl(app['cvUrl'] as String),
                         ),
                     ],
                   ),

@@ -185,9 +185,17 @@ using (var scope = app.Services.CreateScope())
 // variables de entorno: sin al menos un staff nadie puede aprobar los registros,
 // que nacen en estado "pending".
 if (app.Environment.IsDevelopment())
+{
     await DevDataSeeder.SeedAsync(app.Services);
+}
 else
+{
     await ProductionSeeder.SeedAsync(app.Services, app.Configuration);
+
+    // Contenido de muestra para una instalación nueva. Solo corre si se pide
+    // explícitamente con SEED_DEMO_CONTENT; ver EvaluationSeeder.
+    await EvaluationSeeder.SeedAsync(app.Services, app.Configuration);
+}
 
 // ── Middleware pipeline ────────────────────────────────────────────────────────
 app.UseCors();

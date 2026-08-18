@@ -1312,7 +1312,7 @@ class _JobsPageState extends State<JobsPage> {
                                         result['cdnUrl'] as String?,
                                   );
                                 } catch (_) {
-                                  if (ctx.mounted)
+                                  if (ctx.mounted) {
                                     ScaffoldMessenger.of(ctx).showSnackBar(
                                       const SnackBar(
                                         content: Text(
@@ -1320,6 +1320,7 @@ class _JobsPageState extends State<JobsPage> {
                                         ),
                                       ),
                                     );
+                                  }
                                 } finally {
                                   setInner(() => uploadingImg = false);
                                 }
@@ -1362,6 +1363,10 @@ class _JobsPageState extends State<JobsPage> {
                   : () async {
                       if (!formKey.currentState!.validate()) return;
                       setInner(() => submitting = true);
+                      // Se toma antes de la primera espera: después de un
+                      // `await` el árbol puede haber cambiado y buscar el
+                      // messenger desde el contexto ya no es seguro.
+                      final messenger = ScaffoldMessenger.of(context);
                       try {
                         await _api.createJobPosting(
                           title: titleCtrl.text.trim(),
@@ -1376,7 +1381,7 @@ class _JobsPageState extends State<JobsPage> {
                         if (ctx.mounted) Navigator.of(ctx).pop();
                         await _loadJobs();
                         if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          messenger.showSnackBar(
                             const SnackBar(
                               content: Text('Oferta publicada exitosamente.'),
                               backgroundColor: KairosPalette.success,
@@ -1386,7 +1391,7 @@ class _JobsPageState extends State<JobsPage> {
                       } catch (_) {
                         setInner(() => submitting = false);
                         if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          messenger.showSnackBar(
                             const SnackBar(
                               content: Text('No se pudo publicar la oferta.'),
                               backgroundColor: KairosPalette.danger,
@@ -2143,7 +2148,7 @@ class _CompanyLogo extends StatelessWidget {
           height: size,
           fit: BoxFit.cover,
           semanticLabel: 'Logo de $company',
-          errorBuilder: (_, __, ___) => _fallback(),
+          errorBuilder: (_, _, _) => _fallback(),
         ),
       );
     }

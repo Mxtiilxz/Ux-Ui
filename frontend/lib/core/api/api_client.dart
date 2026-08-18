@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../config.dart';
+import '../utils/warm_up.dart';
 import 'demo_backend.dart';
 import 'demo_interceptor.dart';
 
@@ -23,8 +24,12 @@ class ApiClient {
     _dio = Dio(
       BaseOptions(
         baseUrl: _baseUrl,
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 30),
+        // El plan gratuito de Render apaga la API tras 15 minutos sin tráfico y
+        // la primera petición tarda ~50 s en levantar el contenedor. Con un
+        // timeout más corto que ese arranque, el primer inicio de sesión del
+        // día falla siempre. Ver `warmUp()`, que adelanta ese despertar.
+        connectTimeout: const Duration(seconds: 70),
+        receiveTimeout: const Duration(seconds: 70),
         contentType: 'application/json',
       ),
     );
@@ -49,6 +54,24 @@ class ApiClient {
         onError: (error, handler) => handler.next(error),
       ),
     );
+  }
+
+  /// Despierta el contenedor de la API sin bloquear el arranque de la interfaz.
+  ///
+  /// Render apaga el servicio tras 15 minutos sin tráfico. Si se espera al
+  /// primer inicio de sesión para despertarlo, ese login carga ~50 segundos.
+  /// Lanzando esta petición al abrir la aplicación, el arranque ocurre mientras
+  /// la persona lee la pantalla y escribe, y para cuando pulsa «Ingresar» el
+  /// servidor ya responde.
+  ///
+  /// Nunca lanza ni deja rastro en la consola: si falla, el login mostrará el
+  /// error que corresponda.
+  static void warmUp() {
+    if (kDemoMode) return;
+    final root = _baseUrl.endsWith('/api')
+        ? _baseUrl.substring(0, _baseUrl.length - 4)
+        : _baseUrl;
+    warmUpPing('$root/health');
   }
 
   Future<void> saveToken(String token) async {
@@ -155,10 +178,10 @@ class ApiClient {
         'email': email,
         'password': password,
         'role': role,
-        if (firstNames != null) 'firstNames': firstNames,
-        if (lastNames != null) 'lastNames': lastNames,
-        if (companyName != null) 'companyName': companyName,
-        if (institution != null) 'institution': institution,
+        'firstNames': ?firstNames,
+        'lastNames': ?lastNames,
+        'companyName': ?companyName,
+        'institution': ?institution,
       },
     );
     return (response.data as Map).cast<String, dynamic>();
@@ -189,9 +212,9 @@ class ApiClient {
       data: {
         'content': content,
         'postType': postType,
-        if (imageUrl != null) 'imageUrl': imageUrl,
-        if (imageAltText != null) 'imageAltText': imageAltText,
-        if (eventDate != null) 'eventDate': eventDate,
+        'imageUrl': ?imageUrl,
+        'imageAltText': ?imageAltText,
+        'eventDate': ?eventDate,
       },
     );
     return response.data as int;
@@ -267,8 +290,8 @@ class ApiClient {
       data: {
         'title': title,
         'description': description,
-        if (location != null) 'location': location,
-        if (imageUrl != null) 'imageUrl': imageUrl,
+        'location': ?location,
+        'imageUrl': ?imageUrl,
         if (expiresAt != null) 'expiresAt': expiresAt.toIso8601String(),
         if (skillIds.isNotEmpty) 'skillIds': skillIds,
       },
@@ -291,7 +314,7 @@ class ApiClient {
   Future<int> applyToJob(int jobId, {String? cvUrl}) async {
     final response = await _dio.post(
       '/jobs/$jobId/apply',
-      data: {if (cvUrl != null) 'cvUrl': cvUrl},
+      data: {'cvUrl': ?cvUrl},
     );
     return response.data as int;
   }
@@ -390,10 +413,10 @@ class ApiClient {
       data: {
         'kind': kind,
         'title': title,
-        if (organization != null) 'organization': organization,
-        if (detail != null) 'detail': detail,
-        if (startYear != null) 'startYear': startYear,
-        if (endYear != null) 'endYear': endYear,
+        'organization': ?organization,
+        'detail': ?detail,
+        'startYear': ?startYear,
+        'endYear': ?endYear,
       },
     );
   }
@@ -472,8 +495,8 @@ class ApiClient {
         'username': username,
         'password': password,
         'role': role,
-        if (institution != null) 'institution': institution,
-        if (specialty != null) 'specialty': specialty,
+        'institution': ?institution,
+        'specialty': ?specialty,
       },
     );
     return (response.data as Map).cast<String, dynamic>();
@@ -670,8 +693,8 @@ class ApiClient {
     final response = await _dio.get<List<int>>(
       '/reports/me',
       queryParameters: {
-        if (month != null) 'month': month,
-        if (year != null) 'year': year,
+        'month': ?month,
+        'year': ?year,
       },
       options: Options(responseType: ResponseType.bytes),
     );
@@ -741,7 +764,7 @@ class ApiClient {
         'title': title,
         'description': description,
         if (location != null && location.isNotEmpty) 'location': location,
-        if (imageUrl != null) 'imageUrl': imageUrl,
+        'imageUrl': ?imageUrl,
       },
     );
   }

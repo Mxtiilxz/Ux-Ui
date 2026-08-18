@@ -137,7 +137,7 @@ class _RegistrationRequestsPageState extends State<RegistrationRequestsPage> {
           : ListView.separated(
               padding: const EdgeInsets.all(16),
               itemCount: _requests.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
               itemBuilder: (context, index) {
                 final req = _requests[index];
                 final id = req['id'] as int;

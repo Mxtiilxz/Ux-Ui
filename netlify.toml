@@ -1,0 +1,35 @@
+# Configuración del sitio de producción (kairoswebapp).
+#
+# El directorio a publicar se elige en el panel de Netlify; acá solo viven las
+# cabeceras, que son lo que revisa una auditoría de seguridad o un informe de
+# Lighthouse y que por defecto no se envían.
+
+[[headers]]
+  for = "/*"
+
+  [headers.values]
+    # No permitir que el sitio se embeba en un iframe ajeno (clickjacking).
+    X-Frame-Options = "DENY"
+
+    # No dejar que el navegador adivine el tipo de un archivo servido.
+    X-Content-Type-Options = "nosniff"
+
+    # Al salir del sitio, no filtrar la ruta completa desde la que se venía.
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+    # La aplicación no usa cámara, micrófono ni geolocalización.
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=()"
+
+    # `wasm-unsafe-eval` y `unsafe-inline` los exige el arranque de Flutter web.
+    # `connect-src` abarca la API en Render, sus WebSockets de SignalR, el
+    # almacenamiento de Supabase y Google Analytics.
+    Content-Security-Policy = """
+      default-src 'self'; \
+      script-src 'self' 'wasm-unsafe-eval' 'unsafe-inline' https://www.googletagmanager.com; \
+      style-src 'self' 'unsafe-inline'; \
+      img-src 'self' data: blob: https:; \
+      font-src 'self' data:; \
+      connect-src 'self' https://ux-ui-b1s1.onrender.com wss://ux-ui-b1s1.onrender.com https://*.supabase.co https://www.google-analytics.com https://*.google-analytics.com; \
+      frame-ancestors 'none'; \
+      base-uri 'self'; \
+      form-action 'self'"""

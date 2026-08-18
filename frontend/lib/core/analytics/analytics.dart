@@ -1,5 +1,7 @@
+// `dart.library.js_interop` y no `dart.library.html`: esta última es falsa al
+// compilar a WebAssembly, y entonces la analítica quedaría muda sin avisar.
 import 'analytics_sink_stub.dart'
-    if (dart.library.html) 'analytics_sink_web.dart';
+    if (dart.library.js_interop) 'analytics_sink_web.dart';
 
 /// Punto único de registro de interacciones para Google Analytics.
 ///

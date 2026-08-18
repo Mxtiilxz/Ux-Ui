@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/models/user_profile.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/validation/password_policy.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({
@@ -247,7 +248,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 3),
                       ),
@@ -297,7 +298,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 3),
                       ),
@@ -401,13 +402,14 @@ class _RegisterPageState extends State<RegisterPage> {
                               () => _obscurePassword = !_obscurePassword,
                             ),
                           ),
-                          validator: (v) {
-                            if (v == null || v.isEmpty) {
-                              return 'Ingresa una contraseña';
-                            }
-                            if (v.length < 6) return 'Mínimo 6 caracteres';
-                            return null;
-                          },
+                          // Las reglas se enuncian antes de escribir, no como
+                          // castigo al enviar (WCAG 3.3.2). Van como
+                          // `helperText` y no como un texto suelto debajo
+                          // porque así quedan asociadas al campo en el árbol de
+                          // semántica y el lector de pantalla las lee al
+                          // enfocarlo.
+                          helperText: PasswordPolicy.requirements,
+                          validator: PasswordPolicy.validate,
                         ),
                         const SizedBox(height: 14),
                         _field(
@@ -520,6 +522,7 @@ class _RegisterPageState extends State<RegisterPage> {
     Widget? suffixIcon,
     TextInputType keyboardType = TextInputType.text,
     String? Function(String?)? validator,
+    String? helperText,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -533,6 +536,8 @@ class _RegisterPageState extends State<RegisterPage> {
           decoration: InputDecoration(
             hintText: hint,
             labelText: label,
+            helperText: helperText,
+            helperMaxLines: 3,
             floatingLabelBehavior: FloatingLabelBehavior.always,
             hintStyle: const TextStyle(
               color: AppColors.textTertiary,
@@ -600,7 +605,7 @@ class _RoleTile extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
         color: selected
-            ? AppColors.primary.withOpacity(0.06)
+            ? AppColors.primary.withValues(alpha: 0.06)
             : AppColors.background,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),

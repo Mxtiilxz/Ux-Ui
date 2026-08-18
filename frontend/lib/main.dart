@@ -21,6 +21,9 @@ import 'features/network/presentation/pages/network_page.dart';
 import 'features/profile/presentation/pages/profile_page.dart';
 
 void main() {
+  // No bloquea: la petición se dispara y nadie espera su respuesta, así que el
+  // primer fotograma no se retrasa. Ver `ApiClient.warmUp`.
+  ApiClient.warmUp();
   runApp(const KairosApp());
 }
 

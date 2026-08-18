@@ -687,7 +687,7 @@ class _HomePageState extends State<HomePage> {
                               fit: BoxFit.cover,
                               semanticLabel:
                                   'Imagen seleccionada para la publicación',
-                              errorBuilder: (_, __, ___) => Container(
+                              errorBuilder: (_, _, _) => Container(
                                 height: 120,
                                 color: KairosPalette.muted,
                                 child: const Icon(Icons.image_rounded),
@@ -808,8 +808,9 @@ class _HomePageState extends State<HomePage> {
                 onEdited: (newContent) {
                   setState(() {
                     final idx = _posts.indexOf(post);
-                    if (idx != -1)
+                    if (idx != -1) {
                       _posts[idx] = post.copyWith(content: newContent);
+                    }
                   });
                 },
               ),

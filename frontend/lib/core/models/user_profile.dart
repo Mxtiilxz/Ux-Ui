@@ -1,29 +1,5 @@
 enum UserRole { student, alumni, staff, company }
 
-class SoftSkill {
-  const SoftSkill({
-    required this.name,
-    required this.level,
-    this.badge = false,
-  });
-
-  final String name;
-  final int level;
-  final bool badge;
-}
-
-class SocioemotionalTest {
-  const SocioemotionalTest({
-    required this.completed,
-    this.completedDate,
-    this.skills = const [],
-  });
-
-  final bool completed;
-  final String? completedDate;
-  final List<SoftSkill> skills;
-}
-
 class UserProfile {
   const UserProfile({
     required this.id,
@@ -38,7 +14,6 @@ class UserProfile {
     this.institution,
     this.specialization,
     this.graduationYear,
-    this.socioemotionalTest,
     this.quickMatchVisible = false,
   });
 
@@ -54,7 +29,6 @@ class UserProfile {
   final String? institution;
   final String? specialization;
   final int? graduationYear;
-  final SocioemotionalTest? socioemotionalTest;
   final bool quickMatchVisible;
 
   String get initials {

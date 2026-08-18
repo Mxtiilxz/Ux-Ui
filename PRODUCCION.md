@@ -174,6 +174,39 @@ existe no hace nada. **Después del primer arranque, borrar las tres variables d
 Si no se definen y no existe ningún staff, la API arranca igual pero deja una advertencia
 en el log.
 
+### Contenido de muestra (opcional)
+
+Una base recién creada está vacía: no hay feed, no hay ofertas y Quick Match no devuelve
+candidatos. Para una demostración o una revisión externa eso se lee como una aplicación
+rota, aunque funcione.
+
+`EvaluationSeeder` puebla la instalación con contenido coherente: una empresa, cuatro
+alumnos con competencias distintas, tres ofertas atadas al catálogo de Quick Match, cinco
+publicaciones, un currículum completo, una postulación y conexiones en ambos estados
+(aceptada y pendiente).
+
+| Variable | Valor |
+|---|---|
+| `SEED_DEMO_CONTENT` | `true` |
+| `SEED_DEMO_PASSWORD` | la contraseña con la que se entrará a todas las cuentas de muestra |
+
+Todas las cuentas nacen **aprobadas**, así que se puede entrar sin pasar por el flujo de
+aprobación. Ninguna es `staff`: el panel del liceo sigue reservado a la cuenta creada
+arriba.
+
+Cuentas que crea:
+
+| Correo | Rol |
+|---|---|
+| `contacto@automatizacion.cl` | Empresa |
+| `camila.vidal@kairos.cl` | Alumna — es la que tiene currículum y postulación |
+| `benjamin.soto@kairos.cl` | Alumno |
+| `valentina.paredes@kairos.cl` | Alumna |
+| `matias.cortes@kairos.cl` | Alumno |
+
+Es idempotente: reconoce el correo de la empresa y no vuelve a sembrar. **Quitar ambas
+variables después del primer arranque**, igual que con las de staff.
+
 ### Desplegar en Render
 
 **New → Web Service → Connect a repository.** El repositorio es privado; Render accede por

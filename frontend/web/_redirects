@@ -1,0 +1,4 @@
+# La aplicación es una SPA de Flutter: cualquier ruta la resuelve el cliente.
+# Sin esta regla, Netlify devuelve su propio 404 al recargar o al escribir una
+# URL a mano, que para quien navega parece un sitio roto.
+/*    /index.html   200

@@ -341,10 +341,6 @@ class _ProfilePageState extends State<ProfilePage> {
             children: [
               _buildHeader(user),
               const SizedBox(height: 12),
-              if (user.socioemotionalTest != null) ...[
-                _buildSocioemotional(user.socioemotionalTest!),
-                const SizedBox(height: 12),
-              ],
               _buildAbout(user),
               // El perfil cambia según el rol. Un integrante del personal no
               // necesita mostrar competencias ni potencial de contratación, y
@@ -588,90 +584,6 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // ── Socioemotional ──────────────────────────────────────────────────────────
-
-  Widget _buildSocioemotional(SocioemotionalTest test) {
-    return KCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.psychology_rounded, color: KairosPalette.primary),
-              SizedBox(width: 8),
-              Text(
-                'Evaluacion socioemocional',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (test.completed) ...[
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: KairosPalette.muted,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text('Test completado: ${test.completedDate ?? '-'}'),
-            ),
-            const SizedBox(height: 12),
-            ...test.skills.map(
-              (skill) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Row(
-                        children: [
-                          Text(
-                            skill.name,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          if (skill.badge)
-                            const Padding(
-                              padding: EdgeInsets.only(left: 8),
-                              child: Icon(
-                                Icons.star_rounded,
-                                size: 16,
-                                color: KairosPalette.accent,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(
-                      width: 180,
-                      child: LinearProgressIndicator(
-                        value: skill.level / 5,
-                        minHeight: 9,
-                        borderRadius: BorderRadius.circular(20),
-                        backgroundColor: KairosPalette.border,
-                        color: KairosPalette.primary,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text('${skill.level}/5'),
-                  ],
-                ),
-              ),
-            ),
-          ] else ...[
-            const Text(
-              'Test pendiente. Realizar el test puede mejorar la visibilidad de tu perfil.',
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: KairosPalette.accent,
-              ),
-              onPressed: () {},
-              child: const Text('Realizar test ahora'),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
 
   // ── About ────────────────────────────────────────────────────────────────────
 
