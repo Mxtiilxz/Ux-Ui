@@ -1,120 +1,101 @@
-# Kairos — Frontend (Flutter)
+# Kairos — Frontend
 
-Aplicación web construida en **Flutter 3 (Material 3)** para la plataforma Kairos.
-Consume la API de [`backend/`](../backend/README.md) por HTTP y SignalR.
-
----
+Aplicación web en Flutter 3 con Material 3. Consume la API de
+[`backend/`](../backend/README.md) por HTTP y SignalR.
 
 ## Requisitos
 
-| Herramienta | Versión mínima |
-|---|---|
-| Flutter SDK | 3.11.4 |
-| Dart SDK | 3.x |
-| Navegador | Chrome, Firefox o Edge |
+Flutter 3 con soporte web habilitado y un navegador Chromium, Firefox o Edge. No hace falta
+Xcode ni Android Studio para compilar la versión web.
 
-No se requiere Xcode ni Android Studio para correr en web.
-
----
-
-## Ejecutar
+## Ejecución
 
 ```bash
 flutter pub get
-
-# El backend local en el puerto 5001 es el valor por defecto
 flutter run -d web-server --web-port=3000
+```
 
-# Contra otro backend
+El backend local en el puerto 5001 es el valor por defecto. Para apuntar a otro:
+
+```bash
 flutter run -d web-server --web-port=3000 --dart-define=BACKEND_URL=https://mi-api.example
 ```
 
-Abrir `http://localhost:3000`.
-
 ### Flags de compilación
 
-Todos se pasan con `--dart-define` y se leen con `String.fromEnvironment`.
+Se pasan con `--dart-define` y se leen con `String.fromEnvironment` en `core/config.dart`.
 
-| Flag | Default | Efecto |
+| Flag | Valor por defecto | Efecto |
 |---|---|---|
-| `BACKEND_URL` | `http://localhost:5001` | Origen del backend. De aquí se derivan los tres siguientes |
+| `BACKEND_URL` | `http://localhost:5001` | Origen del backend. De él se derivan los tres siguientes |
 | `API_URL` | `$BACKEND_URL/api` | Base de la API REST |
 | `HUB_URL` | `$BACKEND_URL/hubs/chat` | Hub SignalR de mensajería |
-| `SOCIAL_HUB_URL` | `$BACKEND_URL/hubs/social` | Hub SignalR de notificaciones sociales |
+| `SOCIAL_HUB_URL` | `$BACKEND_URL/hubs/social` | Hub SignalR de notificaciones |
 | `DEMO_MODE` | `false` | Backend simulado en memoria, sin servidor |
 
 Normalmente basta con `BACKEND_URL`; los otros tres existen para sobrescribir una URL
-concreta cuando haga falta. Todos se definen en `core/config.dart`.
-
-**Modo demo:** con `DEMO_MODE=true` un interceptor de Dio responde todas las peticiones
-desde `core/api/demo_backend.dart` y los hubs SignalR no se conectan. Sirve para estudios
-de usabilidad sin infraestructura — ver [DEMO.md](../DEMO.md). El flag vive en
-`core/config.dart` como `kDemoMode`.
-
----
+concreta. Con `DEMO_MODE=true`, un interceptor de Dio resuelve todas las peticiones contra
+`core/api/demo_backend.dart` y los hubs no se conectan. Ninguna pantalla necesitó
+modificarse para admitir ese modo. Ver [DEMO.md](../DEMO.md).
 
 ## Estructura
 
 ```
 lib/
-├── main.dart                          # Entrada, routing y AppShell
-│
-├── core/
-│   ├── analytics/
-│   │   ├── analytics.dart             # Fachada de eventos GA (nombres en español)
-│   │   ├── analytics_sink_web.dart    # Implementación web (window.kairosTrack)
-│   │   └── analytics_sink_stub.dart   # No-op fuera de web
-│   ├── api/
-│   │   ├── api_client.dart            # Cliente HTTP (Dio) con JWT interceptor
-│   │   ├── demo_backend.dart          # Backend simulado en memoria
-│   │   └── demo_interceptor.dart      # Enruta las peticiones al backend simulado
-│   ├── config.dart                    # kDemoMode
-│   ├── data/mock_data.dart            # Datos de relleno de la UI
-│   ├── models/user_profile.dart       # UserProfile, UserRole, SoftSkill
-│   ├── services/
-│   │   ├── chat_hub_service.dart      # SignalR — mensajería directa
-│   │   └── social_hub_service.dart    # SignalR — likes, follows, comentarios
-│   ├── state/user_role_controller.dart
-│   ├── theme/                         # KairosPalette, AppTheme, AppColors
-│   ├── utils/                         # Descarga de archivos (web / stub)
-│   └── widgets/                       # AppShell, KCard, PostCard
-│
-└── features/
-    ├── auth/       login_page · register_page
-    ├── home/       home_page (feed) · post_model
-    ├── jobs/       jobs_page (incluye Quick Match) · company_jobs_page · job_model
-    ├── network/    network_page
-    ├── chat/       chats_page · chat_model
-    ├── profile/    profile_page
-    └── staff/      registration_requests · user_management · staff_management
+  main.dart                        Entrada, sesión y AppShell
+
+  core/
+    analytics/                     Eventos de Google Analytics, con stub fuera de web
+    api/
+      api_client.dart              Cliente Dio con JWT y despertar de la API
+      demo_backend.dart            Backend simulado en memoria
+      demo_interceptor.dart        Enruta las peticiones al backend simulado
+    config.dart                    Flags de compilación
+    models/user_profile.dart       UserProfile y UserRole
+    services/                      ChatHubService y SocialHubService (SignalR)
+    state/                         UserRoleController
+    theme/                         KairosPalette, AppColors, AppTheme
+    utils/                         Descarga de archivos y despertar de la API
+    validation/                    Política de contraseñas, espejo de la del servidor
+    widgets/                       AppShell, KCard, PostCard
+
+  features/
+    auth/       login, registro y pantalla de espera de aprobación
+    home/       feed y tarjetas de competencias
+    jobs/       ofertas, Quick Match y panel de la empresa
+    network/    conexiones, solicitudes y sugerencias
+    chat/       mensajería
+    profile/    perfil, currículum y privacidad
+    staff/      aprobaciones, usuarios, catálogo de competencias e historial
 ```
 
----
+Las utilidades de `utils/` y el sumidero de analítica usan exportación condicional sobre
+`dart.library.js_interop`, no sobre `dart.library.html`: esta última es falsa al compilar a
+WebAssembly, y con ella una build wasm elegiría el stub y las descargas y la analítica
+dejarían de funcionar sin dar ningún error.
 
-## Sistema de roles
+## Roles
 
-El rol viene del JWT tras el login y determina qué ve cada usuario.
+El rol viene del JWT y determina qué ve cada usuario.
 
-| Rol | Valor | Diferencias de UI |
+| Rol | Valor | Diferencias |
 |---|---|---|
-| Estudiante | `student` | Feed estándar, registro de competencias, postulación a ofertas |
-| Egresado | `alumni` | Mismo feed, insignia distinta |
-| Docente / Staff | `staff` | Panel de gestión: aprobación de cuentas, usuarios, importación CSV |
-| Empresa | `company` | Publicación de ofertas y búsqueda Quick Match en la pestaña Trabajos |
+| Estudiante | `student` | Feed, competencias, postulaciones, currículum |
+| Egresado | `alumni` | Igual que estudiante, con insignia distinta |
+| Empresa | `company` | Publicación de ofertas y búsqueda Quick Match |
+| Staff | `staff` | Panel de gestión. Sin secciones de competencias ni currículum, y fuera de las sugerencias de la red |
 
-En modo demo solo se ofrecen **Estudiante** y **Empresa**: el rol `staff` se excluye a
-propósito para que los testers no lleguen al panel de administración.
+En modo demo solo se ofrecen estudiante y empresa: el panel de gestión queda fuera del
+alcance de los participantes de un estudio de usabilidad.
 
----
+## Tema
 
-## Tema y diseño
-
-### KairosPalette (`core/theme/kairos_palette.dart`)
+`core/theme/kairos_palette.dart` define los tokens de color.
 
 | Token | Color | Uso |
 |---|---|---|
-| `primary` | `#0F766E` | Botones principales, acentos |
-| `accent` | `#00B5AD` | Hover, insignias, chips |
+| `primary` | `#0F766E` | Botones principales y acentos |
+| `accent` | `#00B5AD` | Estados hover, insignias, chips |
 | `background` | `#F8FAFC` | Fondo de página |
 | `card` | `#FFFFFF` | Superficie de tarjetas |
 | `border` | `#E2E8F0` | Bordes |
@@ -122,49 +103,49 @@ propósito para que los testers no lleguen al panel de administración.
 | `foreground` | `#334155` | Texto principal |
 | `secondary` | `#475569` | Texto secundario |
 
-`AppColors` es una capa de alias sobre `KairosPalette`, conservada por
-compatibilidad con los widgets existentes. Nota: el token de borde se llama
-`AppColors.divider`, no `AppColors.border`.
+`AppColors` es una capa de alias sobre `KairosPalette`, conservada por compatibilidad. El
+token de borde se llama `AppColors.divider`. La tipografía es Manrope, en pesos 400 a 900.
+`KCard` es la tarjeta base, con sombra, borde y radio de 18 px.
 
-**Tipografía:** Manrope (Google Fonts), pesos 400–900.
-**KCard:** tarjeta base con sombra, borde, radio de 18 px y gradiente opcional.
-
----
-
-## API Client
-
-`core/api/api_client.dart` usa **Dio** con el token JWT leído de
-`FlutterSecureStorage` e inyectado en cada petición. Cubre los endpoints de
-auth, posts, jobs, network, chat, skills, staff, curriculum y reports —
-la lista completa está en el propio archivo.
-
----
+Los contrastes están fijados por `test/contrast_tokens_test.dart`, que falla si una
+combinación baja del mínimo AA.
 
 ## SignalR
 
-Dos servicios en `core/services/`, ambos con reintentos automáticos
-`[2 s, 5 s, 10 s, 30 s]`:
+Dos servicios en `core/services/`, ambos con reintentos automáticos a los 2, 5, 10 y 30
+segundos. Si el backend no responde, degradan sin romper la interfaz, y en modo demo no
+intentan conectarse.
 
-- **`chat_hub_service.dart`** → `/hubs/chat`. Mensajería directa.
-  Ciclo: `connect()` → `joinConversation()` → `onMessage.listen()` →
-  `sendMessage()` → `leaveConversation()` → `dispose()`.
-  Eventos del servidor: `ReceiveMessage`, `UserTyping`.
-- **`social_hub_service.dart`** → `/hubs/social`. Likes, seguimientos y
-  comentarios en tiempo real. Eventos: `ReceiveLike`, `ReceiveFollow`,
-  `ReceiveComment`, `UserTyping`.
+- `chat_hub_service.dart` sobre `/hubs/chat`, para mensajería directa. Ciclo:
+  `connect`, `joinConversation`, `onMessage.listen`, `sendMessage`, `leaveConversation`,
+  `dispose`.
+- `social_hub_service.dart` sobre `/hubs/social`, para me gusta, conexiones y comentarios.
 
-Si el backend no está disponible, ambos degradan sin romper la UI. En modo demo
-ninguno de los dos intenta conectarse.
+## Tests
 
----
+```bash
+flutter analyze
+flutter test
+```
 
-## Dependencias principales
+| Archivo | Cubre |
+|---|---|
+| `accessibility_controls_test.dart` | Etiquetas persistentes, semántica de controles, roles del registro |
+| `accessibility_guidelines_test.dart` | Tamaño de objetivo táctil y reflujo a 320 px con texto al 200 % |
+| `accessibility_shell_test.dart` | Salto al contenido principal por teclado |
+| `web_accessibility_contract_test.dart` | Contrato del `index.html`: idioma, viewport ampliable |
+| `contrast_tokens_test.dart` | Relación de contraste de la paleta |
+| `password_policy_test.dart` | Que la regla del formulario sea la misma que la del servidor |
+| `demo_chat_sides_test.dart` | Atribución de cada mensaje del chat a su remitente |
+
+## Dependencias
 
 | Paquete | Uso |
 |---|---|
 | `dio` | Cliente HTTP con interceptores |
 | `signalr_netcore` | Cliente SignalR |
 | `flutter_secure_storage` | Persistencia del JWT |
+| `web` | Interoperabilidad con el navegador para descargas y analítica |
 | `google_fonts` | Tipografía Manrope |
-| `image_picker` | Selección de imágenes para perfil y publicaciones |
-| `file_picker` | Importación CSV de alumnos (panel staff) |
+| `image_picker` | Imágenes de perfil y publicaciones |
+| `file_picker` | Importación de alumnos por CSV |

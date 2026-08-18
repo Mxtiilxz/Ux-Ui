@@ -1,232 +1,236 @@
 # Kairos — Backend
 
-API REST construida con **.NET 8** siguiendo **Clean Architecture**. Expone endpoints HTTP
-para autenticación, feed social, ofertas laborales, mensajería y Quick Match, además de un
-hub SignalR para funcionalidad en tiempo real.
-
----
+API REST en .NET 8 con Clean Architecture. Expone endpoints HTTP para autenticación, feed
+social, ofertas laborales, mensajería y Quick Match, más un hub SignalR para tiempo real.
 
 ## Arquitectura
 
-Cuatro capas. Cada una solo puede depender de las capas internas, nunca de las externas.
+Cuatro capas. Cada una depende solo de las interiores.
 
 ```
-Kairos.Domain          ← Entidades y enums. Sin dependencias externas.
-Kairos.Application     ← Casos de uso (CQRS con MediatR). Solo conoce Domain.
-Kairos.Infrastructure  ← EF Core, JWT, Storage, PDF. Implementa las interfaces de Application.
-Kairos.API             ← Controllers, SignalR Hub, middlewares. Punto de entrada.
+Kairos.Domain          Entidades y enums. Sin dependencias externas.
+Kairos.Application     Casos de uso (CQRS con MediatR). Solo conoce Domain.
+Kairos.Infrastructure  EF Core, JWT, Storage, PDF. Implementa las interfaces de Application.
+Kairos.API             Controllers, SignalR, middleware. Punto de entrada.
 ```
 
-- **Domain** contiene las entidades puras (`User`, `Post`, `JobPosting`, `Skill`…) sin
-  lógica de framework.
-- **Application** define los casos de uso como `Commands` y `Queries`. Habla con la base de
-  datos solo a través de `IApplicationDbContext`, nunca directamente con EF Core.
-- **Infrastructure** es la única capa que sabe conectarse a Postgres, al almacenamiento de
-  archivos o generar un PDF. Esto se puso a prueba al migrar de MySQL a PostgreSQL: solo
-  cambiaron el paquete del proveedor y tres archivos de esta capa, sin tocar entidades,
-  casos de uso ni controladores.
-- **API** recibe las peticiones HTTP, las convierte en Commands/Queries y los despacha con
-  MediatR.
+**Application** habla con la base de datos solo a través de `IApplicationDbContext`, nunca
+con EF Core directamente. **Infrastructure** es la única capa que conoce Postgres, el
+almacenamiento de archivos o la generación de PDF; esa separación se puso a prueba al
+migrar de MySQL a PostgreSQL, donde solo cambiaron el paquete del proveedor y tres archivos
+de esa capa, sin tocar entidades, casos de uso ni controladores.
 
----
-
-## Stack tecnológico
+## Stack
 
 | Componente | Tecnología |
 |---|---|
 | Framework | .NET 8 |
-| Base de datos | PostgreSQL vía Npgsql EF Core (Supabase) |
-| Patrón de aplicación | CQRS + MediatR |
+| Base de datos | PostgreSQL vía Npgsql EF Core |
+| Patrón | CQRS + MediatR |
 | Validación | FluentValidation |
-| Autenticación | JWT Bearer (HS256) |
-| Almacenamiento de archivos | Supabase Storage (producción) / filesystem local (desarrollo) |
-| Generación de PDF | QuestPDF |
+| Autenticación | JWT Bearer HS256 |
+| Archivos | Supabase Storage en producción, filesystem local en desarrollo |
+| PDF | QuestPDF |
 | Tiempo real | ASP.NET Core SignalR |
-
----
 
 ## Modelo de datos
 
+Catorce tablas. Las migraciones se aplican solas al arrancar la API.
+
 | Tabla | Descripción |
 |---|---|
-| `users` | Usuarios. Roles: `student`, `company`, `staff`. Estado: `pending`, `approved`, `rejected`. |
-| `posts` | Publicaciones del feed. Tipos `general` / `event` / `job`, con contadores desnormalizados. |
+| `users` | Roles `student`, `company`, `staff`. Estados `pending`, `approved`, `rejected`. Incluye las preferencias de privacidad y la visibilidad en Quick Match. |
+| `posts` | Publicaciones del feed. Tipos `general`, `event` y `job`, con contadores desnormalizados. |
 | `comments` | Comentarios en publicaciones. |
-| `likes` | Likes. Clave compuesta `(UserId, PostId)` para evitar duplicados a nivel de BD. |
-| `follows` | Seguimiento entre usuarios. Clave compuesta `(FollowerId, FollowedId)`. |
-| `job_postings` | Ofertas laborales publicadas por empresas. |
-| `job_applications` | Postulaciones de estudiantes. Almacena la URL del CV generado. |
-| `messages` | Mensajería directa entre usuarios. |
-| `skills` | Catálogo de competencias. Categorías: `Technical`, `Language`, `Experience`. |
-| `user_skills` | Competencias declaradas por cada usuario (relación binaria, sin nivel). |
-| `user_activities` | Registro de acciones, usado para generar el CV y el reporte mensual. |
+| `likes` | Clave compuesta `(UserId, PostId)`, que impide duplicados en la base. |
+| `follows` | Conexiones bilaterales. `FollowerId` solicita, `FollowedId` responde; `Status` distingue `pending` de `accepted`. |
+| `job_postings` | Ofertas publicadas por empresas. |
+| `job_posting_skills` | Competencias que solicita cada oferta. Es lo que hace medible la demanda. |
+| `job_applications` | Postulaciones. Guarda la URL del CV. |
+| `saved_jobs` | Ofertas guardadas por un usuario. |
+| `messages` | Mensajería directa. |
+| `skills` | Catálogo curado. Categorías `Technical`, `Language` y `Experience`. |
+| `user_skills` | Competencias declaradas por cada usuario, sin nivel de dominio. |
+| `cv_entries` | Formación y experiencia del currículum. |
+| `user_activities` | Bitácora de uso, empleada por el reporte mensual. |
 
-> ⚠️ **`user_activities` está subalimentada.** Solo `CreatePostCommandHandler` escribe en
-> ella. Likes, comentarios, seguimientos, postulaciones y logins no registran actividad, por
-> lo que el CV y el reporte salen casi vacíos. Ver Fase 5 de [PRODUCCION.md](../PRODUCCION.md).
-
-Las migraciones se aplican solas al arrancar la API (`Program.cs`). El esquema completo lo
-crea la migración inicial `InitPostgres`.
-
----
+`user_activities` está subalimentada: solo `CreatePostCommandHandler` escribe en ella, así
+que el reporte mensual refleja una fracción de la actividad real. No afecta al currículum,
+que se construye desde `cv_entries` y el perfil.
 
 ## Endpoints
 
-Todos bajo `/api`. `Auth: Sí` significa que requieren `Authorization: Bearer <jwt>`.
+Todos bajo `/api`. Salvo el registro, el login y `/health`, todos exigen
+`Authorization: Bearer <jwt>`.
 
 ### Autenticación — `/api/auth`
 
-| Método | Ruta | Descripción | Auth |
-|---|---|---|---|
-| `POST` | `/register` | Registro. Crea al usuario en estado `pending`. | No |
-| `POST` | `/login` | Login. Retorna JWT. Rechaza cuentas `pending` o `rejected`. | No |
+| Método | Ruta | Descripción |
+|---|---|---|
+| `POST` | `/register` | Registro público. Un alumno queda `pending`; una empresa entra aprobada. El rol staff no se acepta. |
+| `POST` | `/login` | Devuelve el JWT. Informa por separado si la cuenta espera aprobación. |
 
 ### Publicaciones — `/api/posts`
 
-| Método | Ruta | Descripción | Auth |
-|---|---|---|---|
-| `GET` | `/feed` | Feed paginado (`?page=1&pageSize=20`) | Sí |
-| `POST` | `/` | Crear publicación (`general` / `event`) | Sí |
-| `PUT` | `/{postId}` | Editar publicación propia | Sí |
-| `DELETE` | `/{postId}` | Eliminar publicación propia | Sí |
-| `POST` | `/{postId}/like` | Alternar me gusta | Sí |
-| `GET` | `/{postId}/comments` | Listar comentarios | Sí |
-| `POST` | `/{postId}/comments` | Comentar | Sí |
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/feed` | Feed paginado, filtrado por las preferencias de privacidad de cada autor |
+| `POST` | `/` | Crear publicación |
+| `PUT` | `/{postId}` | Editar publicación propia |
+| `DELETE` | `/{postId}` | Eliminar publicación propia |
+| `POST` | `/{postId}/like` | Alternar me gusta |
+| `GET` | `/{postId}/comments` | Listar comentarios |
+| `POST` | `/{postId}/comments` | Comentar |
 
 ### Ofertas laborales — `/api/jobs`
 
-| Método | Ruta | Descripción | Auth |
-|---|---|---|---|
-| `GET` | `/` | Listar ofertas publicadas | Sí |
-| `POST` | `/` | Crear oferta (empresa) | Sí |
-| `GET` | `/my-postings` | Ofertas propias de la empresa | Sí |
-| `PUT` | `/{id}` | Editar oferta propia | Sí |
-| `DELETE` | `/{id}` | Eliminar oferta propia | Sí |
-| `GET` | `/{jobId}/applications` | Ver postulantes de una oferta | Sí |
-| `POST` | `/{jobId}/apply` | Postular a una oferta (estudiante) | Sí |
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/` | Listar ofertas abiertas |
+| `POST` | `/` | Crear oferta con sus competencias (empresa) |
+| `GET` | `/my-postings` | Ofertas propias |
+| `PUT` | `/{id}` | Editar oferta propia |
+| `DELETE` | `/{id}` | Eliminar oferta propia |
+| `GET` | `/{jobId}/applications` | Postulantes de una oferta |
+| `POST` | `/{jobId}/apply` | Postular |
+| `GET` | `/saved` | Ofertas guardadas |
+| `POST` | `/{jobId}/save` | Alternar guardado |
 
 ### Competencias y Quick Match — `/api/skills`
 
-| Método | Ruta | Descripción | Auth |
-|---|---|---|---|
-| `GET` | `/` | Catálogo de competencias | Sí |
-| `GET` | `/candidates` | Buscar candidatos por competencias (solo empresa) | Sí |
-| `GET` | `/me` | Competencias propias | Sí |
-| `POST` | `/me/{skillId}` | Agregar competencia propia | Sí |
-| `DELETE` | `/me/{skillId}` | Quitar competencia propia | Sí |
-| `PUT` | `/me/visibility` | Activar/desactivar visibilidad en Quick Match | Sí |
-| `GET` | `/company/message` | Plantilla de mensaje de contacto de la empresa | Sí |
-| `PUT` | `/company/message` | Personalizar la plantilla | Sí |
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/` | Catálogo |
+| `GET` | `/catalog` | Catálogo con uso, para el panel de staff |
+| `POST` | `/` | Agregar competencia al catálogo (staff) |
+| `DELETE` | `/{skillId}` | Retirar del catálogo (staff) |
+| `GET` | `/candidates` | Buscar candidatos por competencias (empresa) |
+| `GET` | `/me` | Competencias propias |
+| `POST` | `/me/{skillId}` | Agregar competencia propia |
+| `DELETE` | `/me/{skillId}` | Quitar competencia propia |
+| `PUT` | `/me/visibility` | Activar o desactivar la visibilidad en Quick Match |
+| `GET` `/` `PUT` | `/company/message` | Plantilla de contacto de la empresa |
 
 ### Red de contactos — `/api/network`
 
-| Método | Ruta | Descripción | Auth |
-|---|---|---|---|
-| `GET` | `/following` | Usuarios que sigo | Sí |
-| `GET` | `/suggestions` | Sugerencias de personas | Sí |
-| `POST` | `/{userId}/follow` | Seguir | Sí |
-| `DELETE` | `/{userId}/follow` | Dejar de seguir | Sí |
+Las conexiones son bilaterales: enviar una solicitud no crea el vínculo hasta que la otra
+parte responde.
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/connections` | Contactos conectados |
+| `GET` | `/following` | Alias de `/connections`, conservado para la pestaña de chat |
+| `GET` | `/requests` | Solicitudes recibidas sin responder |
+| `GET` | `/suggestions` | Personas sugeridas. Excluye al staff y a quien ya tenga relación en curso |
+| `POST` | `/{userId}/connect` | Enviar solicitud. Si la otra persona ya había enviado una, se acepta |
+| `POST` | `/requests/{userId}/accept` | Aceptar |
+| `POST` | `/requests/{userId}/reject` | Rechazar |
+| `DELETE` | `/{userId}/connect` | Deshacer la conexión o retirar la solicitud |
+
+### Perfil — `/api/users`
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` `/` `PUT` | `/me` | Consultar y editar el perfil propio |
+| `GET` `/` `PUT` | `/me/privacy` | Quién puede escribirle y quién ve sus publicaciones |
+| `GET` | `/me/cv-entries` | Formación y experiencia |
+| `POST` | `/me/cv-entries` | Agregar una entrada |
+| `DELETE` | `/me/cv-entries/{id}` | Eliminar una entrada |
 
 ### Mensajería — `/api/chat`
 
-| Método | Ruta | Descripción | Auth |
-|---|---|---|---|
-| `GET` | `/conversations` | Conversaciones del usuario | Sí |
-| `GET` | `/messages/{otherUserId}` | Historial con un usuario | Sí |
-| `POST` | `/messages/{receiverId}` | Enviar mensaje | Sí |
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/conversations` | Conversaciones del usuario |
+| `GET` | `/messages/{otherUserId}` | Historial con una persona |
+| `POST` | `/messages/{receiverId}` | Enviar mensaje |
 
 ### Administración — `/api/staff`
 
-Todos verifican el claim de rol y devuelven `403` si el usuario no es `staff`.
+Verifican el rol y devuelven `403` a quien no sea staff.
 
-| Método | Ruta | Descripción | Auth |
-|---|---|---|---|
-| `GET` | `/registration-requests` | Cuentas pendientes de aprobación | Sí (staff) |
-| `POST` | `/users/{id}/approve` | Aprobar cuenta | Sí (staff) |
-| `POST` | `/users/{id}/reject` | Rechazar cuenta | Sí (staff) |
-| `GET` | `/users` | Listar todos los usuarios | Sí (staff) |
-| `DELETE` | `/users/{id}` | Eliminar cuenta | Sí (staff) |
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/registration-requests` | Cuentas pendientes |
+| `GET` | `/pending-count` | Cantidad pendiente, para la insignia del panel |
+| `POST` | `/users/{id}/approve` | Aprobar |
+| `POST` | `/users/{id}/reject` | Rechazar |
+| `GET` | `/users` | Listar usuarios |
+| `POST` | `/users` | Crear una cuenta ya aprobada, incluida otra de staff |
+| `DELETE` | `/users/{id}` | Eliminar cuenta |
+| `GET` | `/join-history` | Historial de altas |
 
-### Documentos y archivos
+### Documentos, estadísticas y operación
 
-| Método | Ruta | Descripción | Auth |
-|---|---|---|---|
-| `GET` | `/api/curriculum/me` | CV en PDF a partir de `user_activities` | Sí |
-| `GET` | `/api/reports/me` | Reporte mensual de participación en PDF | Sí |
-| `POST` | `/api/storage/upload` | Subir imagen o video (máx. 50 MB) | Sí |
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/api/curriculum/me` | Currículum en PDF, construido desde el perfil |
+| `GET` | `/api/reports/me` | Reporte mensual de participación en PDF |
+| `GET` | `/api/stats/community` | Cifras del feed: oferta y demanda de competencias |
+| `POST` | `/api/storage/upload` | Subir imagen o video, hasta 50 MB |
+| `GET` | `/health` | `{"status":"ok"}`. No consulta la base de datos, para que un fallo de esta no provoque reinicios en bucle |
 
-### Operación
+## Formato de errores
 
-| Método | Ruta | Descripción | Auth |
-|---|---|---|---|
-| `GET` | `/health` | Devuelve `{"status":"ok"}`. No consulta la base de datos, para que un fallo de BD no provoque reinicios en bucle. | No |
+Las excepciones se traducen a `application/problem+json` según RFC 7807 en
+`ExceptionHandlingMiddleware`.
 
----
+| Excepción | Estado |
+|---|---|
+| `ValidationException`, `ArgumentException` | 400 |
+| `UnauthorizedAccessException` | 401 |
+| `AccountNotApprovedException`, `ForbiddenException` | 403 |
+| `KeyNotFoundException` | 404 |
+| `InvalidOperationException` | 409 |
+| `DbUpdateException` y el resto | 500 |
+
+El 409 merece atención: EF Core lanza `InvalidOperationException` cuando no puede traducir
+una consulta LINQ a SQL, un fallo que no aparece al compilar y solo se manifiesta al
+ejecutar. Los tests de `tests/Kairos.Application.Tests` cubren ese caso.
 
 ## Rate limiting
 
-Políticas activas, configuradas en `Program.cs` y aplicadas con `[EnableRateLimiting]`.
-Las peticiones rechazadas devuelven `429 Too Many Requests`.
+Configurado en `Program.cs` y aplicado con `[EnableRateLimiting]`. Las peticiones
+rechazadas devuelven `429`.
 
-| Endpoint | Política | Límite | Clave | Motivo |
-|---|---|---|---|---|
-| `POST /api/auth/login` | `login` | 5 cada 15 min | IP (localhost exento) | Evita ataques de fuerza bruta |
-| `GET /api/curriculum/me` | `curriculum` | 5 cada 15 min + 20 s entre peticiones | ID de usuario | La generación con QuestPDF es costosa en CPU |
-| `GET /api/skills/candidates` | `quickmatch-search` | 30 cada 5 min | ID de usuario | La búsqueda cruza competencias en memoria |
-
-### Pendientes recomendados
-
-Sin implementar. Ordenados por prioridad:
-
-| Endpoint | Límite propuesto | Clave | Motivo |
+| Endpoint | Límite | Clave | Motivo |
 |---|---|---|---|
-| `POST /api/auth/register` | 3 por hora | IP | Evita creación automatizada de cuentas |
-| `POST /api/storage/upload` | 20 por hora | Usuario | Cada archivo puede pesar 50 MB |
-| `GET /api/reports/me` | 5 cada 15 min | Usuario | Mismo costo de renderizado que el CV |
-| `POST /api/posts` | 10 cada 10 min | Usuario | Evita saturar el feed |
-| `POST /api/posts/{id}/comments` | 20 cada 10 min | Usuario | Evita inundar una publicación |
-| `POST /api/jobs/{id}/apply` | 10 por hora | Usuario | Las postulaciones son acciones deliberadas |
-| `POST /api/chat/messages/{id}` | 30 por minuto | Usuario | Evita hostigamiento por mensajes |
-| `POST /api/network/{id}/follow` | 50 por hora | Usuario | Evita seguimiento masivo automatizado |
+| `POST /api/auth/login` | 5 cada 15 min | IP, localhost exento | Fuerza bruta |
+| `GET /api/curriculum/me` | 5 cada 15 min, con 20 s entre peticiones | Usuario | Renderizar con QuestPDF cuesta CPU |
+| `GET /api/skills/candidates` | 30 cada 5 min | Usuario | La búsqueda cruza competencias en memoria |
 
----
+Conviene extenderlo al registro, la subida de archivos, el reporte mensual y las acciones
+de escritura del feed y del chat.
 
 ## Hubs SignalR
 
-Ambas rutas montan la misma clase `SocialHub`. Para conectarse, incluir el JWT en el query
-string: `?access_token=<token>`.
+Ambas rutas montan la clase `SocialHub`. El JWT viaja en el query string como
+`?access_token=<token>`.
 
-- `/hubs/chat` — usado por el cliente Flutter para mensajería directa.
-- `/hubs/social` — usado para notificaciones sociales.
+- `/hubs/chat` para mensajería directa.
+- `/hubs/social` para notificaciones sociales.
 
-| Evento (cliente → servidor) | Descripción |
+| Cliente a servidor | Descripción |
 |---|---|
-| `JoinPostComments(postId)` | Unirse al grupo de comentarios de un post |
+| `JoinPostComments(postId)` | Unirse al grupo de comentarios |
 | `LeavePostComments(postId)` | Salir del grupo |
-| `SendComment(postId, content)` | Enviar comentario en tiempo real |
-| `SendTyping(postId)` | Emitir indicador "está escribiendo…" |
-| `JoinConversation(myId, peerId)` | Entrar a una conversación directa |
-| `SendDirectMessage(senderId, peerId, content)` | Enviar mensaje directo |
+| `SendComment(postId, content)` | Comentar |
+| `SendTyping(postId)` | Indicador de escritura |
+| `JoinConversation(myId, peerId)` | Entrar a una conversación |
+| `SendDirectMessage(senderId, peerId, content)` | Enviar mensaje |
 
-| Evento (servidor → cliente) | Descripción |
+| Servidor a cliente | Descripción |
 |---|---|
 | `ReceiveMessage` | Mensaje directo nuevo |
-| `ReceiveComment` | Comentario nuevo en el post que se está viendo |
-| `ReceiveLike` | Like en una publicación propia |
-| `ReceiveFollow` | Nuevo seguidor |
+| `ReceiveComment` | Comentario en el post que se está viendo |
+| `ReceiveLike` | Me gusta en una publicación propia |
+| `ReceiveFollow` | Solicitud de conexión |
 | `UserTyping` | Alguien está escribiendo |
 
----
+## Ejecución local
 
-## Cómo levantar el backend
-
-### Requisitos previos
-
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8)
-- PostgreSQL 14+ corriendo localmente
-- EF Core CLI: `dotnet tool install --global dotnet-ef --version 8.*`
-
-### 1. Configurar PostgreSQL
+Requiere .NET 8 SDK, PostgreSQL 14 o superior y el CLI de EF Core
+(`dotnet tool install --global dotnet-ef --version 8.*`).
 
 ```sql
 CREATE DATABASE kairos;
@@ -234,64 +238,42 @@ CREATE USER kairos_user WITH PASSWORD 'tu_password';
 GRANT ALL PRIVILEGES ON DATABASE kairos TO kairos_user;
 ```
 
-### 2. Configurar appsettings
-
-Editar **solo** `src/Kairos.API/appsettings.Development.json` con la cadena de conexión
-local:
-
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Port=5432;Database=kairos;Username=kairos_user;Password=tu_password"
-  }
-}
-```
-
-> 🔒 **`appsettings.json` no contiene secretos y debe seguir así** — está versionado en git.
-> En producción todo llega por variables de entorno
-> (`ConnectionStrings__DefaultConnection`, `Jwt__SecretKey`, `Supabase__ServiceKey`).
-> Ver [PRODUCCION.md](../PRODUCCION.md).
-
-> En modo `Development`, `DependencyInjection.cs` registra `LocalStorageService` (guarda en
-> `wwwroot/uploads`) en vez de Supabase Storage. Para desarrollo local **no necesitas una
-> cuenta de Supabase**.
-
-### 3. Aplicar migraciones
-
-Desde `backend/`:
-
-```bash
-dotnet ef database update --startup-project src/Kairos.API --project src/Kairos.Infrastructure
-```
-
-Paso opcional: también se aplican solas al arrancar la API.
-
-### 4. Correr la API
+La cadena de conexión va en `src/Kairos.API/appsettings.Development.json`, no en
+`appsettings.json`, que está versionado y no debe contener secretos. En `Development` se
+registra `LocalStorageService`, que guarda en `wwwroot/uploads`, de modo que no hace falta
+una cuenta de Supabase.
 
 ```bash
 dotnet run --project src/Kairos.API
 ```
 
-Queda en `http://localhost:5001` (puerto fijado en `appsettings.Development.json`).
-Swagger UI: `http://localhost:5001/swagger`.
+Queda en `http://localhost:5001` con Swagger en `/swagger`. Para probar endpoints
+protegidos, hacer login, copiar el JWT y pegarlo en el botón Authorize.
 
-Para los endpoints protegidos, primero hacer login con `/api/auth/login`, copiar el JWT y
-pegarlo en el botón **Authorize** (candado) de Swagger.
+## Tests
 
-En modo `Development` el seeder crea usuarios de prueba automáticamente — credenciales en
-el [README raíz](../README.md).
+```bash
+dotnet test
+```
 
----
+`tests/Kairos.Application.Tests` comprueba que las consultas del feed y de la red se
+traducen a SQL de PostgreSQL. No necesita base de datos: EF traduce al construir la
+consulta, así que `ToQueryString()` lanza la misma excepción que lanzaría el servidor.
 
-## Solución de problemas comunes
+El proyecto está en la solución pero fuera de la imagen Docker. Por eso el `Dockerfile`
+restaura `src/Kairos.API/Kairos.API.csproj` y no la solución completa: `dotnet restore` a
+secas intentaría resolver también el proyecto de tests, cuyo `.csproj` no se copia, y la
+compilación fallaría.
 
-| Error | Causa probable | Solución |
+## Problemas frecuentes
+
+| Error | Causa | Solución |
 |---|---|---|
-| `password authentication failed for user` | Credenciales viejas en `appsettings.Development.json` | Actualizar la cadena de conexión |
-| `Falta la clave JWT` al arrancar | No hay `Jwt:SecretKey` en configuración | Definirla en `appsettings.Development.json` o exportar `Jwt__SecretKey` |
-| `prepared statement already exists` en producción | La cadena apunta al Transaction pooler de Supabase (puerto 6543) | Usar el Session pooler (puerto 5432) |
-| `Unable to retrieve project metadata` | Comando ejecutado desde la carpeta incorrecta | Ejecutarlo desde `backend/` |
-| `dotnet-ef not found` | La herramienta no está en el PATH | Agregar `$HOME/.dotnet/tools` al PATH |
-| `Some services are not able to be constructed` | Servicio no registrado en DI | Revisar `DependencyInjection.cs` en `Kairos.Infrastructure` |
-| Error CORS desde Flutter web | El frontend no apunta al backend local, o su puerto no está en la whitelist de `Program.cs` | Correr el frontend con `--dart-define=API_URL=http://localhost:5001/api` |
-| `401` en todas las peticiones tras registrarse | La cuenta quedó en estado `pending` | Aprobarla con un usuario `staff` desde el panel de administración |
+| `password authentication failed for user` | Credenciales desactualizadas | Revisar `appsettings.Development.json` |
+| `Falta la clave JWT` al arrancar | No hay `Jwt:SecretKey` | Definirla en configuración o exportar `Jwt__SecretKey` |
+| `prepared statement already exists` | La cadena usa el Transaction pooler de Supabase (6543) | Usar el Session pooler (5432) |
+| `Unable to retrieve project metadata` | Comando lanzado desde otra carpeta | Ejecutarlo desde `backend/` |
+| `dotnet-ef not found` | La herramienta no está en el PATH | Agregar `$HOME/.dotnet/tools` |
+| Error CORS desde Flutter web | El origen no está en la lista de `Program.cs` | Correr el frontend con `--dart-define=API_URL=http://localhost:5001/api` |
+| `401` tras registrarse | La cuenta quedó `pending` | Aprobarla desde el panel con una cuenta de staff |
+| `409` en un endpoint de lectura | Consulta LINQ no traducible | Filtrar y ordenar antes de proyectar, y cubrirlo con un test |

@@ -1,7 +1,7 @@
 # Producción
 
-Kairos está **desplegado y funcionando**. Este documento describe cómo está montado, cómo
-entrar, cómo volver a desplegarlo y qué queda pendiente.
+Kairos está desplegado y en funcionamiento. Este documento describe cómo está montado, cómo
+acceder, cómo volver a desplegarlo y qué queda pendiente.
 
 | Pieza | Dónde | Estado |
 |---|---|---|
@@ -11,11 +11,11 @@ entrar, cómo volver a desplegarlo y qué queda pendiente.
 | Archivos | Supabase Storage, bucket público `kairos-media` | Operativo |
 | Demo sin backend | [kairos-legacydemo.netlify.app](https://kairos-legacydemo.netlify.app) | En línea — ver [DEMO.md](DEMO.md) |
 
-> ⏱️ Ambos planes gratuitos se duermen. Render apaga la API tras 15 minutos sin tráfico y
-> tarda unos 50 segundos en despertar; la aplicación se adelanta pidiendo `/health` al
-> cargar la página, así que para cuando alguien escribe sus credenciales el servidor ya
-> responde. Supabase pausa el proyecto tras 7 días de inactividad y hay que reactivarlo a
-> mano desde su panel.
+Ambos planes gratuitos se suspenden por inactividad. Render apaga la API tras 15 minutos
+sin tráfico y tarda unos 50 segundos en volver; la aplicación se adelanta consultando
+`/health` al cargar la página, de modo que para cuando alguien escribe sus credenciales el
+servidor ya responde. Supabase pausa el proyecto tras 7 días y hay que reactivarlo
+manualmente desde su panel.
 
 ---
 
@@ -28,7 +28,7 @@ Por eso una instalación nueva necesita al menos una cuenta sembrada (sección 5
 ### Cuentas de muestra
 
 Las crea `EvaluationSeeder` cuando se arranca con `SEED_DEMO_CONTENT=true`. Todas nacen
-**aprobadas** y comparten la contraseña que se haya puesto en `SEED_DEMO_PASSWORD`.
+aprobadas y comparten la contraseña definida en `SEED_DEMO_PASSWORD`.
 
 | Correo | Rol | Qué tiene |
 |---|---|---|
@@ -49,16 +49,16 @@ queda expuesto por sembrar contenido.
 
 ## 2. Arquitectura del despliegue
 
-Supabase ofrece Postgres, Auth, Storage, Realtime y Edge Functions, pero las Edge Functions
-son **Deno/TypeScript únicamente**: no ejecutan contenedores Docker ni el runtime de .NET.
-El backend de Kairos son cuatro proyectos de ASP.NET Core, así que Supabase cubre la base de
-datos y los archivos, y la API necesita su propio host.
+Supabase ofrece Postgres, Auth, Storage, Realtime y Edge Functions, pero estas últimas son
+exclusivamente Deno y TypeScript: no ejecutan contenedores Docker ni el runtime de .NET. El
+backend de Kairos son cuatro proyectos de ASP.NET Core, de modo que Supabase cubre la base
+de datos y los archivos, y la API necesita su propio host.
 
 | Host | Situación |
 |---|---|
-| **Render** | El que se usa. Gratis y sin tarjeta, 750 h/mes. Duerme a los 15 min |
-| Koyeb | ❌ Mistral la compró en febrero de 2026 y cerró el plan gratuito a las cuentas nuevas |
-| Fly.io | ❌ Eliminó su plan gratuito y exige tarjeta |
+| Render | El que se usa. Gratuito y sin tarjeta, 750 horas al mes. Se suspende a los 15 minutos |
+| Koyeb | Descartado. Mistral la compró en febrero de 2026 y cerró el plan gratuito a las cuentas nuevas |
+| Fly.io | Descartado. Eliminó su plan gratuito y exige tarjeta |
 
 ---
 
@@ -66,7 +66,7 @@ datos y los archivos, y la API necesita su propio host.
 
 ### Cadena de conexión
 
-En **Connect → .NET**, Supabase no entrega la cadena suelta: la muestra dentro de un
+En Connect, opción .NET, Supabase no entrega la cadena suelta: la muestra dentro de un
 `appsettings.json` de ejemplo y sugiere instalar `Microsoft.Extensions.Configuration.Json`.
 De esos tres pasos solo sirve el valor de `DefaultConnection`:
 
@@ -74,21 +74,21 @@ De esos tres pasos solo sirve el valor de `DefaultConnection`:
 Host=aws-0-REGION.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.REFERENCIA;Password=TU_PASSWORD;SSL Mode=Require;Trust Server Certificate=true
 ```
 
-> 🔒 **No copiar el `appsettings.json` que ofrece la consola.** Ese archivo está versionado
-> en git, y por eso mismo ya hay una contraseña filtrada en el historial de este
-> repositorio. La cadena va como variable de entorno, nunca en un archivo del repo.
+No copiar el `appsettings.json` que ofrece la consola. Ese archivo está versionado en git,
+y por eso mismo ya hay una contraseña filtrada en el historial de este repositorio. La
+cadena va como variable de entorno, nunca en un archivo del repositorio.
 
 Tres detalles que cuestan tiempo si se pasan por alto:
 
-- Supabase **omite `Port=` del string** aunque lo liste aparte en los parámetros de
-  conexión. Hay que agregarlo a mano.
-- El paquete `Microsoft.Extensions.Configuration.Json` **no hace falta**: ASP.NET Core ya
-  lo trae.
+- Supabase omite `Port=` de la cadena aunque lo liste aparte en los parámetros de conexión.
+  Hay que agregarlo a mano.
+- El paquete `Microsoft.Extensions.Configuration.Json` no hace falta: ASP.NET Core ya lo
+  trae.
 - Si la contraseña contiene `;` o `=`, encerrar el valor entre comillas dobles dentro de la
   cadena: `Password="mi;clave"`.
 
-> Usar el **Session pooler** (puerto 5432), no el Transaction pooler (6543): este último no
-> admite sentencias preparadas y EF Core las usa.
+Usar el Session pooler, en el puerto 5432, y no el Transaction pooler del 6543: este último
+no admite sentencias preparadas y EF Core las usa.
 
 ### Migraciones
 
@@ -110,7 +110,7 @@ cd backend && KAIROS_DESIGN_TIME_CONNECTION="LA_CADENA_DE_ARRIBA" dotnet ef data
 | `AddPrivacyPreferences` | Quién puede escribirle y quién ve lo que publica cada usuario |
 | `AddCvEntries` | Formación y experiencia del currículum |
 
-Para confirmar el esquema, en el **SQL Editor** de Supabase:
+Para confirmar el esquema, en el editor SQL de Supabase:
 
 ```sql
 SELECT table_name FROM information_schema.tables
@@ -131,26 +131,26 @@ cd backend && dotnet ef migrations script --idempotent --project src/Kairos.Infr
 ### Almacenamiento de imágenes
 
 1. En **Storage**, crear un bucket llamado `kairos-media`.
-2. Marcarlo como **público**. `SupabaseStorageService` devuelve URLs públicas directas; con
+2. Marcarlo como público. `SupabaseStorageService` devuelve URLs públicas directas; con
    un bucket privado habría que firmar URLs temporales en cada lectura, lo que obligaría a
    cambiar la interfaz `IStorageService`.
-3. En **Project Settings → API**, copiar la **Project URL** y la clave **`service_role`**.
+3. En Project Settings, apartado API, copiar la Project URL y la clave `service_role`.
 
-> 🔒 La clave `service_role` salta las políticas de Row Level Security. Va solo en el
-> servidor, nunca en la app Flutter.
+La clave `service_role` salta las políticas de Row Level Security. Va solo en el servidor,
+nunca en la aplicación Flutter.
 
 ---
 
 ## 4. Desplegar la API en Render
 
-**New → Web Service → Connect a repository.** El repositorio es privado; Render accede por
-la app de GitHub sin hacerlo público.
+En Render: New, Web Service, Connect a repository. El repositorio es privado y Render accede
+mediante la aplicación de GitHub, sin necesidad de hacerlo público.
 
 | Campo | Valor | Por qué |
 |---|---|---|
 | Branch | la rama que se quiera publicar | Render redespliega en cada push a esa rama |
 | Language | `Docker` | Se detecta solo al ver el Dockerfile |
-| Root Directory | `backend` | El Dockerfile hace `COPY Kairos.sln .` y ese archivo vive en `backend/`, no en la raíz. Con la raíz por defecto la build falla en la primera instrucción |
+| Root Directory | `backend` | El Dockerfile referencia rutas relativas a `backend/`, no a la raíz del repositorio. Con la raíz por defecto la compilación falla en la primera instrucción |
 | Dockerfile Path | `./Dockerfile` | Relativo al Root Directory |
 | Instance Type | `Free` | 750 h/mes, sin tarjeta |
 | Health Check Path | `/health` | No toca la base de datos, así que un problema de BD no provoca reinicios en bucle |
@@ -214,7 +214,7 @@ atadas al catálogo de Quick Match, cinco publicaciones, un currículum completo
 postulación y conexiones en ambos estados. Los correos están en la sección 1.
 
 No lleva contraseñas escritas en el código ni crea cuentas `staff`. Reconoce el correo de la
-empresa para no sembrar dos veces. **Quitar ambas variables después del primer arranque.**
+empresa para no sembrar dos veces. Quitar ambas variables después del primer arranque.
 
 ---
 
@@ -228,14 +228,17 @@ flutter build web --release --dart-define=BACKEND_URL=https://TU-API
 Un solo indicador basta: `config.dart` deriva de él la URL de la API y las de ambos hubs.
 `API_URL`, `HUB_URL` y `SOCIAL_HUB_URL` siguen existiendo para sobrescribirlas por separado.
 
-Para publicar, arrastrar `build/web` al sitio en Netlify, o bien:
+Para publicar, arrastrar `build/web` al sitio de Netlify, o bien:
 
 ```bash
 netlify deploy --prod --dir=build/web
 ```
 
-`frontend/web/` contiene dos archivos que Flutter copia a cada build y que **tienen que
-viajar dentro de la carpeta publicada**:
+La build de demostración se genera aparte, con `--output=build/demo` y
+`--dart-define=DEMO_MODE=true`, y se publica en el otro sitio. Ver [DEMO.md](DEMO.md).
+
+`frontend/web/` contiene dos archivos que Flutter copia a cada build y que tienen que viajar
+dentro de la carpeta publicada:
 
 - `_redirects` — sin él, recargar la página en cualquier ruta devuelve el 404 de Netlify en
   vez de la aplicación.
@@ -244,8 +247,9 @@ viajar dentro de la carpeta publicada**:
   `frontend/web/` y no en la raíz del repositorio precisamente porque un despliegue por
   arrastre solo ve lo que está dentro de la carpeta.
 
-> Si se cambia el dominio de la API, hay que actualizar `connect-src` en el `netlify.toml` y
-> la lista de orígenes de CORS en `Program.cs`. Si no, el navegador bloquea las peticiones.
+Si se cambia el dominio de la API hay que actualizar `connect-src` en el `netlify.toml` y la
+lista de orígenes de CORS en `Program.cs`. De lo contrario el navegador bloquea las
+peticiones.
 
 ### Comprobar que los datos persisten de verdad
 
@@ -283,7 +287,7 @@ Verificado en el repositorio (17 de agosto de 2026):
 |---|---|
 | `dotnet build` de la solución | 0 advertencias, 0 errores |
 | `dotnet test` | 5 de 5 — traducción a SQL de las consultas del feed y de la red |
-| `flutter analyze` | **Sin ningún aviso**, ni siquiera de nivel `info` |
+| `flutter analyze` | Sin ningún aviso, ni siquiera de nivel `info` |
 | `flutter test` | 35 de 35 |
 | `flutter build web --release` (producción y demo) | Ambas compilan |
 | `dotnet ef migrations script --idempotent` | SQL de PostgreSQL válido |
@@ -331,9 +335,9 @@ Falta escribir actividad desde `LoginCommandHandler`, `ToggleLikeCommandHandler`
 `UpdateProfileCommandHandler`. Conviene resolverlo con un `IActivityLogger` inyectado o un
 behavior de MediatR, en vez de repetir el mismo bloque en seis handlers.
 
-> Esto **ya no afecta al CV**. El currículum se armaba desde esta misma bitácora, que es la
-> razón por la que salía listando likes y comentarios; ahora se construye desde el perfil y
-> la tabla `cv_entries`, así que es independiente del registro de actividad.
+Esto ya no afecta al currículum. Antes se armaba desde esta misma bitácora, que es la razón
+por la que salía listando me gusta y comentarios; ahora se construye desde el perfil y la
+tabla `cv_entries`, de modo que es independiente del registro de actividad.
 
 ### La pantalla de chat no tiene test de widgets
 
