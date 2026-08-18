@@ -20,7 +20,7 @@ Red social para estudiantes técnico-profesionales de liceos técnicos. Conecta 
 
 | Archivo | Contenido |
 |---|---|
-| [PRODUCCION.md](PRODUCCION.md) | Integración con Supabase paso a paso, despliegue, secretos y brechas pendientes |
+| [PRODUCCION.md](PRODUCCION.md) | Cómo está montado el despliegue, cuentas de acceso, cómo volver a publicar y qué queda pendiente |
 | [docs/accessibility/](docs/accessibility/) | Auditoría WCAG 2.2 AA y reporte de remediación |
 | [DEMO.md](DEMO.md) | Modo demo sin backend y eventos de Google Analytics |
 | [backend/README.md](backend/README.md) | Arquitectura, endpoints, rate limiting, cómo levantar la API |

@@ -1,129 +1,134 @@
-# Paso a producción con Supabase
+# Producción
 
-El código ya está migrado a PostgreSQL y a Supabase Storage. Este documento explica qué se
-cambió, qué queda por hacer en las consolas web y cómo desplegar.
+Kairos está **desplegado y funcionando**. Este documento describe cómo está montado, cómo
+entrar, cómo volver a desplegarlo y qué queda pendiente.
 
----
+| Pieza | Dónde | Estado |
+|---|---|---|
+| Aplicación | [kairoswebapp.netlify.app](https://kairoswebapp.netlify.app) | En línea |
+| API | [ux-ui-b1s1.onrender.com](https://ux-ui-b1s1.onrender.com/health) | En línea — `GET /health` responde `{"status":"ok"}` |
+| Base de datos | PostgreSQL en Supabase | 8 migraciones aplicadas, 14 tablas |
+| Archivos | Supabase Storage, bucket público `kairos-media` | Operativo |
+| Demo sin backend | [kairos-legacydemo.netlify.app](https://kairos-legacydemo.netlify.app) | En línea — ver [DEMO.md](DEMO.md) |
 
-## 1. Estado
-
-### Ya implementado en el repositorio
-
-| Cambio | Dónde |
-|---|---|
-| Proveedor EF Core: MySQL → PostgreSQL | `Kairos.Infrastructure.csproj`, `DependencyInjection.cs`, `ApplicationDbContextFactory.cs` |
-| Migración inicial nativa de Postgres (11 tablas) | `Migrations/*_InitPostgres.cs` |
-| Texto alternativo de las imágenes de publicaciones | `Migrations/*_AddPostImageAltText.cs` |
-| Almacenamiento de archivos en Supabase Storage | `Services/SupabaseStorageService.cs` |
-| Secretos fuera de `appsettings.json` | `appsettings.json`, `Program.cs` |
-| Seeder del primer usuario `staff` | `Persistence/ProductionSeeder.cs` |
-| Endpoint `GET /health` sin autenticación | `Program.cs` |
-| CORS incluye el dominio de Netlify en uso | `Program.cs` |
-| URLs de API y hubs derivadas de un solo indicador | `frontend/lib/core/config.dart` |
-| Notificaciones sociales en vivo conectadas de punta a punta | `frontend/lib/main.dart`, `SocialHub.cs` |
-
-### Pendiente
-
-| Tarea | Por qué |
-|---|---|
-| Crear el proyecto en Supabase y aplicar la migración | Requiere tu cuenta |
-| Desplegar la API en un host | Supabase no ejecuta contenedores .NET |
-| Rotar la clave JWT y la contraseña de MySQL antigua | Estuvieron en git; siguen comprometidas |
-| Completar el registro de interacciones | El CV y el reporte salen casi vacíos — sección 6 |
+> ⏱️ Ambos planes gratuitos se duermen. Render apaga la API tras 15 minutos sin tráfico y
+> tarda unos 50 segundos en despertar; la aplicación se adelanta pidiendo `/health` al
+> cargar la página, así que para cuando alguien escribe sus credenciales el servidor ya
+> responde. Supabase pausa el proyecto tras 7 días de inactividad y hay que reactivarlo a
+> mano desde su panel.
 
 ---
 
-## 2. Por qué Supabase no aloja la API
+## 1. Cómo entrar
 
-Supabase ofrece Postgres, Auth, Storage, Realtime y Edge Functions. Las Edge Functions son
-**Deno/TypeScript únicamente**: no ejecutan contenedores Docker ni el runtime de .NET.
+Las cuentas las crea el liceo: el registro público deja a los alumnos en estado `pending`
+hasta que un `staff` los aprueba, y el rol `staff` no se puede pedir desde el formulario.
+Por eso una instalación nueva necesita al menos una cuenta sembrada (sección 5).
 
+### Cuentas de muestra
+
+Las crea `EvaluationSeeder` cuando se arranca con `SEED_DEMO_CONTENT=true`. Todas nacen
+**aprobadas** y comparten la contraseña que se haya puesto en `SEED_DEMO_PASSWORD`.
+
+| Correo | Rol | Qué tiene |
+|---|---|---|
+| `contacto@automatizacion.cl` | Empresa | Tres ofertas publicadas, una postulación por revisar, conexión aceptada con Camila |
+| `camila.vidal@kairos.cl` | Alumna | Currículum completo (formación y experiencia), competencias, una postulación enviada, una solicitud de conexión por responder |
+| `benjamin.soto@kairos.cl` | Alumno | Competencias de mecatrónica, una publicación |
+| `valentina.paredes@kairos.cl` | Alumna | Competencias de electricidad, solicitud de conexión pendiente hacia Camila |
+| `matias.cortes@kairos.cl` | Alumno | Competencias de mecánica industrial |
+
+Camila es la cuenta más completa: es la que sirve para ver el perfil, el CV descargable y
+el estado de una postulación.
+
+La cuenta `staff` es aparte y la crea `ProductionSeeder` con las variables `SEED_STAFF_*`
+(sección 5). Ninguna cuenta de muestra es `staff`, a propósito: el panel de gestión no
+queda expuesto por sembrar contenido.
+
+---
+
+## 2. Arquitectura del despliegue
+
+Supabase ofrece Postgres, Auth, Storage, Realtime y Edge Functions, pero las Edge Functions
+son **Deno/TypeScript únicamente**: no ejecutan contenedores Docker ni el runtime de .NET.
 El backend de Kairos son cuatro proyectos de ASP.NET Core, así que Supabase cubre la base de
-datos y los archivos, pero la API necesita su propio host. Opciones gratuitas:
+datos y los archivos, y la API necesita su propio host.
 
-| Host | Nota |
+| Host | Situación |
 |---|---|
-| **Render** | Gratis y sin tarjeta, 750 h/mes. Duerme a los 15 min sin tráfico y el arranque en frío tarda 30–60 s. **Recomendado**: es el único de los tres con plan gratuito real hoy |
-| Koyeb | ❌ Ya no sirve. Mistral la compró en febrero de 2026 y **cerró el plan gratuito a las cuentas nuevas**; las existentes lo conservan |
+| **Render** | El que se usa. Gratis y sin tarjeta, 750 h/mes. Duerme a los 15 min |
+| Koyeb | ❌ Mistral la compró en febrero de 2026 y cerró el plan gratuito a las cuentas nuevas |
 | Fly.io | ❌ Eliminó su plan gratuito y exige tarjeta |
 
-> Ojo con la suma de dos capas que se duermen: Render se apaga a los 15 minutos y Supabase
-> pausa el proyecto tras 7 días. El primer acceso después de un fin de semana puede tardar
-> un minuto largo, y tras una semana entera hay que despausar Supabase a mano antes.
-
 ---
 
-## 3. Configurar Supabase
+## 3. Base de datos
 
-De principio a fin son seis pasos. Los tres primeros se hacen en la consola de Supabase, el
-cuarto desde tu equipo, y los dos últimos en el host de la API:
+### Cadena de conexión
 
-1. Crear el proyecto y guardar la contraseña de la base de datos (3.1).
-2. Copiar la cadena de conexión en formato **.NET**, con el **Session pooler** (3.1).
-3. Crear el bucket público `kairos-media` y copiar la Project URL y la clave
-   `service_role` (3.2).
-4. Aplicar las migraciones y comprobar que aparecen las 12 tablas (3.1, pasos 3 y 4).
-5. Cargar las variables de entorno en el host de la API (sección 4).
-6. Arrancar una vez con las variables `SEED_STAFF_*` para crear la cuenta de
-   administración, y borrarlas después (sección 4).
+En **Connect → .NET**, Supabase no entrega la cadena suelta: la muestra dentro de un
+`appsettings.json` de ejemplo y sugiere instalar `Microsoft.Extensions.Configuration.Json`.
+De esos tres pasos solo sirve el valor de `DefaultConnection`:
 
-### 3.1 Base de datos
+```
+Host=aws-0-REGION.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.REFERENCIA;Password=TU_PASSWORD;SSL Mode=Require;Trust Server Certificate=true
+```
 
-1. Crear un proyecto en [supabase.com](https://supabase.com). Anotar la contraseña de la
-   base de datos que se define al crearlo — no se puede volver a ver.
-2. En **Connect → .NET**, Supabase no entrega la cadena suelta: la muestra dentro de un
-   `appsettings.json` de ejemplo y sugiere instalar
-   `Microsoft.Extensions.Configuration.Json`. De esos tres pasos, aquí solo sirve el valor
-   de `DefaultConnection`:
+> 🔒 **No copiar el `appsettings.json` que ofrece la consola.** Ese archivo está versionado
+> en git, y por eso mismo ya hay una contraseña filtrada en el historial de este
+> repositorio. La cadena va como variable de entorno, nunca en un archivo del repo.
 
-   ```
-   Host=aws-0-REGION.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.REFERENCIA;Password=TU_PASSWORD;SSL Mode=Require;Trust Server Certificate=true
-   ```
+Tres detalles que cuestan tiempo si se pasan por alto:
 
-   > 🔒 **No copiar el `appsettings.json` que ofrece la consola.** Ese archivo está
-   > versionado en git y por eso mismo ya hay una contraseña filtrada en el historial de
-   > este repositorio. La cadena va como variable de entorno, nunca en un archivo del repo.
+- Supabase **omite `Port=` del string** aunque lo liste aparte en los parámetros de
+  conexión. Hay que agregarlo a mano.
+- El paquete `Microsoft.Extensions.Configuration.Json` **no hace falta**: ASP.NET Core ya
+  lo trae.
+- Si la contraseña contiene `;` o `=`, encerrar el valor entre comillas dobles dentro de la
+  cadena: `Password="mi;clave"`.
 
-   Tres detalles de la cadena:
+> Usar el **Session pooler** (puerto 5432), no el Transaction pooler (6543): este último no
+> admite sentencias preparadas y EF Core las usa.
 
-   - Supabase **omite `Port=` del string** aunque lo liste aparte en los parámetros de
-     conexión. Agregarlo a mano.
-   - El paquete `Microsoft.Extensions.Configuration.Json` **no hace falta**: ASP.NET Core
-     ya lo trae.
-   - Si la contraseña contiene `;` o `=`, encerrar el valor entre comillas dobles dentro de
-     la cadena: `Password="mi;clave"`.
+### Migraciones
 
-   > Usar el **Session pooler** (puerto 5432), no el Transaction pooler (6543): este último
-   > no admite sentencias preparadas y EF Core las usa.
-
-3. Aplicar las migraciones desde tu equipo. Son dos: la inicial crea las 11 tablas y la
-   segunda agrega la columna del texto alternativo de las imágenes.
+Son ocho y la API las aplica sola al arrancar, así que normalmente no hay que hacer nada.
+Para aplicarlas a mano —por ejemplo, para comprobar la conexión antes de desplegar:
 
 ```bash
 cd backend && KAIROS_DESIGN_TIME_CONNECTION="LA_CADENA_DE_ARRIBA" dotnet ef database update --project src/Kairos.Infrastructure --startup-project src/Kairos.API
 ```
 
-   La API también aplica las migraciones sola al arrancar, así que este paso es opcional;
-   sirve para confirmar que la conexión funciona antes de desplegar.
+| Migración | Qué agrega |
+|---|---|
+| `InitPostgres` | Las 11 tablas iniciales |
+| `AddPostImageAltText` | Texto alternativo de las imágenes de publicaciones |
+| `AddJobPostingSkills` | Competencias que solicita cada oferta — es lo que hace medible la demanda |
+| `AddSavedJobs` | Ofertas guardadas, que antes vivían solo en memoria del widget |
+| `AddUserApprovedAt` | Fecha de alta real, distinta de la de registro |
+| `AddConnectionStatus` | Conexiones bilaterales con solicitud y respuesta |
+| `AddPrivacyPreferences` | Quién puede escribirle y quién ve lo que publica cada usuario |
+| `AddCvEntries` | Formación y experiencia del currículum |
 
-4. Confirmar que el esquema quedó bien. En el **SQL Editor** de Supabase:
+Para confirmar el esquema, en el **SQL Editor** de Supabase:
 
 ```sql
 SELECT table_name FROM information_schema.tables
 WHERE table_schema = 'public' ORDER BY table_name;
 ```
 
-   Deben aparecer 12 filas: `__EFMigrationsHistory` más las 11 tablas de la aplicación
-   (`comments`, `follows`, `job_applications`, `job_postings`, `likes`, `messages`, `posts`,
-   `skills`, `user_activities`, `user_skills`, `users`).
+Deben aparecer 15 filas: `__EFMigrationsHistory` más las 14 tablas de la aplicación
+(`comments`, `cv_entries`, `follows`, `job_applications`, `job_posting_skills`,
+`job_postings`, `likes`, `messages`, `posts`, `saved_jobs`, `skills`, `user_activities`,
+`user_skills`, `users`).
 
-   Si prefieres revisar el SQL antes de tocar la base, esto lo imprime sin ejecutarlo:
+Para revisar el SQL sin ejecutarlo:
 
 ```bash
 cd backend && dotnet ef migrations script --idempotent --project src/Kairos.Infrastructure --startup-project src/Kairos.API
 ```
 
-### 3.2 Almacenamiento de imágenes
+### Almacenamiento de imágenes
 
 1. En **Storage**, crear un bucket llamado `kairos-media`.
 2. Marcarlo como **público**. `SupabaseStorageService` devuelve URLs públicas directas; con
@@ -136,95 +141,30 @@ cd backend && dotnet ef migrations script --idempotent --project src/Kairos.Infr
 
 ---
 
-## 4. Desplegar la API
-
-### Variables de entorno
-
-| Variable | Valor |
-|---|---|
-| `ConnectionStrings__DefaultConnection` | La cadena del paso 3.1 |
-| `Jwt__SecretKey` | Clave nueva de 32+ caracteres |
-| `Supabase__Url` | Project URL, ej. `https://abcdefgh.supabase.co` |
-| `Supabase__ServiceKey` | Clave `service_role` |
-| `Supabase__Bucket` | `kairos-media` |
-| `ASPNETCORE_ENVIRONMENT` | `Production` |
-
-Generar la clave JWT:
-
-```bash
-openssl rand -base64 48
-```
-
-### Primer arranque: crear el usuario staff
-
-Sin al menos un `staff` la plataforma queda bloqueada, porque todo registro nace en estado
-`pending` y solo un `staff` puede aprobarlo.
-
-Agregar temporalmente estas tres variables:
-
-| Variable | Ejemplo |
-|---|---|
-| `SEED_STAFF_EMAIL` | `admin@kairos.cl` |
-| `SEED_STAFF_PASSWORD` | una contraseña fuerte |
-| `SEED_STAFF_NAME` | `Administración Liceo` |
-
-Al arrancar, `ProductionSeeder` crea la cuenta ya aprobada. Es idempotente: si el correo ya
-existe no hace nada. **Después del primer arranque, borrar las tres variables del host.**
-
-Si no se definen y no existe ningún staff, la API arranca igual pero deja una advertencia
-en el log.
-
-### Contenido de muestra (opcional)
-
-Una base recién creada está vacía: no hay feed, no hay ofertas y Quick Match no devuelve
-candidatos. Para una demostración o una revisión externa eso se lee como una aplicación
-rota, aunque funcione.
-
-`EvaluationSeeder` puebla la instalación con contenido coherente: una empresa, cuatro
-alumnos con competencias distintas, tres ofertas atadas al catálogo de Quick Match, cinco
-publicaciones, un currículum completo, una postulación y conexiones en ambos estados
-(aceptada y pendiente).
-
-| Variable | Valor |
-|---|---|
-| `SEED_DEMO_CONTENT` | `true` |
-| `SEED_DEMO_PASSWORD` | la contraseña con la que se entrará a todas las cuentas de muestra |
-
-Todas las cuentas nacen **aprobadas**, así que se puede entrar sin pasar por el flujo de
-aprobación. Ninguna es `staff`: el panel del liceo sigue reservado a la cuenta creada
-arriba.
-
-Cuentas que crea:
-
-| Correo | Rol |
-|---|---|
-| `contacto@automatizacion.cl` | Empresa |
-| `camila.vidal@kairos.cl` | Alumna — es la que tiene currículum y postulación |
-| `benjamin.soto@kairos.cl` | Alumno |
-| `valentina.paredes@kairos.cl` | Alumna |
-| `matias.cortes@kairos.cl` | Alumno |
-
-Es idempotente: reconoce el correo de la empresa y no vuelve a sembrar. **Quitar ambas
-variables después del primer arranque**, igual que con las de staff.
-
-### Desplegar en Render
+## 4. Desplegar la API en Render
 
 **New → Web Service → Connect a repository.** El repositorio es privado; Render accede por
 la app de GitHub sin hacerlo público.
 
 | Campo | Valor | Por qué |
 |---|---|---|
-| Branch | la rama que quieras publicar | Render redespliega en cada push a esa rama |
+| Branch | la rama que se quiera publicar | Render redespliega en cada push a esa rama |
 | Language | `Docker` | Se detecta solo al ver el Dockerfile |
 | Root Directory | `backend` | El Dockerfile hace `COPY Kairos.sln .` y ese archivo vive en `backend/`, no en la raíz. Con la raíz por defecto la build falla en la primera instrucción |
 | Dockerfile Path | `./Dockerfile` | Relativo al Root Directory |
 | Instance Type | `Free` | 750 h/mes, sin tarjeta |
 | Health Check Path | `/health` | No toca la base de datos, así que un problema de BD no provoca reinicios en bucle |
 
-A las variables de entorno de la tabla anterior hay que sumarle una más, propia de Render:
+### Variables de entorno
 
 | Variable | Valor |
 |---|---|
+| `ConnectionStrings__DefaultConnection` | La cadena de la sección 3 |
+| `Jwt__SecretKey` | Clave de 32+ caracteres — `openssl rand -base64 48` |
+| `Supabase__Url` | Project URL, ej. `https://abcdefgh.supabase.co` |
+| `Supabase__ServiceKey` | Clave `service_role` |
+| `Supabase__Bucket` | `kairos-media` |
+| `ASPNETCORE_ENVIRONMENT` | `Production` |
 | `PORT` | `8080` |
 
 Render enruta al puerto que indique `PORT` (por defecto 10000), y el Dockerfile fija
@@ -235,24 +175,85 @@ Verificar: `https://TU-API.onrender.com/health` debe devolver `{"status":"ok"}`.
 
 ---
 
-## 5. Compilar y publicar el frontend
+## 5. Sembrar una instalación nueva
+
+Ambos seeders son idempotentes y no hacen nada salvo que se les entreguen sus variables,
+así que es seguro dejarlos en el arranque de forma permanente.
+
+### 5.1 Cuenta de administración — obligatorio
+
+Sin al menos un `staff` la plataforma queda bloqueada: todo registro nace en estado
+`pending` y solo un `staff` puede aprobarlo.
+
+| Variable | Ejemplo |
+|---|---|
+| `SEED_STAFF_EMAIL` | `admin@kairos.cl` |
+| `SEED_STAFF_PASSWORD` | una contraseña fuerte |
+| `SEED_STAFF_NAME` | `Administración Liceo` |
+
+`ProductionSeeder` crea la cuenta ya aprobada y siembra el catálogo de competencias, que
+Quick Match necesita para funcionar. Si el correo ya existe no hace nada. Si no se definen
+las variables y no existe ningún staff, la API arranca igual pero deja una advertencia en
+el log.
+
+**Después del primer arranque, borrar las tres variables del host.**
+
+### 5.2 Contenido de muestra — opcional
+
+Una base recién creada está vacía: no hay feed, no hay ofertas y Quick Match no devuelve
+candidatos. Para una demostración o una revisión externa eso se lee como una aplicación
+rota, aunque funcione.
+
+| Variable | Valor |
+|---|---|
+| `SEED_DEMO_CONTENT` | `true` |
+| `SEED_DEMO_PASSWORD` | la contraseña con la que se entrará a todas las cuentas de muestra |
+
+`EvaluationSeeder` crea una empresa, cuatro alumnos con competencias distintas, tres ofertas
+atadas al catálogo de Quick Match, cinco publicaciones, un currículum completo, una
+postulación y conexiones en ambos estados. Los correos están en la sección 1.
+
+No lleva contraseñas escritas en el código ni crea cuentas `staff`. Reconoce el correo de la
+empresa para no sembrar dos veces. **Quitar ambas variables después del primer arranque.**
+
+---
+
+## 6. Compilar y publicar el frontend
 
 ```bash
 cd frontend
 flutter build web --release --dart-define=BACKEND_URL=https://TU-API
-netlify deploy --prod --dir=build/web
 ```
 
 Un solo indicador basta: `config.dart` deriva de él la URL de la API y las de ambos hubs.
 `API_URL`, `HUB_URL` y `SOCIAL_HUB_URL` siguen existiendo para sobrescribirlas por separado.
 
+Para publicar, arrastrar `build/web` al sitio en Netlify, o bien:
+
+```bash
+netlify deploy --prod --dir=build/web
+```
+
+`frontend/web/` contiene dos archivos que Flutter copia a cada build y que **tienen que
+viajar dentro de la carpeta publicada**:
+
+- `_redirects` — sin él, recargar la página en cualquier ruta devuelve el 404 de Netlify en
+  vez de la aplicación.
+- `netlify.toml` — cabeceras de seguridad (CSP, `X-Frame-Options`, `nosniff`,
+  `Referrer-Policy`, `Permissions-Policy`) que por defecto no se envían. Vive en
+  `frontend/web/` y no en la raíz del repositorio precisamente porque un despliegue por
+  arrastre solo ve lo que está dentro de la carpeta.
+
+> Si se cambia el dominio de la API, hay que actualizar `connect-src` en el `netlify.toml` y
+> la lista de orígenes de CORS en `Program.cs`. Si no, el navegador bloquea las peticiones.
+
 ### Comprobar que los datos persisten de verdad
 
-Este es el recorrido que confirma que la base está bien integrada. Recargar la página
-después de cada bloque: si algo se pierde al recargar, no se guardó en Postgres.
+Recargar la página después de cada bloque: si algo se pierde al recargar, no se guardó en
+Postgres.
 
-1. **Registro y aprobación** — registrar una cuenta de estudiante, entrar con el staff
-   creado por `ProductionSeeder`, aprobarla, y luego iniciar sesión con ella.
+1. **Registro y aprobación** — registrar una cuenta de estudiante, entrar con el staff,
+   aprobarla, y luego iniciar sesión con ella.
 2. **Publicación con imagen** — publicar con una imagen y escribir su descripción en el
    campo "Describe la imagen". Confirmar en Supabase:
 
@@ -261,70 +262,40 @@ después de cada bloque: si algo se pierde al recargar, no se guardó en Postgre
    ```
 
    `ImageUrl` debe apuntar a `.../storage/v1/object/public/kairos-media/...` y abrir en el
-   navegador. `ImageAltText` debe traer lo que escribiste (o `NULL` si lo dejaste vacío,
-   que es lo correcto para una imagen decorativa).
-3. **Interacciones** — dar me gusta, comentar, seguir a alguien y postular a una oferta.
-   Recargar y verificar que los contadores se mantienen.
-4. **Tiempo real** — con dos navegadores y dos cuentas: dar me gusta a una publicación de
-   la otra cuenta. En la ventana del autor debe aparecer el aviso en la barra superior.
-   Si no aparece, revisar que el WebSocket a `/hubs/social` no esté bloqueado por el host.
-5. **Sesión** — cerrar el navegador, volver a abrir la app y comprobar que la sesión sigue
-   iniciada.
+   navegador. `ImageAltText` debe traer lo que se escribió, o `NULL` si se dejó vacío, que
+   es lo correcto para una imagen decorativa.
+3. **Interacciones** — dar me gusta, comentar, solicitar una conexión y postular a una
+   oferta. Recargar y verificar que los contadores se mantienen.
+4. **Quick Match** — como empresa, filtrar por competencias y contactar a un candidato.
+   Comprobar que el mensaje aparece del lado correcto de la conversación.
+5. **Tiempo real** — con dos navegadores y dos cuentas: dar me gusta a una publicación de la
+   otra cuenta. En la ventana del autor debe aparecer el aviso en la barra superior. Si no
+   aparece, revisar que el WebSocket a `/hubs/social` no esté bloqueado por el host.
+6. **Sesión** — cerrar el navegador, volver a abrir la app y comprobar que sigue iniciada.
 
 ---
 
-## 6. Pendiente: completar el registro de interacciones
+## 7. Qué está verificado y qué no
 
-`UserActivity` alimenta el CV en PDF y el reporte mensual, pero **solo
-`CreatePostCommandHandler` escribe en ella**. Logins, likes, comentarios, seguimientos y
-postulaciones no registran nada, así que ambos documentos salen casi vacíos.
-
-Falta escribir actividad desde: `LoginCommandHandler`, `ToggleLikeCommandHandler`,
-`AddCommentCommandHandler`, `FollowUserCommandHandler`, `ApplyToJobCommandHandler` y
-`UpdateProfileCommandHandler`.
-
-Conviene resolverlo con un `IActivityLogger` inyectado o un behavior de MediatR, en vez de
-repetir el mismo bloque en seis handlers.
-
----
-
-## 7. Advertencias
-
-**Rotar los secretos comprometidos.** La contraseña de la base de datos de Railway y la
-clave JWT antigua estuvieron versionadas en `appsettings.json`. Siguen en el historial de
-git aunque ya no estén en la copia de trabajo. La clave JWT nueva resuelve el lado de la
-API; la base de MySQL de Railway conviene eliminarla.
-
-**No hacer público el repositorio** sin antes reescribir el historial o rotar todo.
-
-**Supabase pausa los proyectos gratuitos tras 7 días de inactividad.** Hay que despausarlos
-a mano desde el panel. Para un proyecto que se usa a ratos esto muerde: alguien entra un
-lunes y la app no responde. `DependencyInjection` reintenta la conexión hasta 3 veces para
-absorber el tiempo de despertar, pero no puede despausar el proyecto.
-
-**Límites del plan gratuito:** 500 MB de base de datos, 1 GB de archivos, 2 proyectos.
-
----
-
-## 8. Qué está verificado y qué no
-
-Verificado en el repositorio:
+Verificado en el repositorio (17 de agosto de 2026):
 
 | Comprobación | Resultado |
 |---|---|
 | `dotnet build` de la solución | 0 advertencias, 0 errores |
-| `dotnet ef migrations script --idempotent` | SQL de PostgreSQL válido, 11 `CREATE TABLE` + la columna nueva |
-| `flutter test` | 23 de 23 |
-| `flutter analyze --no-fatal-infos` | Sin errores ni advertencias |
+| `flutter analyze` | **Sin ningún aviso**, ni siquiera de nivel `info` |
+| `flutter test` | 35 de 35 |
 | `flutter build web --release` (producción y demo) | Ambas compilan |
+| `dotnet ef migrations script --idempotent` | SQL de PostgreSQL válido |
 
 Verificado contra la infraestructura real, recorriendo la aplicación publicada:
 
 | Comprobación | Resultado |
 |---|---|
-| `dotnet ef database update` contra Supabase | Las dos migraciones aplicadas sin error |
-| `GET /health` en Render | `200 {"status":"ok"}` — arranque en frío ~9 s, luego 0,2 s |
-| Conexión API ↔ PostgreSQL | Implícita: `Program.cs` migra antes de atender peticiones, así que arrancar ya la prueba |
+| `dotnet ef database update` contra Supabase | Migraciones aplicadas sin error |
+| `GET /health` en Render | `200 {"status":"ok"}` |
+| Endpoints sin token (`/posts/feed`, `/jobs`, `/skills`, `/stats/community`) | `401` en los cuatro — ninguno filtra datos |
+| Formato de los errores de la API | `application/problem+json` (RFC 7807) |
+| Consola del navegador en producción | Sin errores; las 7 peticiones de carga responden `200` |
 | CORS Netlify → Render | Preflight `204` con `access-control-allow-origin` correcto |
 | `ProductionSeeder` | Cuenta staff creada y con sesión iniciada |
 | Registro, aprobación y login de un alumno | Persisten tras cerrar sesión y recargar |
@@ -332,11 +303,56 @@ Verificado contra la infraestructura real, recorriendo la aplicación publicada:
 | Notificaciones en vivo (SignalR) | El "me gusta" de una sesión llega a la otra |
 | Reflujo al 200 % de zoom | Sin pérdida de contenido |
 
-**Lo que sigue sin verificar** no depende ya de la infraestructura:
+**Sin verificar todavía:**
 
 - La generación del CV en PDF y del reporte mensual contra el contenedor de producción.
   QuestPDF necesita las librerías nativas de SkiaSharp, que el `Dockerfile` instala, pero
-  eso no se ha ejercitado todavía.
+  eso no se ha ejercitado.
 - La certificación manual de accesibilidad con lectores de pantalla reales (NVDA,
   VoiceOver, TalkBack), detallada en
-  [`docs/accessibility/`](docs/accessibility/WCAG_2_2_AA_IMPLEMENTATION_2026-08-11.md).
+  [`docs/accessibility/`](docs/accessibility/WCAG_2_2_AA_IMPLEMENTATION_2026-08-11.md). Los
+  tests automatizados cubren el árbol de semántica, el contraste y la navegación por
+  teclado, que es otra cosa.
+
+---
+
+## 8. Pendientes conocidos
+
+### El reporte mensual sale casi vacío
+
+`UserActivity` es la bitácora de uso, y **solo `CreatePostCommandHandler` escribe en ella**.
+Logins, me gusta, comentarios, conexiones y postulaciones no registran nada, así que el
+reporte mensual del panel de staff (`GetUserReportQueryHandler`) refleja una fracción de lo
+que ocurre.
+
+Falta escribir actividad desde `LoginCommandHandler`, `ToggleLikeCommandHandler`,
+`AddCommentCommandHandler`, `FollowUserCommandHandler`, `ApplyToJobCommandHandler` y
+`UpdateProfileCommandHandler`. Conviene resolverlo con un `IActivityLogger` inyectado o un
+behavior de MediatR, en vez de repetir el mismo bloque en seis handlers.
+
+> Esto **ya no afecta al CV**. El currículum se armaba desde esta misma bitácora, que es la
+> razón por la que salía listando likes y comentarios; ahora se construye desde el perfil y
+> la tabla `cv_entries`, así que es independiente del registro de actividad.
+
+### La pantalla de chat no se estabiliza
+
+`ChatsPage` nunca llega a un estado quieto bajo `pumpAndSettle`: hay una animación o un
+temporizador permanente. Además del consumo innecesario, deja esa pantalla fuera del alcance
+de cualquier test de widgets.
+
+---
+
+## 9. Advertencias de seguridad
+
+**No hacer público el repositorio** sin antes reescribir el historial o rotar todo. La
+contraseña de la base de datos de Railway y la clave JWT antigua estuvieron versionadas en
+`appsettings.json`; siguen en el historial de git aunque ya no estén en la copia de trabajo.
+La clave JWT en uso es nueva y vive solo como variable de entorno. La base de MySQL de
+Railway conviene eliminarla si no se ha hecho.
+
+**Los seeders son puertas.** `SEED_STAFF_PASSWORD` y `SEED_DEMO_PASSWORD` crean cuentas con
+contraseñas conocidas. Quitar las variables del host una vez sembrado, y cambiar esas
+contraseñas si la instalación va a quedar en uso real.
+
+**Límites del plan gratuito de Supabase:** 500 MB de base de datos, 1 GB de archivos, 2
+proyectos.
