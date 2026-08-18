@@ -15,11 +15,29 @@ public class GetConnectionsQueryHandler(IApplicationDbContext db)
     {
         // Una conexión aceptada vale en los dos sentidos, así que hay que mirar
         // ambos lados de la fila: da igual quién envió la solicitud.
-        var contacts = await db.Follows
+        //
+        // El condicional devuelve el *identificador* del otro extremo, no la
+        // entidad. Escrito como `f.FollowerId == yo ? f.Followed : f.Follower`,
+        // EF Core no puede traducirlo —un condicional no puede resolverse a dos
+        // navegaciones distintas— y lanza InvalidOperationException, que la API
+        // convierte en un 409. Con enteros la traducción es directa.
+        var contactIds = await db.Follows
             .Where(f => f.Status == ConnectionStatus.Accepted &&
                         (f.FollowerId == request.CurrentUserId ||
                          f.FollowedId == request.CurrentUserId))
-            .Select(f => f.FollowerId == request.CurrentUserId ? f.Followed : f.Follower)
+            .Select(f => f.FollowerId == request.CurrentUserId
+                ? f.FollowedId
+                : f.FollowerId)
+            .ToListAsync(cancellationToken);
+
+        if (contactIds.Count == 0) return [];
+
+        // El orden se aplica sobre la entidad y no sobre el DTO ya proyectado,
+        // por el mismo motivo: después de proyectar, EF ya no sabe a qué columna
+        // corresponde cada campo del registro.
+        return await db.Users
+            .Where(u => contactIds.Contains(u.Id))
+            .OrderBy(u => u.FullName)
             .Select(u => new UserSuggestionDto(
                 u.Id,
                 u.FullName,
@@ -31,10 +49,7 @@ public class GetConnectionsQueryHandler(IApplicationDbContext db)
                 db.Follows.Count(c => c.Status == ConnectionStatus.Accepted &&
                                       (c.FollowerId == u.Id || c.FollowedId == u.Id)),
                 "connected"))
-            .OrderBy(u => u.FullName)
             .ToListAsync(cancellationToken);
-
-        return contacts;
     }
 }
 

@@ -28,3 +28,6 @@ __pycache__/
 **/.pub-cache/
 **/build/
 **/coverage/
+# Salida de compilación de los tests del backend
+backend/tests/**/bin/
+backend/tests/**/obj/

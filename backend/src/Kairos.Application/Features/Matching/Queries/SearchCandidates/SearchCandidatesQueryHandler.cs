@@ -17,6 +17,12 @@ public class SearchCandidatesQueryHandler(IApplicationDbContext db)
             .Select(s => new SkillDto(s.Id, s.Name, s.Category.ToString()))
             .ToListAsync(cancellationToken);
 
+        // Los identificadores pedidos pueden no existir en el catálogo: el
+        // personal del liceo puede haber borrado una competencia, o la petición
+        // venir a mano. Sin esta salida, el porcentaje más abajo divide por cero
+        // y `(int)double.NaN` es comportamiento indefinido en C#.
+        if (searchedSkills.Count == 0) return [];
+
         // Traemos solo lo necesario de cada estudiante visible; el ranking (intersección
         // de competencias) se calcula en memoria — el volumen esperado (alumnos de un
         // liceo) hace innecesario un algoritmo de matching más complejo en v1.
