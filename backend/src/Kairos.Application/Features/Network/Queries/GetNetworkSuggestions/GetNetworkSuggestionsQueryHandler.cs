@@ -27,7 +27,14 @@ public class GetNetworkSuggestionsQueryHandler(IApplicationDbContext db)
         return await db.Users
             .Where(u => u.Id != request.CurrentUserId &&
                         !excluded.Contains(u.Id) &&
-                        u.Status == "approved")
+                        u.Status == "approved" &&
+                        // La administración del liceo queda fuera de las
+                        // sugerencias: son cuentas de gestión, no perfiles con
+                        // los que un alumno o una empresa vayan a vincularse.
+                        // Sigue siendo posible escribirles y aparecen en la
+                        // lista de contactos si ya hay una conexión hecha; lo
+                        // que se retira es la propuesta de conectar.
+                        u.Role != "staff")
             .OrderByDescending(u => db.Follows.Count(
                 c => c.Status == ConnectionStatus.Accepted &&
                      (c.FollowerId == u.Id || c.FollowedId == u.Id)))
